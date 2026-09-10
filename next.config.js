@@ -44,3 +44,10 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+
+// Deixa os bindings do Cloudflare (env vars, etc.) disponiveis no `next dev`
+// tambem, nao so no preview do wrangler.
+if (isDev) {
+  const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare");
+  initOpenNextCloudflareForDev();
+}

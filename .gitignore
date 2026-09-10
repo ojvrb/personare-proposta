@@ -1,8 +1,11 @@
 /node_modules
 /.next
 /out
+/.open-next
+/.wrangler
 .env
 .env*.local
 .vercel
 .DS_Store
 .env*
+.dev.vars

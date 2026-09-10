@@ -57,6 +57,7 @@ export default function PainelPage() {
       <div className="top">
         <h1>Personare — CRM &amp; Propostas</h1>
         <div style={{ display: "flex", gap: 10 }}>
+          <Link href="/painel/catalogo" className="btn">Catálogo</Link>
           <Link href="/painel/nova-proposta" className="btn primary">+ Nova proposta</Link>
           <button className="btn" onClick={sair}>Sair</button>
         </div>
@@ -96,9 +97,9 @@ function ClienteCard({ cliente, onStatus }) {
   const proposta = evento?.propostas?.[evento?.propostas?.length - 1];
   return (
     <div style={{ border: "1px solid var(--stroke)", borderRadius: 8, background: "var(--pitch-2)", padding: 10 }}>
-      <div style={{ fontSize: 13, fontWeight: 600 }}>
+      <Link href={`/painel/clientes/${cliente.id}`} style={{ fontSize: 13, fontWeight: 600, textDecoration: "underline" }}>
         {cliente.nome}{cliente.nome_conjuge ? ` & ${cliente.nome_conjuge}` : ""}
-      </div>
+      </Link>
       <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--granite)", marginTop: 4 }}>
         {cliente.cidade || "—"} · {cliente.telefone || "sem telefone"}
       </div>

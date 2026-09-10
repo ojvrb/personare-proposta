@@ -84,6 +84,40 @@ create policy "staff acesso total" on buffets for all using (auth.role() = 'auth
 create policy "staff acesso total" on extras for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "staff acesso total" on propostas for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+-- Historico de interacao do CRM (timeline de notas por cliente/lead)
+create table interacoes (
+  id uuid primary key default gen_random_uuid(),
+  cliente_id uuid not null references clientes(id) on delete cascade,
+  nota text not null,
+  created_at timestamptz not null default now()
+);
+alter table interacoes enable row level security;
+create policy "staff acesso total" on interacoes for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- Contrato + pagamentos (rastreamento manual, sem gateway de pagamento integrado)
+create table contratos (
+  id uuid primary key default gen_random_uuid(),
+  evento_id uuid not null references eventos(id) on delete cascade,
+  valor_contratado numeric not null default 0,
+  status text not null default 'rascunho', -- rascunho | assinado | cancelado
+  created_at timestamptz not null default now()
+);
+alter table contratos enable row level security;
+create policy "staff acesso total" on contratos for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+create table pagamentos (
+  id uuid primary key default gen_random_uuid(),
+  contrato_id uuid not null references contratos(id) on delete cascade,
+  descricao text not null default 'Parcela',
+  valor numeric not null default 0,
+  vencimento date,
+  status text not null default 'pendente', -- pendente | pago
+  pago_em timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table pagamentos enable row level security;
+create policy "staff acesso total" on pagamentos for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
 -- Seed com os valores reais do orcamento do Espaco Personare (memoria_produto_orcamento_espaco_personare.md)
 insert into pacotes (nome, preco, itens_inclusos, itens_nao_inclusos) values (
   'Pacote Essencial',

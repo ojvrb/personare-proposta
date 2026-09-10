@@ -23,6 +23,7 @@ export default function PainelPage() {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [meuPapel, setMeuPapel] = useState(null);
 
   async function carregar() {
     setLoading(true);
@@ -35,6 +36,7 @@ export default function PainelPage() {
 
   useEffect(() => {
     carregar();
+    fetch("/api/perfis").then((r) => r.json()).then((d) => setMeuPapel(d.eu?.role));
   }, []);
 
   async function mudarStatus(id, status) {
@@ -57,7 +59,11 @@ export default function PainelPage() {
       <div className="top">
         <h1>Personare — CRM &amp; Propostas</h1>
         <div style={{ display: "flex", gap: 10 }}>
-          <Link href="/painel/catalogo" className="btn">Catálogo</Link>
+          {(meuPapel === "admin" || meuPapel === "financeiro") && (
+            <Link href="/painel/analytics" className="btn">Analytics</Link>
+          )}
+          {meuPapel === "admin" && <Link href="/painel/catalogo" className="btn">Catálogo</Link>}
+          {meuPapel === "admin" && <Link href="/painel/usuarios" className="btn">Usuários</Link>}
           <Link href="/painel/nova-proposta" className="btn primary">+ Nova proposta</Link>
           <button className="btn" onClick={sair}>Sair</button>
         </div>

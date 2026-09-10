@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireRole } from "@/lib/perfil";
 
 // POST: adiciona uma parcela/pagamento ao contrato.
 export async function POST(req, { params }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "nao autorizado" }, { status: 401 });
+  const negado = await requireRole(supabase, ["admin", "financeiro"]);
+  if (negado) return negado;
 
   const { id } = await params;
   const { descricao, valor, vencimento } = await req.json();

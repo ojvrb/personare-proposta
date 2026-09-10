@@ -1,2 +1,2 @@
 import { crudHandlers } from "@/lib/crudApi";
-export const { PATCH } = crudHandlers("extras");
+export const { PATCH } = crudHandlers("extras", { mutateRoles: ["admin"] });

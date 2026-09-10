@@ -130,6 +130,17 @@ create table convidados (
 alter table convidados enable row level security;
 create policy "staff acesso total" on convidados for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+-- Perfis/permissoes: admin (tudo) | atendente (CRM, sem financeiro/catalogo) | financeiro (contrato/pagamento).
+-- Leitura liberada pra qualquer staff logado (saber quem e quem nao e sensivel);
+-- escrita (trocar cargo, editar preco, marcar pagamento) e checada na API, nao aqui.
+create table perfis (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null default 'atendente', -- admin | atendente | financeiro
+  created_at timestamptz not null default now()
+);
+alter table perfis enable row level security;
+create policy "staff acesso total" on perfis for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
 -- Seed com os valores reais do orcamento do Espaco Personare (memoria_produto_orcamento_espaco_personare.md)
 insert into pacotes (nome, preco, itens_inclusos, itens_nao_inclusos) values (
   'Pacote Essencial',

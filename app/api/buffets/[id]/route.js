@@ -1,2 +1,2 @@
 import { crudHandlers } from "@/lib/crudApi";
-export const { PATCH } = crudHandlers("buffets");
+export const { PATCH } = crudHandlers("buffets", { mutateRoles: ["admin"] });

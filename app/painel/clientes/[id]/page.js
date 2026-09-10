@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/apiFetch";
 
 export default function ClienteDetalhePage({ params }) {
   const { id } = use(params);
@@ -36,26 +37,26 @@ export default function ClienteDetalhePage({ params }) {
   }
 
   async function criarContrato(eventoId) {
-    await fetch("/api/contratos", {
+    const ok = await apiFetch("/api/contratos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ evento_id: eventoId }),
     });
-    carregar();
+    if (ok) carregar();
   }
 
   async function atualizarContrato(contratoId, campos) {
-    await fetch(`/api/contratos/${contratoId}`, {
+    const ok = await apiFetch(`/api/contratos/${contratoId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(campos),
     });
-    carregar();
+    if (ok) carregar();
   }
 
   async function adicionarParcela(contratoId, form) {
     const fd = new FormData(form);
-    await fetch(`/api/contratos/${contratoId}/pagamentos`, {
+    const ok = await apiFetch(`/api/contratos/${contratoId}/pagamentos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -64,17 +65,16 @@ export default function ClienteDetalhePage({ params }) {
         vencimento: fd.get("vencimento") || null,
       }),
     });
-    form.reset();
-    carregar();
+    if (ok) { form.reset(); carregar(); }
   }
 
   async function marcarPago(pagamentoId) {
-    await fetch(`/api/pagamentos/${pagamentoId}`, {
+    const ok = await apiFetch(`/api/pagamentos/${pagamentoId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "pago", pago_em: new Date().toISOString() }),
     });
-    carregar();
+    if (ok) carregar();
   }
 
   if (erro) return <div className="wrap"><div className="alert err">{erro}</div></div>;

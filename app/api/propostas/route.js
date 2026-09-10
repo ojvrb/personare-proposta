@@ -1,18 +1,28 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { adminClient } from "@/lib/supabase/admin";
+import { getPerfil } from "@/lib/perfil";
 import { calcularProposta, gerarSlug } from "@/lib/pricing";
 
 // GET: lista clientes + eventos + propostas pro painel (CRM + configurador).
+// Visibilidade por papel: atendente ve so os proprios leads (+ os sem dono, caso
+// legado); admin/financeiro veem tudo -- e' o admin quem compara desempenho entre vendedores.
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "nao autorizado" }, { status: 401 });
+  const perfil = await getPerfil(supabase);
+  if (!perfil) return NextResponse.json({ error: "nao autorizado" }, { status: 401 });
+
+  let query = supabase
+    .from("clientes")
+    .select("*, eventos(*, propostas(*))")
+    .order("created_at", { ascending: false });
+
+  if (perfil.role === "atendente") {
+    query = query.or(`atendente_id.eq.${perfil.user.id},atendente_id.is.null`);
+  }
 
   const [clientesRes, pacotesRes, buffetsRes, extrasRes] = await Promise.all([
-    supabase
-      .from("clientes")
-      .select("*, eventos(*, propostas(*))")
-      .order("created_at", { ascending: false }),
+    query,
     supabase.from("pacotes").select("*").eq("ativo", true),
     supabase.from("buffets").select("*").eq("ativo", true),
     supabase.from("extras").select("*").eq("ativo", true),
@@ -20,8 +30,15 @@ export async function GET() {
 
   if (clientesRes.error) return NextResponse.json({ error: clientesRes.error.message }, { status: 500 });
 
+  let clientes = clientesRes.data;
+  if (perfil.role === "admin") {
+    const { data: authList } = await adminClient().auth.admin.listUsers();
+    const emailPorId = Object.fromEntries(authList.users.map((u) => [u.id, u.email]));
+    clientes = clientes.map((c) => ({ ...c, atendente_email: c.atendente_id ? emailPorId[c.atendente_id] : null }));
+  }
+
   return NextResponse.json({
-    clientes: clientesRes.data,
+    clientes,
     pacotes: pacotesRes.data || [],
     buffets: buffetsRes.data || [],
     extras: extrasRes.data || [],
@@ -50,6 +67,7 @@ export async function POST(req) {
       nome_conjuge: cliente.nome_conjuge || null,
       telefone: cliente.telefone || null,
       cidade: cliente.cidade || null,
+      origem: cliente.origem || null,
       status: "proposta_enviada",
     })
     .select()

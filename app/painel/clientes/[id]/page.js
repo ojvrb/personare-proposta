@@ -4,22 +4,41 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/apiFetch";
 
+const ORIGEM_LABEL = {
+  indicacao: "Indicação", instagram: "Instagram", evento_personare: "Evento Personare",
+  pesquisa_internet: "Pesquisa na internet", site: "Site", outro: "Outro",
+};
+const STATUS_PROPOSTA = {
+  rascunho: "Rascunho", enviada: "Enviada", em_negociacao: "Em negociação",
+  pre_aprovada: "Pré-aprovada", aceita: "Aceita", perdida: "Perdida",
+};
+const MOTIVO_PERDA = {
+  capacidade: "Capacidade", preco_alto: "Preço alto", data_indisponivel: "Data indisponível",
+  concorrente: "Concorrente", buffet_nao_agradou: "Buffet não agradou",
+  decoracao_nao_agradou: "Decoração não agradou", sem_retorno: "Sem retorno", outro: "Outro",
+};
+
 export default function ClienteDetalhePage({ params }) {
   const { id } = use(params);
   const [dados, setDados] = useState(null);
+  const [colegas, setColegas] = useState([]);
+  const [meuRole, setMeuRole] = useState(null);
   const [erro, setErro] = useState("");
   const [nota, setNota] = useState("");
   const [enviandoNota, setEnviandoNota] = useState(false);
+  const [paraTransferir, setParaTransferir] = useState("");
 
   async function carregar() {
     const res = await fetch(`/api/clientes/${id}`);
     const data = await res.json();
     if (!res.ok) return setErro(data.error || "erro ao carregar");
     setDados(data);
+    setMeuRole(data.meuRole);
   }
 
   useEffect(() => {
     carregar();
+    fetch("/api/perfis").then((r) => r.json()).then((d) => setColegas(d.colegas || []));
   }, [id]);
 
   async function enviarNota(e) {
@@ -34,6 +53,43 @@ export default function ClienteDetalhePage({ params }) {
     setNota("");
     setEnviandoNota(false);
     carregar();
+  }
+
+  async function atualizarCliente(campos) {
+    const ok = await apiFetch(`/api/clientes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(campos),
+    });
+    if (ok) carregar();
+  }
+
+  async function solicitarTransferencia() {
+    if (!paraTransferir) return;
+    const ok = await apiFetch(`/api/clientes/${id}/transferencias`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ para_atendente_id: paraTransferir }),
+    });
+    if (ok) { setParaTransferir(""); carregar(); }
+  }
+
+  async function atualizarPropostaStatus(propostaId, campos) {
+    const ok = await apiFetch(`/api/propostas/${propostaId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(campos),
+    });
+    if (ok) carregar();
+  }
+
+  async function ajustarProposta(propostaId, novoDesconto, motivo) {
+    const ok = await apiFetch(`/api/propostas/${propostaId}/ajustes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ novo_desconto: novoDesconto, motivo }),
+    });
+    if (ok) carregar();
   }
 
   async function criarContrato(eventoId) {
@@ -80,7 +136,7 @@ export default function ClienteDetalhePage({ params }) {
   if (erro) return <div className="wrap"><div className="alert err">{erro}</div></div>;
   if (!dados) return <div className="wrap">Carregando…</div>;
 
-  const { cliente, interacoes } = dados;
+  const { cliente, interacoes, transferenciaPendente } = dados;
 
   return (
     <div className="wrap">
@@ -94,6 +150,42 @@ export default function ClienteDetalhePage({ params }) {
           <div><span style={{ color: "var(--granite)" }}>Cidade</span><br />{cliente.cidade || "—"}</div>
           <div><span style={{ color: "var(--granite)" }}>Telefone</span><br />{cliente.telefone || "—"}</div>
           <div><span style={{ color: "var(--granite)" }}>Status</span><br />{cliente.status}</div>
+          <div>
+            <span style={{ color: "var(--granite)" }}>Origem</span><br />
+            <select value={cliente.origem || ""} onChange={(e) => atualizarCliente({ origem: e.target.value || null })} style={{ fontSize: 13 }}>
+              <option value="">—</option>
+              {Object.entries(ORIGEM_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--stroke)" }}>
+          <span style={{ color: "var(--granite)", fontSize: 13 }}>Atendente responsável</span><br />
+          {meuRole === "admin" ? (
+            <select value={cliente.atendente_id || ""} onChange={(e) => atualizarCliente({ atendente_id: e.target.value || null })} style={{ fontSize: 13, marginTop: 4 }}>
+              <option value="">Sem dono</option>
+              {colegas.map((c) => <option key={c.user_id} value={c.user_id}>{c.email}</option>)}
+              {cliente.atendente_email && !colegas.some((c) => c.user_id === cliente.atendente_id) && (
+                <option value={cliente.atendente_id}>{cliente.atendente_email}</option>
+              )}
+            </select>
+          ) : (
+            <div style={{ fontSize: 13 }}>{cliente.atendente_email || "sem dono"}</div>
+          )}
+
+          {transferenciaPendente ? (
+            <div className="alert" style={{ marginTop: 10, background: "rgba(217,154,43,.14)", border: "1px solid var(--amber)" }}>
+              Transferência pendente pra <b>{transferenciaPendente.para_email}</b> — aguardando aprovação do admin.
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <select value={paraTransferir} onChange={(e) => setParaTransferir(e.target.value)} style={{ fontSize: 13 }}>
+                <option value="">Transferir pra...</option>
+                {colegas.map((c) => <option key={c.user_id} value={c.user_id}>{c.email}</option>)}
+              </select>
+              <button className="btn" onClick={solicitarTransferencia} disabled={!paraTransferir}>Solicitar transferência</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -104,10 +196,7 @@ export default function ClienteDetalhePage({ params }) {
           <h4>Propostas</h4>
           {(evento.propostas || []).length === 0 && <p style={{ color: "var(--granite)", fontSize: 13 }}>Nenhuma proposta ainda.</p>}
           {(evento.propostas || []).map((p) => (
-            <div key={p.id} className="resumo-linha">
-              <a href={`/proposta/${p.slug}`} target="_blank" rel="noopener noreferrer">v{p.versao} — {p.status}</a>
-              <span>R$ {Number(p.total).toLocaleString("pt-BR")}</span>
-            </div>
+            <Proposta key={p.id} proposta={p} onStatus={atualizarPropostaStatus} onAjustar={ajustarProposta} />
           ))}
 
           <h4>Contrato</h4>
@@ -145,6 +234,66 @@ export default function ClienteDetalhePage({ params }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function Proposta({ proposta: p, onStatus, onAjustar }) {
+  const [ajustando, setAjustando] = useState(false);
+  const [novoDesconto, setNovoDesconto] = useState(p.desconto);
+  const [motivoAjuste, setMotivoAjuste] = useState("");
+  const [motivoPerda, setMotivoPerda] = useState(p.motivo_categoria || "");
+  const [detalhePerda, setDetalhePerda] = useState(p.motivo_detalhe || "");
+
+  function mudarStatus(novoStatus) {
+    if (novoStatus === "perdida" && !motivoPerda) return; // espera escolher motivo primeiro
+    onStatus(p.id, { status: novoStatus, motivo_categoria: motivoPerda || null, motivo_detalhe: detalhePerda || null });
+  }
+
+  const ajustes = p.propostas_ajustes || [];
+
+  return (
+    <div style={{ border: "1px solid var(--stroke)", borderRadius: 8, padding: 12, marginBottom: 10 }}>
+      <div className="resumo-linha" style={{ border: "none", padding: 0, marginBottom: 8 }}>
+        <a href={`/proposta/${p.slug}`} target="_blank" rel="noopener noreferrer">v{p.versao}</a>
+        <span>R$ {Number(p.total).toLocaleString("pt-BR")}</span>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <select value={p.status} onChange={(e) => mudarStatus(e.target.value)} style={{ fontSize: 12 }}>
+          {Object.entries(STATUS_PROPOSTA).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+
+        {p.status === "perdida" && (
+          <>
+            <select value={motivoPerda} onChange={(e) => { setMotivoPerda(e.target.value); onStatus(p.id, { status: "perdida", motivo_categoria: e.target.value, motivo_detalhe: detalhePerda || null }); }} style={{ fontSize: 12 }}>
+              <option value="">Motivo da perda...</option>
+              {Object.entries(MOTIVO_PERDA).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </>
+        )}
+
+        <button className="btn" onClick={() => setAjustando((a) => !a)} style={{ fontSize: 12, padding: "4px 8px" }}>Ajustar desconto</button>
+      </div>
+
+      {ajustando && (
+        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+          <input type="number" value={novoDesconto} onChange={(e) => setNovoDesconto(e.target.value)} style={{ width: 100 }} placeholder="Novo desconto" />
+          <input value={motivoAjuste} onChange={(e) => setMotivoAjuste(e.target.value)} placeholder="Motivo (ex: cliente pediu desconto)" style={{ flex: 1, minWidth: 160 }} />
+          <button className="btn primary" onClick={() => { onAjustar(p.id, Number(novoDesconto), motivoAjuste); setAjustando(false); }}>Salvar</button>
+        </div>
+      )}
+
+      {ajustes.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: 11, color: "var(--granite)" }}>
+          {ajustes.map((a) => (
+            <div key={a.id}>
+              R$ {Number(a.valor_anterior).toLocaleString("pt-BR")} → R$ {Number(a.valor_novo).toLocaleString("pt-BR")}
+              {a.motivo ? ` — ${a.motivo}` : ""} ({new Date(a.criado_em).toLocaleDateString("pt-BR")})
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

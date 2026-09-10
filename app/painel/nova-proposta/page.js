@@ -14,6 +14,7 @@ export default function NovaPropostaPage() {
   const [nomeConjuge, setNomeConjuge] = useState("");
   const [telefone, setTelefone] = useState("");
   const [cidade, setCidade] = useState("");
+  const [origem, setOrigem] = useState("");
   const [tipo, setTipo] = useState("casamento");
   const [dataEvento, setDataEvento] = useState("");
   const [numConvidados, setNumConvidados] = useState(100);
@@ -68,7 +69,7 @@ export default function NovaPropostaPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cliente: { nome, nome_conjuge: nomeConjuge, telefone, cidade },
+        cliente: { nome, nome_conjuge: nomeConjuge, telefone, cidade, origem: origem || null },
         evento: { tipo, data_evento: dataEvento || null, num_convidados: Number(numConvidados) },
         pacote_id: pacoteId,
         buffet_id: buffetId,
@@ -133,6 +134,18 @@ export default function NovaPropostaPage() {
               <input value={cidade} onChange={(e) => setCidade(e.target.value)} />
             </div>
             <div className="field">
+              <label>Origem do lead</label>
+              <select value={origem} onChange={(e) => setOrigem(e.target.value)}>
+                <option value="">—</option>
+                <option value="indicacao">Indicação</option>
+                <option value="instagram">Instagram</option>
+                <option value="evento_personare">Evento Personare</option>
+                <option value="pesquisa_internet">Pesquisa na internet</option>
+                <option value="site">Site</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div className="field">
               <label>Tipo de evento</label>
               <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
                 <option value="casamento">Casamento</option>
@@ -156,6 +169,7 @@ export default function NovaPropostaPage() {
           {dados.pacotes.map((p) => (
             <label key={p.id} className={`radio-row ${pacoteId === p.id ? "selected" : ""}`}>
               <input type="radio" name="pacote" checked={pacoteId === p.id} onChange={() => setPacoteId(p.id)} />
+              {p.fotos?.[0] && <img src={p.fotos[0]} alt="" style={{ width: 44, height: 44, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
               <div>
                 <div>{p.nome} — R$ {Number(p.preco).toLocaleString("pt-BR")}</div>
                 <div style={{ fontSize: 11, color: "var(--granite)" }}>{(p.itens_inclusos || []).join(", ")}</div>

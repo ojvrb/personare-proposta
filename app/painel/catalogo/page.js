@@ -17,7 +17,7 @@ export default function CatalogoPage() {
       <Secao
         titulo="Pacotes"
         endpoint="/api/pacotes"
-        campoInicial={{ nome: "", preco: 0, itens_inclusos: "", itens_nao_inclusos: "", ativo: true }}
+        campoInicial={{ nome: "", preco: 0, itens_inclusos: "", itens_nao_inclusos: "", fotos: "", ativo: true }}
         renderCampos={PacoteCampos}
         resumo={(p) => `R$ ${Number(p.preco).toLocaleString("pt-BR")}`}
       />
@@ -25,7 +25,7 @@ export default function CatalogoPage() {
       <Secao
         titulo="Buffets"
         endpoint="/api/buffets"
-        campoInicial={{ nome: "", preco_pessoa: 0, descricao: "", ativo: true }}
+        campoInicial={{ nome: "", preco_pessoa: 0, descricao: "", fotos: "", ativo: true }}
         renderCampos={BuffetCampos}
         resumo={(b) => `R$ ${Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa`}
       />
@@ -33,17 +33,27 @@ export default function CatalogoPage() {
       <Secao
         titulo="Extras"
         endpoint="/api/extras"
-        campoInicial={{ nome: "", tipo_preco: "fixo", valor: 0, ativo: true }}
+        campoInicial={{ nome: "", tipo_preco: "fixo", valor: 0, fotos: "", ativo: true }}
         renderCampos={ExtraCampos}
         resumo={(e) => `R$ ${Number(e.valor).toLocaleString("pt-BR")} (${e.tipo_preco})`}
+      />
+
+      <Secao
+        titulo="Depoimentos"
+        endpoint="/api/depoimentos"
+        campoInicial={{ autor_nome: "", texto: "", foto: "", evento_tipo: "casamento", ativo: true }}
+        renderCampos={DepoimentoCampos}
+        resumo={(d) => `${d.evento_tipo || "—"}`}
+        campoNome="autor_nome"
       />
     </div>
   );
 }
 
-// Editor genérico de lista: os 3 catálogos (pacote/buffet/extra) têm o mesmo
-// fluxo (listar, editar inline, ativar/desativar, criar) — só os campos mudam.
-function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo }) {
+// Editor genérico de lista: os 4 catálogos (pacote/buffet/extra/depoimento) têm o
+// mesmo fluxo (listar, editar inline, ativar/desativar, criar) — só os campos mudam.
+// `campoNome` existe pra depoimentos, que usa autor_nome em vez de nome.
+function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome = "nome" }) {
   const [itens, setItens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editando, setEditando] = useState(null); // id em edição
@@ -66,7 +76,12 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo }) {
 
   function iniciarEdicao(item) {
     setEditando(item.id);
-    setRascunho({ ...item, itens_inclusos: arrayParaTexto(item.itens_inclusos), itens_nao_inclusos: arrayParaTexto(item.itens_nao_inclusos) });
+    setRascunho({
+      ...item,
+      itens_inclusos: arrayParaTexto(item.itens_inclusos),
+      itens_nao_inclusos: arrayParaTexto(item.itens_nao_inclusos),
+      fotos: arrayParaTexto(item.fotos),
+    });
   }
 
   async function salvar(id) {
@@ -130,7 +145,7 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo }) {
             ) : (
               <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--stroke)", borderRadius: 8, padding: 10, opacity: item.ativo ? 1 : 0.5 }}>
                 <div>
-                  <b>{item.nome}</b> — {resumo(item)} {!item.ativo && <span className="badge">inativo</span>}
+                  <b>{item[campoNome]}</b> — {resumo(item)} {!item.ativo && <span className="badge">inativo</span>}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn" onClick={() => iniciarEdicao(item)}>Editar</button>
@@ -157,6 +172,7 @@ function normalizarPayload(campos) {
   const out = { ...campos };
   if ("itens_inclusos" in out) out.itens_inclusos = textoParaArray(out.itens_inclusos);
   if ("itens_nao_inclusos" in out) out.itens_nao_inclusos = textoParaArray(out.itens_nao_inclusos);
+  if ("fotos" in out) out.fotos = textoParaArray(out.fotos);
   delete out.id;
   delete out.created_at;
   return out;
@@ -178,6 +194,7 @@ function PacoteCampos(campos, set) {
       <input type="number" placeholder="Preço" value={campos.preco} onChange={(e) => set({ ...campos, preco: e.target.value })} />
       <input placeholder="Itens inclusos (separados por vírgula)" value={campos.itens_inclusos} onChange={(e) => set({ ...campos, itens_inclusos: e.target.value })} />
       <input placeholder="Itens não inclusos (separados por vírgula)" value={campos.itens_nao_inclusos} onChange={(e) => set({ ...campos, itens_nao_inclusos: e.target.value })} />
+      <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
     </div>
   );
 }
@@ -188,6 +205,7 @@ function BuffetCampos(campos, set) {
       <input placeholder="Nome" value={campos.nome} onChange={(e) => set({ ...campos, nome: e.target.value })} />
       <input type="number" placeholder="Preço por pessoa" value={campos.preco_pessoa} onChange={(e) => set({ ...campos, preco_pessoa: e.target.value })} />
       <input placeholder="Descrição" value={campos.descricao || ""} onChange={(e) => set({ ...campos, descricao: e.target.value })} />
+      <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
     </div>
   );
 }
@@ -202,6 +220,23 @@ function ExtraCampos(campos, set) {
         <option value="unidade">Por unidade</option>
       </select>
       <input type="number" placeholder="Valor" value={campos.valor} onChange={(e) => set({ ...campos, valor: e.target.value })} />
+      <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
+    </div>
+  );
+}
+
+function DepoimentoCampos(campos, set) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <input placeholder="Nome do autor" value={campos.autor_nome} onChange={(e) => set({ ...campos, autor_nome: e.target.value })} />
+      <textarea placeholder="Depoimento" rows={3} value={campos.texto || ""} onChange={(e) => set({ ...campos, texto: e.target.value })} />
+      <input placeholder="URL da foto (opcional)" value={campos.foto || ""} onChange={(e) => set({ ...campos, foto: e.target.value })} />
+      <select value={campos.evento_tipo || "casamento"} onChange={(e) => set({ ...campos, evento_tipo: e.target.value })}>
+        <option value="casamento">Casamento</option>
+        <option value="15_anos">15 anos</option>
+        <option value="corporativo">Corporativo</option>
+        <option value="outro">Outro</option>
+      </select>
     </div>
   );
 }

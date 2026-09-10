@@ -141,6 +141,84 @@ create table perfis (
 alter table perfis enable row level security;
 create policy "staff acesso total" on perfis for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+-- ============================================================
+-- Sprint 2: CRM real (nao so configurador) -- baseado no schema_sprint2.sql
+-- que o Joao gerou em outra sessao, adaptado em 2 pontos: (1) clientes.atendente_id
+-- ganhou o mesmo default auth.uid() de propostas -- lead pertence a quem cadastrou;
+-- (2) pipeline de negociacao ganhou app layer de verdade (rotas + telas), nao so o comentario.
+-- ============================================================
+
+-- 1. Atendente responsavel + visibilidade por dono
+alter table clientes  add column atendente_id uuid references auth.users(id) default auth.uid();
+alter table propostas add column atendente_id uuid references auth.users(id) default auth.uid();
+
+-- 1b. Transferencia de lead com aprovacao de admin (decisao do Joao 2026-09-10:
+-- vendedor solicita, admin aprova/rejeita -- nunca transferencia direta)
+create table transferencias_lead (
+  id uuid primary key default gen_random_uuid(),
+  cliente_id uuid not null references clientes(id) on delete cascade,
+  de_atendente_id uuid references auth.users(id),
+  para_atendente_id uuid not null references auth.users(id),
+  status text not null default 'pendente', -- pendente | aprovada | rejeitada
+  solicitado_por uuid references auth.users(id) default auth.uid(),
+  solicitado_em timestamptz not null default now(),
+  resolvido_por uuid references auth.users(id),
+  resolvido_em timestamptz
+);
+alter table transferencias_lead enable row level security;
+create policy "staff acesso total" on transferencias_lead for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- 2. Origem do lead (sem enum no banco, mesmo padrao dos outros status)
+alter table clientes add column origem text;
+-- indicacao | instagram | evento_personare | pesquisa_internet | site | outro
+
+-- 3. Catalogo com foto (experiencia de proposta = projecao, nao lista de itens)
+alter table pacotes add column fotos jsonb not null default '[]';
+alter table buffets add column fotos jsonb not null default '[]';
+alter table extras  add column fotos jsonb not null default '[]';
+
+-- 4. Depoimentos (carrossel antes do preco na proposta publica)
+create table depoimentos (
+  id uuid primary key default gen_random_uuid(),
+  autor_nome text not null,
+  texto text not null,
+  foto text,
+  evento_tipo text, -- casamento | 15_anos | corporativo | outro
+  ativo boolean not null default true,
+  ordem int not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table depoimentos enable row level security;
+create policy "staff acesso total" on depoimentos for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+-- unica leitura publica de conteudo de staff ate agora: necessaria pro slug
+-- publico (/proposta/[slug]) mostrar o carrossel sem exigir login do cliente.
+create policy "leitura publica de depoimentos ativos" on depoimentos for select using (ativo = true);
+
+-- 5. Motivo de decisao + pipeline de negociacao da proposta
+alter table propostas add column motivo_categoria text;
+-- ganha: preco_justo | atendimento | espaco_estrutura | buffet | decoracao | indicacao_confianca
+-- perdida: capacidade | preco_alto | data_indisponivel | concorrente |
+--          buffet_nao_agradou | decoracao_nao_agradou | sem_retorno | outro
+alter table propostas add column motivo_detalhe text;
+alter table propostas add column decidido_em timestamptz;
+-- status da proposta agora cobre negociacao, nao so envio/aceite:
+-- rascunho | enviada | em_negociacao | pre_aprovada | aceita | perdida
+
+create table propostas_ajustes (
+  id uuid primary key default gen_random_uuid(),
+  proposta_id uuid not null references propostas(id) on delete cascade,
+  valor_anterior numeric not null,
+  valor_novo numeric not null,
+  motivo text,
+  ajustado_por uuid references auth.users(id) default auth.uid(),
+  criado_em timestamptz not null default now()
+);
+alter table propostas_ajustes enable row level security;
+create policy "staff acesso total" on propostas_ajustes for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- Item de catalogo que faltava no seed original (esta no PDF real do orcamento)
+insert into extras (nome, tipo_preco, valor) values ('Mesa de antepastos', 'pessoa', 30);
+
 -- Seed com os valores reais do orcamento do Espaco Personare (memoria_produto_orcamento_espaco_personare.md)
 insert into pacotes (nome, preco, itens_inclusos, itens_nao_inclusos) values (
   'Pacote Essencial',

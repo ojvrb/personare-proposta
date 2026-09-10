@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { adminClient } from "@/lib/supabase/admin";
+import { publicClient } from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +9,15 @@ async function getProposta(slug) {
   const { data: proposta } = await supabase.from("propostas").select("*").eq("slug", slug).single();
   if (!proposta) return null;
 
-  const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }, { data: contrato }] = await Promise.all([
+  const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }, { data: contrato }, { data: depoimentos }] = await Promise.all([
     supabase.from("eventos").select("*, clientes(*)").eq("id", proposta.evento_id).single(),
     proposta.pacote_id ? supabase.from("pacotes").select("*").eq("id", proposta.pacote_id).single() : Promise.resolve({ data: null }),
     proposta.buffet_id ? supabase.from("buffets").select("*").eq("id", proposta.buffet_id).single() : Promise.resolve({ data: null }),
     supabase.from("extras").select("*"),
     supabase.from("contratos").select("*, pagamentos(*)").eq("evento_id", proposta.evento_id).limit(1),
+    // depoimentos usa o cliente publico (anon), respeitando a politica de RLS
+    // "leitura publica de depoimentos ativos" -- nao precisa de service role aqui.
+    publicClient().from("depoimentos").select("*").eq("ativo", true).order("ordem"),
   ]);
   const contratoAtual = contrato?.[0] || null;
 
@@ -24,7 +28,7 @@ async function getProposta(slug) {
     })
     .filter(Boolean);
 
-  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, extrasEscolhidos, contrato: contratoAtual };
+  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, extrasEscolhidos, contrato: contratoAtual, depoimentos: depoimentos || [] };
 }
 
 export default async function PropostaPublicaPage({ params }) {
@@ -32,7 +36,7 @@ export default async function PropostaPublicaPage({ params }) {
   const dados = await getProposta(slug);
   if (!dados) notFound();
 
-  const { proposta, evento, cliente, pacote, buffet, extrasEscolhidos, contrato } = dados;
+  const { proposta, evento, cliente, pacote, buffet, extrasEscolhidos, contrato, depoimentos } = dados;
   const nomeCasal = cliente?.nome_conjuge ? `${cliente.nome} & ${cliente.nome_conjuge}` : cliente?.nome;
   const pagamentos = contrato?.pagamentos || [];
   const totalPago = pagamentos.filter((p) => p.status === "pago").reduce((s, p) => s + Number(p.valor), 0);
@@ -48,8 +52,24 @@ export default async function PropostaPublicaPage({ params }) {
         </p>
       </div>
 
+      {depoimentos.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ marginTop: 0 }}>O que dizem sobre a gente</h3>
+          <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 4 }}>
+            {depoimentos.map((d) => (
+              <div key={d.id} style={{ minWidth: 220, maxWidth: 260, border: "1px solid var(--stroke)", borderRadius: 8, padding: 12, background: "var(--pitch-2)" }}>
+                {d.foto && <img src={d.foto} alt={d.autor_nome} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", marginBottom: 8 }} />}
+                <p style={{ fontSize: 13, color: "var(--stone)", fontStyle: "italic" }}>&ldquo;{d.texto}&rdquo;</p>
+                <p style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600, margin: 0 }}>{d.autor_nome}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {pacote && (
         <div className="card" style={{ marginBottom: 16 }}>
+          {pacote.fotos?.[0] && <img src={pacote.fotos[0]} alt={pacote.nome} style={{ width: "100%", borderRadius: 8, marginBottom: 12, maxHeight: 260, objectFit: "cover" }} />}
           <h3 style={{ marginTop: 0 }}>{pacote.nome}</h3>
           <p style={{ color: "var(--gold)", fontSize: 20, fontWeight: 600 }}>R$ {Number(pacote.preco).toLocaleString("pt-BR")}</p>
           <p style={{ fontSize: 13, color: "var(--stone)" }}><b>Inclui:</b> {(pacote.itens_inclusos || []).join(", ")}</p>
@@ -61,6 +81,7 @@ export default async function PropostaPublicaPage({ params }) {
 
       {buffet && (
         <div className="card" style={{ marginBottom: 16 }}>
+          {buffet.fotos?.[0] && <img src={buffet.fotos[0]} alt={buffet.nome} style={{ width: "100%", borderRadius: 8, marginBottom: 12, maxHeight: 220, objectFit: "cover" }} />}
           <h3 style={{ marginTop: 0 }}>Buffet: {buffet.nome}</h3>
           <p style={{ color: "var(--stone)", fontSize: 13 }}>{buffet.descricao}</p>
           <p>R$ {Number(buffet.preco_pessoa).toLocaleString("pt-BR")}/pessoa × {evento?.num_convidados} convidados</p>

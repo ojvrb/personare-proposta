@@ -8,12 +8,14 @@ async function getProposta(slug) {
   const { data: proposta } = await supabase.from("propostas").select("*").eq("slug", slug).single();
   if (!proposta) return null;
 
-  const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }] = await Promise.all([
+  const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }, { data: contrato }] = await Promise.all([
     supabase.from("eventos").select("*, clientes(*)").eq("id", proposta.evento_id).single(),
     proposta.pacote_id ? supabase.from("pacotes").select("*").eq("id", proposta.pacote_id).single() : Promise.resolve({ data: null }),
     proposta.buffet_id ? supabase.from("buffets").select("*").eq("id", proposta.buffet_id).single() : Promise.resolve({ data: null }),
     supabase.from("extras").select("*"),
+    supabase.from("contratos").select("*, pagamentos(*)").eq("evento_id", proposta.evento_id).limit(1),
   ]);
+  const contratoAtual = contrato?.[0] || null;
 
   const extrasEscolhidos = (proposta.extras_selecionados || [])
     .map((sel) => {
@@ -22,7 +24,7 @@ async function getProposta(slug) {
     })
     .filter(Boolean);
 
-  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, extrasEscolhidos };
+  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, extrasEscolhidos, contrato: contratoAtual };
 }
 
 export default async function PropostaPublicaPage({ params }) {
@@ -30,8 +32,10 @@ export default async function PropostaPublicaPage({ params }) {
   const dados = await getProposta(slug);
   if (!dados) notFound();
 
-  const { proposta, evento, cliente, pacote, buffet, extrasEscolhidos } = dados;
+  const { proposta, evento, cliente, pacote, buffet, extrasEscolhidos, contrato } = dados;
   const nomeCasal = cliente?.nome_conjuge ? `${cliente.nome} & ${cliente.nome_conjuge}` : cliente?.nome;
+  const pagamentos = contrato?.pagamentos || [];
+  const totalPago = pagamentos.filter((p) => p.status === "pago").reduce((s, p) => s + Number(p.valor), 0);
 
   return (
     <div className="wrap" style={{ maxWidth: 720 }}>
@@ -81,6 +85,28 @@ export default async function PropostaPublicaPage({ params }) {
           <div className="resumo-linha"><span>Desconto</span><span>- R$ {Number(proposta.desconto).toLocaleString("pt-BR")}</span></div>
         )}
         <div className="resumo-total"><span>Investimento total</span><span>R$ {Number(proposta.total).toLocaleString("pt-BR")}</span></div>
+      </div>
+
+      {contrato && contrato.status === "assinado" && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginTop: 0 }}>📋 Seu evento está confirmado</h3>
+          <p style={{ fontSize: 13, color: "var(--stone)" }}>
+            Pago: R$ {totalPago.toLocaleString("pt-BR")} de R$ {Number(contrato.valor_contratado).toLocaleString("pt-BR")}
+          </p>
+          {pagamentos.map((p) => (
+            <div key={p.id} className="resumo-linha">
+              <span>{p.descricao}{p.vencimento ? ` (venc. ${new Date(p.vencimento).toLocaleDateString("pt-BR")})` : ""}</span>
+              <span>
+                R$ {Number(p.valor).toLocaleString("pt-BR")}{" "}
+                <span className="badge">{p.status === "pago" ? "pago" : "pendente"}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ textAlign: "center", marginTop: 24 }}>
+        <a href={`/proposta/${proposta.slug}/convidados`} className="btn primary">Confirmar presença (RSVP)</a>
       </div>
 
       <p style={{ textAlign: "center", color: "var(--granite)", fontSize: 12, marginTop: 24 }}>

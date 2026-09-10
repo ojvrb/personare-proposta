@@ -118,6 +118,18 @@ create table pagamentos (
 alter table pagamentos enable row level security;
 create policy "staff acesso total" on pagamentos for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+-- RSVP: lista de convidados por evento. Confirmacao publica (sem login) passa
+-- pela service role (lib/supabase/admin.js) via /api/rsvp, igual a leitura da proposta.
+create table convidados (
+  id uuid primary key default gen_random_uuid(),
+  evento_id uuid not null references eventos(id) on delete cascade,
+  nome text not null,
+  status text not null default 'pendente', -- pendente | confirmado | nao_vai
+  created_at timestamptz not null default now()
+);
+alter table convidados enable row level security;
+create policy "staff acesso total" on convidados for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
 -- Seed com os valores reais do orcamento do Espaco Personare (memoria_produto_orcamento_espaco_personare.md)
 insert into pacotes (nome, preco, itens_inclusos, itens_nao_inclusos) values (
   'Pacote Essencial',

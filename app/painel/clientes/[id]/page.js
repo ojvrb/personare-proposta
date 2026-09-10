@@ -118,6 +118,9 @@ export default function ClienteDetalhePage({ params }) {
               <Contrato key={c.id} contrato={c} onAtualizar={atualizarContrato} onParcela={adicionarParcela} onPago={marcarPago} />
             ))
           )}
+
+          <h4>Convidados (RSVP)</h4>
+          <Convidados eventoId={evento.id} slugProposta={evento.propostas?.[evento.propostas.length - 1]?.slug} />
         </div>
       ))}
 
@@ -142,6 +145,81 @@ export default function ClienteDetalhePage({ params }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+const STATUS_CONVIDADO = { pendente: "Pendente", confirmado: "Confirmado", nao_vai: "Não vai" };
+
+function Convidados({ eventoId, slugProposta }) {
+  const [lista, setLista] = useState(null);
+  const [nome, setNome] = useState("");
+
+  async function carregar() {
+    const res = await fetch(`/api/eventos/${eventoId}/convidados`);
+    const data = await res.json();
+    if (res.ok) setLista(data.convidados);
+  }
+
+  useEffect(() => {
+    carregar();
+  }, [eventoId]);
+
+  async function adicionar(e) {
+    e.preventDefault();
+    if (!nome.trim()) return;
+    await fetch(`/api/eventos/${eventoId}/convidados`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome }),
+    });
+    setNome("");
+    carregar();
+  }
+
+  async function mudarStatus(id, status) {
+    await fetch(`/api/convidados/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    carregar();
+  }
+
+  async function remover(id) {
+    await fetch(`/api/convidados/${id}`, { method: "DELETE" });
+    carregar();
+  }
+
+  if (!lista) return <p style={{ color: "var(--granite)", fontSize: 13 }}>Carregando…</p>;
+
+  const confirmados = lista.filter((c) => c.status === "confirmado").length;
+  const naoVao = lista.filter((c) => c.status === "nao_vai").length;
+  const pendentes = lista.length - confirmados - naoVao;
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: "var(--granite)", marginBottom: 8 }}>
+        Confirmados: {confirmados} · Pendentes: {pendentes} · Não vão: {naoVao}
+        {slugProposta && (
+          <> · <a href={`/proposta/${slugProposta}/convidados`} target="_blank" rel="noopener noreferrer">link de RSVP</a></>
+        )}
+      </div>
+      {lista.map((c) => (
+        <div key={c.id} className="resumo-linha">
+          <span>{c.nome}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <select value={c.status} onChange={(e) => mudarStatus(c.id, e.target.value)} style={{ fontSize: 11 }}>
+              {Object.entries(STATUS_CONVIDADO).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <button className="btn" onClick={() => remover(c.id)} style={{ padding: "4px 8px", fontSize: 11 }}>×</button>
+          </span>
+        </div>
+      ))}
+      <form onSubmit={adicionar} style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <input placeholder="Nome do convidado" value={nome} onChange={(e) => setNome(e.target.value)} style={{ flex: 1 }} />
+        <button className="btn">+ Adicionar</button>
+      </form>
     </div>
   );
 }

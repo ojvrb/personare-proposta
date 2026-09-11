@@ -47,7 +47,6 @@ export default async function PropostaPublicaPage({ params }) {
   if (!dados) notFound();
 
   const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, contrato, depoimentos } = dados;
-  const nomeCasal = cliente?.nome_conjuge ? `${cliente.nome} & ${cliente.nome_conjuge}` : cliente?.nome;
   const pagamentos = contrato?.pagamentos || [];
   const totalPago = pagamentos.filter((p) => p.status === "pago").reduce((s, p) => s + Number(p.valor), 0);
 
@@ -60,14 +59,22 @@ export default async function PropostaPublicaPage({ params }) {
   return (
     <div>
       {/* HERO -- a tese da pagina: o nome do casal, nao o preco, e' a primeira
-          coisa que a pessoa ve. Assinatura visual: o tracinho dourado/verde
-          "se desenhando" embaixo do nome. */}
-      <section style={{ padding: "72px 0 40px", textAlign: "center" }}>
-        <div className="wrap" style={{ maxWidth: 720 }}>
+          coisa que a pessoa ve. Sem foto ainda, o impacto vem da escala
+          tipografica (Fraunces gigante), do "&" em gradiente verde->dourado,
+          do glow ambiente atras do texto e da entrada escalonada no load. */}
+      <section className="hero" style={{ padding: "88px 0 48px", textAlign: "center" }}>
+        <div className="hero-glow" />
+        <div className="wrap" style={{ maxWidth: 920 }}>
           <span className="eyebrow">Espaço Personare</span>
-          <h1 className="hero-name">{nomeCasal}</h1>
+          <h1 className="hero-name">
+            {cliente?.nome_conjuge ? (
+              <>{cliente.nome} <em>&amp;</em> {cliente.nome_conjuge}</>
+            ) : (
+              cliente?.nome
+            )}
+          </h1>
           <div className="hero-name-underline" />
-          <p style={{ color: "var(--stone)", fontSize: 16, margin: 0 }}>
+          <p className="hero-meta" style={{ color: "var(--stone)", fontSize: 16, margin: 0 }}>
             {evento?.tipo} · {evento?.num_convidados} convidados
             {evento?.data_evento ? ` · ${new Date(`${evento.data_evento}T00:00:00`).toLocaleDateString("pt-BR")}` : ""}
           </p>
@@ -77,6 +84,7 @@ export default async function PropostaPublicaPage({ params }) {
       {proposta.valida_ate && (
         <section style={{ padding: "0 0 8px" }}>
           <div className="wrap" style={{ maxWidth: 720 }}>
+            <div className="ornament"><span className="ornament-dot" /></div>
             <Reveal>
               <div className="flat-card" style={{ padding: "16px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: corValidade }} />
@@ -110,7 +118,7 @@ export default async function PropostaPublicaPage({ params }) {
                   {(pacote.itens_inclusos || []).length > 0 && (
                     <div style={{ marginTop: 10 }}>
                       {pacote.itens_inclusos.map((item, i) => (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "4px 0", color: "var(--bone)" }}>
+                        <div key={i} className="stagger-item" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "4px 0", color: "var(--bone)" }}>
                           <span style={{ color: "var(--sage)", fontWeight: 700 }}>✓</span> {item}
                         </div>
                       ))}
@@ -184,16 +192,22 @@ export default async function PropostaPublicaPage({ params }) {
         </section>
       )}
 
-      {/* Investimento total -- maior peso visual da pagina depois do hero. */}
+      {/* Investimento total -- o segundo momento de maior peso visual da
+          pagina (depois do hero): numero grande em gradiente dourado, nao
+          so' uma linha em negrito a mais. */}
       <section className="section-band">
         <div className="wrap" style={{ maxWidth: 720 }}>
+          <div className="ornament"><span className="ornament-dot" /></div>
           <Reveal>
-            <div className="flat-card elevated" style={{ padding: 32 }}>
+            <div className="flat-card elevated" style={{ padding: "36px 32px" }}>
               <div className="resumo-linha"><span>Subtotal</span><span>R$ {Number(proposta.subtotal).toLocaleString("pt-BR")}</span></div>
               {Number(proposta.desconto) > 0 && (
                 <div className="resumo-linha"><span>Desconto</span><span>- R$ {Number(proposta.desconto).toLocaleString("pt-BR")}</span></div>
               )}
-              <div className="resumo-total" style={{ fontSize: 24 }}><span>Investimento total</span><span>R$ {Number(proposta.total).toLocaleString("pt-BR")}</span></div>
+              <div style={{ textAlign: "center", paddingTop: 24 }}>
+                <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 12 }}>Investimento total</div>
+                <div className="valor-total">R$ {Number(proposta.total).toLocaleString("pt-BR")}</div>
+              </div>
             </div>
           </Reveal>
 

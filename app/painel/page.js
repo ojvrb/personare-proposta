@@ -12,7 +12,7 @@ const STATUS = [
   { id: "negociacao", label: "Negociação" },
   { id: "aguardando_decisao", label: "Aguardando decisão" },
   { id: "contrato", label: "Contrato" },
-  { id: "evento_confirmado", label: "Evento confirmado" },
+  { id: "negocio_fechado", label: "Negócio fechado" },
   { id: "perdido", label: "Perdido" },
 ];
 
@@ -20,6 +20,12 @@ const MOTIVO_PERDA = {
   capacidade: "Capacidade", preco_alto: "Preço alto", data_indisponivel: "Data indisponível",
   concorrente: "Concorrente", buffet_nao_agradou: "Buffet não agradou",
   decoracao_nao_agradou: "Decoração não agradou", sem_retorno: "Sem retorno", outro: "Outro",
+};
+
+const MOTIVO_FECHAMENTO = {
+  indicacao: "Indicação", preco_adequado: "Preço adequado", buffet_agradou: "Buffet agradou",
+  atendimento: "Atendimento/vendedor", localizacao: "Localização", disponibilidade: "Data disponível",
+  portfolio: "Portfólio/fotos", outro: "Outro",
 };
 
 // KanbanBoard generico (app/components) nao tem slot pra drag-and-drop com log
@@ -67,6 +73,11 @@ export default function PainelPage() {
         body: JSON.stringify({ nota }),
       });
     }
+    // negocio fechado sai do funil de vendas -- passa a viver na agenda de
+    // eventos (/painel/eventos), nao faz mais sentido continuar no board.
+    if (movimento?.paraStatus === "negocio_fechado") {
+      setClientes((cs) => cs.filter((c) => c.id !== movimento.cliente.id));
+    }
     setMovimento(null);
   }
 
@@ -84,6 +95,7 @@ export default function PainelPage() {
           {(meuPapel === "admin" || meuPapel === "financeiro") && (
             <Link href="/painel/analytics" className="btn">Analytics</Link>
           )}
+          <Link href="/painel/eventos" className="btn">Agenda de eventos</Link>
           {meuPapel === "admin" && <Link href="/painel/catalogo" className="btn">Catálogo</Link>}
           {meuPapel === "admin" && <Link href="/painel/usuarios" className="btn">Usuários</Link>}
           <Link href="/painel/nova-proposta" className="btn primary">+ Nova proposta</Link>
@@ -181,12 +193,15 @@ function ModalLogMovimento({ movimento, onFechar }) {
   const [nota, setNota] = useState("");
   const [motivo, setMotivo] = useState("");
   const paraPerdido = movimento.paraStatus === "perdido";
+  const paraFechado = movimento.paraStatus === "negocio_fechado";
+  const motivos = paraPerdido ? MOTIVO_PERDA : paraFechado ? MOTIVO_FECHAMENTO : null;
+  const rotuloEvento = paraPerdido ? "Perdido" : "Negócio fechado";
   const labelPara = STATUS.find((s) => s.id === movimento.paraStatus)?.label;
 
   function confirmar() {
-    if (paraPerdido && !motivo) return;
-    const textoFinal = paraPerdido
-      ? `Perdido — motivo: ${MOTIVO_PERDA[motivo]}${nota.trim() ? ` — ${nota.trim()}` : ""}`
+    if (motivos && !motivo) return;
+    const textoFinal = motivos
+      ? `${rotuloEvento} — motivo: ${motivos[motivo]}${nota.trim() ? ` — ${nota.trim()}` : ""}`
       : nota.trim();
     onFechar(textoFinal || null);
   }
@@ -197,22 +212,22 @@ function ModalLogMovimento({ movimento, onFechar }) {
         <h3 style={{ marginTop: 0 }}>
           {movimento.cliente.nome} → {labelPara}
         </h3>
-        {paraPerdido && (
+        {motivos && (
           <div className="field">
-            <label>Motivo da perda</label>
+            <label>{paraPerdido ? "Motivo da perda" : "Por que o negócio fechou?"}</label>
             <select value={motivo} onChange={(e) => setMotivo(e.target.value)} autoFocus>
               <option value="">Selecione...</option>
-              {Object.entries(MOTIVO_PERDA).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {Object.entries(motivos).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
         )}
         <div className="field">
-          <label>{paraPerdido ? "Detalhes (opcional)" : "O que aconteceu? (opcional)"}</label>
-          <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ex: cliente pediu mais prazo pra decidir" autoFocus={!paraPerdido} />
+          <label>{motivos ? "Detalhes (opcional)" : "O que aconteceu? (opcional)"}</label>
+          <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ex: cliente pediu mais prazo pra decidir" autoFocus={!motivos} />
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button className="btn" onClick={() => onFechar(null)}>Pular</button>
-          <button className="btn primary" onClick={confirmar} disabled={paraPerdido && !motivo}>Salvar</button>
+          <button className="btn" onClick={() => onFechar(null)} disabled={!!motivos}>Pular</button>
+          <button className="btn primary" onClick={confirmar} disabled={!!motivos && !motivo}>Salvar</button>
         </div>
       </div>
     </div>

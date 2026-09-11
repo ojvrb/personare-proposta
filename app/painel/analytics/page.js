@@ -10,7 +10,7 @@ const FUNIL = [
   { status: "negociacao", label: "Negociação" },
   { status: "aguardando_decisao", label: "Aguardando decisão" },
   { status: "contrato", label: "Contrato" },
-  { status: "evento_confirmado", label: "Evento confirmado" },
+  { status: "negocio_fechado", label: "Negócio fechado" },
   { status: "perdido", label: "Perdido" },
 ];
 

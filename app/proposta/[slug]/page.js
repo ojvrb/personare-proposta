@@ -166,10 +166,6 @@ export default async function PropostaPublicaPage({ params }) {
         </div>
       )}
 
-      <div style={{ textAlign: "center", marginTop: 24 }}>
-        <a href={`/proposta/${proposta.slug}/convidados`} className="btn primary">Confirmar presença (RSVP)</a>
-      </div>
-
       <p style={{ textAlign: "center", color: "var(--granite)", fontSize: 12, marginTop: 24 }}>
         Fale com o Personare pra tirar dúvidas ou fechar sua data.
       </p>

@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 export default function CatalogoPage() {
   return (
-    <div className="wrap">
-      <div className="top">
-        <h1>Catálogo</h1>
-        <Link href="/painel" className="btn">← Voltar</Link>
-      </div>
+    <div>
+      <h1>Catálogo</h1>
       <p style={{ color: "var(--granite)", marginTop: -10, marginBottom: 24 }}>
         Pacotes, buffets e extras usados no configurador de proposta. Desativar em vez de excluir preserva propostas antigas que já usam esses itens.
       </p>

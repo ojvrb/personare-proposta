@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { MOTIVO_PERDA, MOTIVO_FECHAMENTO } from "@/lib/motivos";
+import MicButton from "@/app/components/MicButton";
 
 const STATUS = [
   { id: "novo_contato", label: "Novo contato" },
@@ -21,11 +20,9 @@ const STATUS = [
 // de motivo -- entao aqui e um board simples proprio, com HTML5 drag nativo
 // (sem biblioteca) e um modal pra registrar por que o lead mudou de etapa.
 export default function PainelPage() {
-  const router = useRouter();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [meuPapel, setMeuPapel] = useState(null);
   const [arrastando, setArrastando] = useState(null); // id do cliente sendo arrastado
   const [movimento, setMovimento] = useState(null); // { cliente, deStatus, paraStatus }
 
@@ -40,7 +37,6 @@ export default function PainelPage() {
 
   useEffect(() => {
     carregar();
-    fetch("/api/perfis").then((r) => r.json()).then((d) => setMeuPapel(d.eu?.role));
   }, []);
 
   // Abre o modal, mas NAO muda nada ainda -- status so e' commitado depois que
@@ -77,28 +73,9 @@ export default function PainelPage() {
     setMovimento(null);
   }
 
-  async function sair() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-  }
-
   return (
-    <div className="wrap">
-      <div className="top">
-        <h1>Personare — CRM &amp; Propostas</h1>
-        <div style={{ display: "flex", gap: 10 }}>
-          {(meuPapel === "admin" || meuPapel === "financeiro") && (
-            <Link href="/painel/analytics" className="btn">Analytics</Link>
-          )}
-          <Link href="/painel/eventos" className="btn">Agenda de eventos</Link>
-          {meuPapel === "admin" && <Link href="/painel/catalogo" className="btn">Catálogo</Link>}
-          {meuPapel === "admin" && <Link href="/painel/usuarios" className="btn">Usuários</Link>}
-          <Link href="/painel/nova-proposta" className="btn primary">+ Nova proposta</Link>
-          <button className="btn" onClick={sair}>Sair</button>
-        </div>
-      </div>
-
+    <div>
+      <h1>Board CRM</h1>
       {err && <div className="alert err">{err}</div>}
       {loading ? (
         <p style={{ color: "var(--granite)" }}>Carregando…</p>
@@ -223,7 +200,10 @@ function ModalLogMovimento({ movimento, onConfirmar, onCancelar }) {
         )}
         <div className="field">
           <label>{motivos ? "Detalhes (opcional)" : "O que aconteceu? (obrigatório)"}</label>
-          <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ex: cliente pediu mais prazo pra decidir" autoFocus={!motivos} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ex: cliente pediu mais prazo pra decidir" autoFocus={!motivos} style={{ flex: 1 }} />
+            <MicButton onResult={(texto) => setNota((n) => (n ? `${n} ${texto}` : texto))} />
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button className="btn" onClick={onCancelar}>Cancelar</button>

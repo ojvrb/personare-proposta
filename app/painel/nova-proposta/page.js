@@ -103,31 +103,25 @@ export default function NovaPropostaPage() {
   if (resultado) {
     const link = typeof window !== "undefined" ? `${window.location.origin}${resultado.link}` : resultado.link;
     return (
-      <div className="wrap">
-        <div className="card" style={{ maxWidth: 500, margin: "60px auto", textAlign: "center" }}>
-          <h2>Proposta criada!</h2>
-          <p style={{ color: "var(--granite)" }}>Envie esse link pro cliente:</p>
-          <div className="field">
-            <input readOnly value={link} onFocus={(e) => e.target.select()} />
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 16 }}>
-            <a className="btn primary" href={resultado.link} target="_blank" rel="noopener noreferrer">Abrir proposta</a>
-            <Link className="btn" href="/painel">Voltar pro CRM</Link>
-          </div>
+      <div className="card" style={{ maxWidth: 500, margin: "60px auto", textAlign: "center" }}>
+        <h2>Proposta criada!</h2>
+        <p style={{ color: "var(--granite)" }}>Envie esse link pro cliente:</p>
+        <div className="field">
+          <input readOnly value={link} onFocus={(e) => e.target.select()} />
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 16 }}>
+          <a className="btn primary" href={resultado.link} target="_blank" rel="noopener noreferrer">Abrir proposta</a>
+          <Link className="btn" href="/painel">Voltar pro CRM</Link>
         </div>
       </div>
     );
   }
 
-  if (!dados) return <div className="wrap">Carregando…</div>;
+  if (!dados) return <p style={{ color: "var(--granite)" }}>Carregando…</p>;
 
   return (
-    <div className="wrap">
-      <div className="top">
-        <h1>Nova proposta</h1>
-        <Link href="/painel" className="btn">← Voltar</Link>
-      </div>
-
+    <div>
+      <h1>Nova proposta</h1>
       {erro && <div className="alert err">{erro}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>

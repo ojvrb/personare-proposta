@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 const FUNIL = [
   { status: "novo_contato", label: "Novo contato" },
@@ -29,17 +28,14 @@ export default function AnalyticsPage() {
       .then(({ ok, d }) => (ok ? setDados(d) : setErro(d.error || "erro ao carregar")));
   }, []);
 
-  if (erro) return <div className="wrap"><div className="alert err">{erro}</div><Link href="/painel" className="btn">← Voltar</Link></div>;
-  if (!dados) return <div className="wrap">Carregando…</div>;
+  if (erro) return <div className="alert err">{erro}</div>;
+  if (!dados) return <p style={{ color: "var(--granite)" }}>Carregando…</p>;
 
   const maxFunil = Math.max(1, ...FUNIL.map((f) => dados.porStatus[f.status] || 0));
 
   return (
-    <div className="wrap">
-      <div className="top">
-        <h1>Analytics</h1>
-        <Link href="/painel" className="btn">← Voltar</Link>
-      </div>
+    <div>
+      <h1>Analytics</h1>
       <div className="selo">Desempenho comercial</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 14, marginBottom: 24 }}>

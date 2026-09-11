@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 const PAPEIS = { admin: "Admin", atendente: "Atendente", financeiro: "Financeiro" };
 
@@ -43,24 +42,16 @@ export default function UsuariosPage() {
     carregar();
   }
 
-  if (erro) return <div className="wrap"><div className="alert err">{erro}</div></div>;
-  if (!dados) return <div className="wrap">Carregando…</div>;
+  if (erro) return <div className="alert err">{erro}</div>;
+  if (!dados) return <p style={{ color: "var(--granite)" }}>Carregando…</p>;
 
   if (dados.eu.role !== "admin") {
-    return (
-      <div className="wrap">
-        <div className="alert err">Acesso restrito a administradores.</div>
-        <Link href="/painel" className="btn">← Voltar</Link>
-      </div>
-    );
+    return <div className="alert err">Acesso restrito a administradores.</div>;
   }
 
   return (
-    <div className="wrap">
-      <div className="top">
-        <h1>Usuários</h1>
-        <Link href="/painel" className="btn">← Voltar</Link>
-      </div>
+    <div>
+      <h1>Usuários</h1>
 
       {pendentes.length > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>

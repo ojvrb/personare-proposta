@@ -37,6 +37,15 @@ export async function POST(req, { params }) {
       cliente_id: clienteId,
       nota: `Cliente aceitou a proposta às ${new Date().toLocaleString("pt-BR")} — iniciar contrato.`,
     });
+
+    // move o card no board pra "Contrato" sozinho -- o aceite ja documenta o
+    // porque (a interacao acima), entao nao precisa do modal de motivo do
+    // board pra isso. So avanca (nunca reabre um card ja mais adiante, tipo
+    // negocio_fechado/perdido).
+    const { data: cliente } = await supabase.from("clientes").select("status").eq("id", clienteId).single();
+    if (cliente && !["contrato", "negocio_fechado", "perdido"].includes(cliente.status)) {
+      await supabase.from("clientes").update({ status: "contrato" }).eq("id", clienteId);
+    }
   }
 
   return NextResponse.json({ proposta: atualizada });

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import Link from "next/link";
 import { apiFetch } from "@/lib/apiFetch";
 import { MOTIVO_PERDA, MOTIVO_FECHAMENTO } from "@/lib/motivos";
+import MicButton from "@/app/components/MicButton";
 
 const ORIGEM_LABEL = {
   indicacao: "Indicação", instagram: "Instagram", evento_personare: "Evento Personare",
@@ -166,17 +166,14 @@ export default function ClienteDetalhePage({ params }) {
     if (ok) carregar();
   }
 
-  if (erro) return <div className="wrap"><div className="alert err">{erro}</div></div>;
-  if (!dados) return <div className="wrap">Carregando…</div>;
+  if (erro) return <div className="alert err">{erro}</div>;
+  if (!dados) return <p style={{ color: "var(--granite)" }}>Carregando…</p>;
 
   const { cliente, interacoes, transferenciaPendente } = dados;
 
   return (
-    <div className="wrap">
-      <div className="top">
-        <h1>{cliente.nome}{cliente.nome_conjuge ? ` & ${cliente.nome_conjuge}` : ""}</h1>
-        <Link href="/painel" className="btn">← Voltar</Link>
-      </div>
+    <div>
+      <h1>{cliente.nome}{cliente.nome_conjuge ? ` & ${cliente.nome_conjuge}` : ""}</h1>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, fontSize: 13 }}>
@@ -247,6 +244,7 @@ export default function ClienteDetalhePage({ params }) {
         <h3 style={{ marginTop: 0 }}>Histórico de interação</h3>
         <form onSubmit={enviarNota} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <input placeholder="Anotar contato, ligação, decisão..." value={nota} onChange={(e) => setNota(e.target.value)} style={{ flex: 1 }} />
+          <MicButton onResult={(texto) => setNota((n) => (n ? `${n} ${texto}` : texto))} />
           <button className="btn primary" disabled={enviandoNota}>Adicionar</button>
         </form>
         {interacoes.length === 0 ? (

@@ -30,27 +30,24 @@ export default function AgendaEventosPage() {
     });
 
   return (
-    <div className="wrap">
+    <div>
       <div className="top">
         <h1>Agenda de eventos</h1>
-        <div style={{ display: "flex", gap: 10 }}>
-          <div style={{ display: "flex", border: "1px solid var(--stroke)", borderRadius: 8, overflow: "hidden" }}>
-            <button
-              className="btn"
-              style={{ border: "none", borderRadius: 0, background: modo === "lista" ? "var(--lift)" : "transparent" }}
-              onClick={() => setModo("lista")}
-            >
-              Lista
-            </button>
-            <button
-              className="btn"
-              style={{ border: "none", borderRadius: 0, background: modo === "calendario" ? "var(--lift)" : "transparent" }}
-              onClick={() => setModo("calendario")}
-            >
-              Calendário
-            </button>
-          </div>
-          <Link href="/painel" className="btn">← Voltar</Link>
+        <div style={{ display: "flex", border: "1px solid var(--stroke)", borderRadius: 100, overflow: "hidden" }}>
+          <button
+            className="btn"
+            style={{ border: "none", borderRadius: 0, background: modo === "lista" ? "var(--lift)" : "transparent" }}
+            onClick={() => setModo("lista")}
+          >
+            Lista
+          </button>
+          <button
+            className="btn"
+            style={{ border: "none", borderRadius: 0, background: modo === "calendario" ? "var(--lift)" : "transparent" }}
+            onClick={() => setModo("calendario")}
+          >
+            Calendário
+          </button>
         </div>
       </div>
       <p style={{ color: "var(--granite)", marginTop: -10, marginBottom: 24 }}>

@@ -8,6 +8,7 @@ import { adminClient } from "@/lib/supabase/admin";
 export async function POST(req, { params }) {
   const { id } = await params;
   const supabase = adminClient();
+  const { motivo_categoria } = await req.json().catch(() => ({}));
 
   const { data: proposta, error: buscaErr } = await supabase
     .from("propostas")
@@ -17,7 +18,19 @@ export async function POST(req, { params }) {
   if (buscaErr || !proposta) return NextResponse.json({ error: "proposta nao encontrada" }, { status: 404 });
 
   if (proposta.status === "aceita") {
-    return NextResponse.json({ proposta }); // idempotente -- ja aceita, nao faz nada de novo
+    // ja aceita -- so aceita feedback opcional (tela pos-aceite, ver
+    // sprint3_experiencia_proposta.md), nunca reabre o aceite em si.
+    if (motivo_categoria && !proposta.motivo_categoria) {
+      const { data: comFeedback, error: fbErr } = await supabase
+        .from("propostas")
+        .update({ motivo_categoria })
+        .eq("id", id)
+        .select()
+        .single();
+      if (fbErr) return NextResponse.json({ error: fbErr.message }, { status: 500 });
+      return NextResponse.json({ proposta: comFeedback });
+    }
+    return NextResponse.json({ proposta });
   }
   if (proposta.status === "perdida") {
     return NextResponse.json({ error: "proposta ja foi marcada como perdida" }, { status: 400 });

@@ -2,13 +2,9 @@
 
 import { useEffect, useState, use } from "react";
 import { apiFetch } from "@/lib/apiFetch";
-import { MOTIVO_PERDA, MOTIVO_FECHAMENTO } from "@/lib/motivos";
+import { MOTIVO_PERDA, MOTIVO_FECHAMENTO, ORIGEM_LABEL } from "@/lib/motivos";
 import MicButton from "@/app/components/MicButton";
 
-const ORIGEM_LABEL = {
-  indicacao: "Indicação", instagram: "Instagram", evento_personare: "Evento Personare",
-  pesquisa_internet: "Pesquisa na internet", site: "Site", outro: "Outro",
-};
 const STATUS_PROPOSTA = {
   rascunho: "Rascunho", enviada: "Enviada", em_negociacao: "Em negociação",
   pre_aprovada: "Pré-aprovada", aceita: "Aceita", perdida: "Perdida",
@@ -356,6 +352,12 @@ function Proposta({ proposta: p, onStatus, onAjustar }) {
       {p.status === "perdida" && p.motivo_categoria && (
         <div style={{ fontSize: 12, color: "var(--granite)", marginBottom: 8 }}>
           Motivo: {MOTIVO_PERDA[p.motivo_categoria] || p.motivo_categoria}{p.motivo_detalhe ? ` — ${p.motivo_detalhe}` : ""}
+        </div>
+      )}
+
+      {p.status === "aceita" && p.motivo_categoria && (
+        <div style={{ fontSize: 12, color: "var(--sage-dark)", marginBottom: 8 }}>
+          O cliente disse que o que mais pesou foi: {MOTIVO_FECHAMENTO[p.motivo_categoria] || p.motivo_categoria}
         </div>
       )}
 

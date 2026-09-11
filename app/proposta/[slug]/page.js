@@ -189,7 +189,7 @@ export default async function PropostaPublicaPage({ params }) {
               </div>
 
               <div style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--stroke)" }}>
-                <AceitarProposta propostaId={proposta.id} statusInicial={proposta.status} aceitaEmInicial={proposta.aceita_em} />
+                <AceitarProposta propostaId={proposta.id} statusInicial={proposta.status} aceitaEmInicial={proposta.aceita_em} motivoInicial={proposta.motivo_categoria} />
               </div>
             </div>
           </Reveal>

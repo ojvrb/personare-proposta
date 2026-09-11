@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MOTIVO_PERDA, MOTIVO_FECHAMENTO } from "@/lib/motivos";
+import { MOTIVO_PERDA, MOTIVO_FECHAMENTO, ORIGEM_LABEL } from "@/lib/motivos";
 import MicButton from "@/app/components/MicButton";
 
 const STATUS = [
@@ -129,16 +129,21 @@ export default function PainelPage() {
 function ClienteCard({ cliente, arrastando, onDragStart, onDragEnd }) {
   const evento = cliente.eventos?.[0];
   const proposta = evento?.propostas?.[evento?.propostas?.length - 1];
+  const iniciais = cliente.atendente_email ? cliente.atendente_email.slice(0, 2).toUpperCase() : null;
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      style={{ border: "1px solid var(--stroke)", borderRadius: 8, background: "var(--pitch-2)", padding: 10, cursor: "grab", opacity: arrastando ? 0.4 : 1 }}
+      className="flat-card"
+      style={{ padding: 10, cursor: "grab", opacity: arrastando ? 0.4 : 1 }}
     >
-      <Link href={`/painel/clientes/${cliente.id}`} style={{ fontSize: 13, fontWeight: 600, textDecoration: "underline" }}>
-        {cliente.nome}{cliente.nome_conjuge ? ` & ${cliente.nome_conjuge}` : ""}
-      </Link>
+      {cliente.origem && <span className="badge" style={{ marginBottom: 6, display: "inline-block" }}>{ORIGEM_LABEL[cliente.origem] || cliente.origem}</span>}
+      <div>
+        <Link href={`/painel/clientes/${cliente.id}`} style={{ fontSize: 13, fontWeight: 600, textDecoration: "underline" }}>
+          {cliente.nome}{cliente.nome_conjuge ? ` & ${cliente.nome_conjuge}` : ""}
+        </Link>
+      </div>
       <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--granite)", marginTop: 4 }}>
         {cliente.cidade || "—"} · {cliente.telefone || "sem telefone"}
       </div>
@@ -149,10 +154,17 @@ function ClienteCard({ cliente, arrastando, onDragStart, onDragEnd }) {
         </div>
       )}
       {proposta && (
-        <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ color: "var(--gold-dark)", fontWeight: 600, fontSize: 13 }}>
-            R$ {Number(proposta.total).toLocaleString("pt-BR")}
-          </span>
+        <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {iniciais && (
+              <span title={cliente.atendente_email} style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--sage-wash)", color: "var(--sage-dark)", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {iniciais}
+              </span>
+            )}
+            <span style={{ color: "var(--gold-dark)", fontWeight: 600, fontSize: 13 }}>
+              R$ {Number(proposta.total).toLocaleString("pt-BR")}
+            </span>
+          </div>
           <a href={`/proposta/${proposta.slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--stone)", textDecoration: "underline" }}>
             ver proposta
           </a>

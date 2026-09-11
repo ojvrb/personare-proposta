@@ -53,7 +53,7 @@ export async function POST(req) {
   if (!user) return NextResponse.json({ error: "nao autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const { cliente, evento, pacote_id, buffet_id, buffets_sugeridos = [], extras_selecionados = [], desconto = 0 } = body;
+  const { cliente, evento, pacote_id, buffet_id, buffets_sugeridos = [], extras_selecionados = [], desconto = 0, validade_dias = 15 } = body;
 
   if (!cliente?.nome) return NextResponse.json({ error: "nome do cliente e obrigatorio" }, { status: 400 });
   if (!evento?.num_convidados && evento?.num_convidados !== 0) {
@@ -102,6 +102,7 @@ export async function POST(req) {
   });
 
   const slug = gerarSlug(cliente.nome);
+  const validaAte = new Date(Date.now() + Number(validade_dias) * 86400000).toISOString().slice(0, 10);
 
   const { data: propostaRow, error: propostaErr } = await supabase
     .from("propostas")
@@ -116,6 +117,7 @@ export async function POST(req) {
       total,
       slug,
       status: "enviada",
+      valida_ate: validaAte,
     })
     .select()
     .single();

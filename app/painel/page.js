@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { MOTIVO_PERDA, MOTIVO_FECHAMENTO } from "@/lib/motivos";
 
 const STATUS = [
   { id: "novo_contato", label: "Novo contato" },
@@ -15,18 +16,6 @@ const STATUS = [
   { id: "negocio_fechado", label: "Negócio fechado" },
   { id: "perdido", label: "Perdido" },
 ];
-
-const MOTIVO_PERDA = {
-  capacidade: "Capacidade", preco_alto: "Preço alto", data_indisponivel: "Data indisponível",
-  concorrente: "Concorrente", buffet_nao_agradou: "Buffet não agradou",
-  decoracao_nao_agradou: "Decoração não agradou", sem_retorno: "Sem retorno", outro: "Outro",
-};
-
-const MOTIVO_FECHAMENTO = {
-  indicacao: "Indicação", preco_adequado: "Preço adequado", buffet_agradou: "Buffet agradou",
-  atendimento: "Atendimento/vendedor", localizacao: "Localização", disponibilidade: "Data disponível",
-  portfolio: "Portfólio/fotos", outro: "Outro",
-};
 
 // KanbanBoard generico (app/components) nao tem slot pra drag-and-drop com log
 // de motivo -- entao aqui e um board simples proprio, com HTML5 drag nativo
@@ -54,30 +43,37 @@ export default function PainelPage() {
     fetch("/api/perfis").then((r) => r.json()).then((d) => setMeuPapel(d.eu?.role));
   }, []);
 
-  async function moverStatus(cliente, paraStatus) {
+  // Abre o modal, mas NAO muda nada ainda -- status so e' commitado depois que
+  // o vendedor preencher a resposta e confirmar (ver confirmarMovimento). Isso
+  // evita o card mudar de etapa sozinho enquanto o modal ainda ta' aberto.
+  function moverStatus(cliente, paraStatus) {
     if (cliente.status === paraStatus) return;
-    setClientes((cs) => cs.map((c) => (c.id === cliente.id ? { ...c, status: paraStatus } : c)));
+    setMovimento({ cliente, deStatus: cliente.status, paraStatus });
+  }
+
+  async function confirmarMovimento(nota) {
+    const { cliente, paraStatus } = movimento;
     await fetch(`/api/clientes/${cliente.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: paraStatus }),
     });
-    setMovimento({ cliente, deStatus: cliente.status, paraStatus });
-  }
-
-  async function registrarLog(nota) {
-    if (movimento && nota?.trim()) {
-      await fetch(`/api/clientes/${movimento.cliente.id}/interacoes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nota }),
-      });
-    }
+    await fetch(`/api/clientes/${cliente.id}/interacoes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nota }),
+    });
     // negocio fechado sai do funil de vendas -- passa a viver na agenda de
     // eventos (/painel/eventos), nao faz mais sentido continuar no board.
-    if (movimento?.paraStatus === "negocio_fechado") {
-      setClientes((cs) => cs.filter((c) => c.id !== movimento.cliente.id));
-    }
+    setClientes((cs) =>
+      paraStatus === "negocio_fechado"
+        ? cs.filter((c) => c.id !== cliente.id)
+        : cs.map((c) => (c.id === cliente.id ? { ...c, status: paraStatus } : c))
+    );
+    setMovimento(null);
+  }
+
+  function cancelarMovimento() {
     setMovimento(null);
   }
 
@@ -148,7 +144,7 @@ export default function PainelPage() {
         </div>
       )}
 
-      {movimento && <ModalLogMovimento movimento={movimento} onFechar={registrarLog} />}
+      {movimento && <ModalLogMovimento movimento={movimento} onConfirmar={confirmarMovimento} onCancelar={cancelarMovimento} />}
     </div>
   );
 }
@@ -189,7 +185,10 @@ function ClienteCard({ cliente, arrastando, onDragStart, onDragEnd }) {
   );
 }
 
-function ModalLogMovimento({ movimento, onFechar }) {
+// Sem "Pular": todo movimento de etapa exige preencher motivo (perdido/fechado)
+// ou uma nota (demais etapas) antes de confirmar -- so' entao o status muda de
+// verdade (ver confirmarMovimento acima). "Cancelar" desiste do movimento inteiro.
+function ModalLogMovimento({ movimento, onConfirmar, onCancelar }) {
   const [nota, setNota] = useState("");
   const [motivo, setMotivo] = useState("");
   const paraPerdido = movimento.paraStatus === "perdido";
@@ -197,13 +196,14 @@ function ModalLogMovimento({ movimento, onFechar }) {
   const motivos = paraPerdido ? MOTIVO_PERDA : paraFechado ? MOTIVO_FECHAMENTO : null;
   const rotuloEvento = paraPerdido ? "Perdido" : "Negócio fechado";
   const labelPara = STATUS.find((s) => s.id === movimento.paraStatus)?.label;
+  const podeSalvar = motivos ? !!motivo : nota.trim().length > 0;
 
   function confirmar() {
-    if (motivos && !motivo) return;
+    if (!podeSalvar) return;
     const textoFinal = motivos
       ? `${rotuloEvento} — motivo: ${motivos[motivo]}${nota.trim() ? ` — ${nota.trim()}` : ""}`
       : nota.trim();
-    onFechar(textoFinal || null);
+    onConfirmar(textoFinal);
   }
 
   return (
@@ -222,12 +222,12 @@ function ModalLogMovimento({ movimento, onFechar }) {
           </div>
         )}
         <div className="field">
-          <label>{motivos ? "Detalhes (opcional)" : "O que aconteceu? (opcional)"}</label>
+          <label>{motivos ? "Detalhes (opcional)" : "O que aconteceu? (obrigatório)"}</label>
           <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ex: cliente pediu mais prazo pra decidir" autoFocus={!motivos} />
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button className="btn" onClick={() => onFechar(null)} disabled={!!motivos}>Pular</button>
-          <button className="btn primary" onClick={confirmar} disabled={!!motivos && !motivo}>Salvar</button>
+          <button className="btn" onClick={onCancelar}>Cancelar</button>
+          <button className="btn primary" onClick={confirmar} disabled={!podeSalvar}>Salvar</button>
         </div>
       </div>
     </div>

@@ -50,6 +50,12 @@ export default async function PropostaPublicaPage({ params }) {
   const pagamentos = contrato?.pagamentos || [];
   const totalPago = pagamentos.filter((p) => p.status === "pago").reduce((s, p) => s + Number(p.valor), 0);
 
+  const diasRestantes = proposta.valida_ate
+    ? Math.ceil((new Date(`${proposta.valida_ate}T00:00:00`) - new Date(new Date().toDateString())) / 86400000)
+    : null;
+  const expirada = diasRestantes !== null && diasRestantes < 0;
+  const corValidade = expirada ? "var(--red)" : diasRestantes <= 3 ? "var(--amber)" : "var(--green)";
+
   return (
     <div className="wrap" style={{ maxWidth: 720 }}>
       <div style={{ textAlign: "center", margin: "32px 0" }}>
@@ -60,6 +66,21 @@ export default async function PropostaPublicaPage({ params }) {
           {evento?.data_evento ? ` · ${new Date(evento.data_evento).toLocaleDateString("pt-BR")}` : ""}
         </p>
       </div>
+
+      {proposta.valida_ate && (
+        <div className="card" style={{ marginBottom: 16, borderColor: corValidade, textAlign: "center" }}>
+          <div style={{ color: corValidade, fontWeight: 700, fontSize: 15 }}>
+            {expirada
+              ? `Proposta expirada em ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")}`
+              : `Valores garantidos até ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")} · faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"}`}
+          </div>
+          <p style={{ fontSize: 12, color: "var(--granite)", margin: "4px 0 0" }}>
+            {expirada
+              ? "Preços de buffet mudam rápido — fale com a gente pra atualizar sua proposta."
+              : "Preço de buffet muda rápido: depois dessa data os valores podem ser reajustados."}
+          </p>
+        </div>
+      )}
 
       {depoimentos.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -150,7 +171,7 @@ export default async function PropostaPublicaPage({ params }) {
       </div>
 
       <p style={{ textAlign: "center", color: "var(--granite)", fontSize: 12, marginTop: 24 }}>
-        Proposta válida por 30 dias · Fale com o Personare pra tirar dúvidas ou fechar sua data.
+        Fale com o Personare pra tirar dúvidas ou fechar sua data.
       </p>
     </div>
   );

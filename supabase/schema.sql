@@ -261,3 +261,8 @@ insert into extras (nome, tipo_preco, valor) values
   ('Flores naturais', 'fixo', 4000),
   ('Banda', 'fixo', 6500),
   ('Taxa de uso da cozinha (buffet externo)', 'fixo', 2000);
+
+-- Validade da proposta: preco de buffet muda rapido, entao a proposta so
+-- garante o valor ate essa data -- precisa ficar bem visivel pro cliente
+-- decidir rapido. Default 15 dias a partir da criacao.
+alter table propostas add column valida_ate date not null default (current_date + 15);

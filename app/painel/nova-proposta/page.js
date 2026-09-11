@@ -23,6 +23,7 @@ export default function NovaPropostaPage() {
   const [buffetsCurados, setBuffetsCurados] = useState([]); // ate 3 opcoes mostradas na vitrine publica
   const [extrasSel, setExtrasSel] = useState({}); // { extra_id: quantidade }
   const [desconto, setDesconto] = useState(0);
+  const [validadeDias, setValidadeDias] = useState(15);
 
   useEffect(() => {
     fetch("/api/propostas")
@@ -90,6 +91,7 @@ export default function NovaPropostaPage() {
         buffets_sugeridos: buffetsCurados,
         extras_selecionados: extrasSelecionados,
         desconto: Number(desconto) || 0,
+        validade_dias: Number(validadeDias) || 15,
       }),
     });
     const data = await res.json();
@@ -237,6 +239,12 @@ export default function NovaPropostaPage() {
           <div className="field">
             <label>Desconto (R$)</label>
             <input type="number" min={0} value={desconto} onChange={(e) => setDesconto(e.target.value)} />
+          </div>
+
+          <div className="field">
+            <label>Proposta válida por quantos dias?</label>
+            <input type="number" min={1} value={validadeDias} onChange={(e) => setValidadeDias(e.target.value)} />
+            <span style={{ fontSize: 12, color: "var(--granite)" }}>Preço de buffet muda rápido — deixa claro pro cliente até quando esse valor tá garantido.</span>
           </div>
 
           <button type="submit" className="btn primary" disabled={enviando} style={{ width: "100%" }}>

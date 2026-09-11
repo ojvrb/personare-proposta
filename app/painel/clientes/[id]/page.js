@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/apiFetch";
+import { MOTIVO_PERDA, MOTIVO_FECHAMENTO } from "@/lib/motivos";
 
 const ORIGEM_LABEL = {
   indicacao: "Indicação", instagram: "Instagram", evento_personare: "Evento Personare",
@@ -11,11 +12,6 @@ const ORIGEM_LABEL = {
 const STATUS_PROPOSTA = {
   rascunho: "Rascunho", enviada: "Enviada", em_negociacao: "Em negociação",
   pre_aprovada: "Pré-aprovada", aceita: "Aceita", perdida: "Perdida",
-};
-const MOTIVO_PERDA = {
-  capacidade: "Capacidade", preco_alto: "Preço alto", data_indisponivel: "Data indisponível",
-  concorrente: "Concorrente", buffet_nao_agradou: "Buffet não agradou",
-  decoracao_nao_agradou: "Decoração não agradou", sem_retorno: "Sem retorno", outro: "Outro",
 };
 
 export default function ClienteDetalhePage({ params }) {
@@ -27,6 +23,7 @@ export default function ClienteDetalhePage({ params }) {
   const [nota, setNota] = useState("");
   const [enviandoNota, setEnviandoNota] = useState(false);
   const [paraTransferir, setParaTransferir] = useState("");
+  const [mostrarFechamento, setMostrarFechamento] = useState(false);
 
   async function carregar() {
     const res = await fetch(`/api/clientes/${id}`);
@@ -74,13 +71,24 @@ export default function ClienteDetalhePage({ params }) {
     if (ok) { setParaTransferir(""); carregar(); }
   }
 
-  async function atualizarPropostaStatus(propostaId, campos) {
+  // notaTexto e' obrigatoria pra qualquer mudanca de status da proposta -- nunca
+  // deixa passar uma mudanca de etapa sem registrar o porque (ver Proposta abaixo).
+  async function atualizarPropostaStatus(propostaId, campos, notaTexto) {
     const ok = await apiFetch(`/api/propostas/${propostaId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(campos),
     });
-    if (ok) carregar();
+    if (ok) {
+      if (notaTexto) {
+        await fetch(`/api/clientes/${id}/interacoes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nota: notaTexto }),
+        });
+      }
+      carregar();
+    }
   }
 
   async function ajustarProposta(propostaId, novoDesconto, motivo) {
@@ -107,7 +115,32 @@ export default function ClienteDetalhePage({ params }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(campos),
     });
-    if (ok) carregar();
+    if (ok) {
+      // contrato assinado = negocio fechado, mas so' de verdade depois que o
+      // vendedor confirmar o motivo -- ver ModalFechamento e confirmarFechamento.
+      if (campos.status === "assinado" && dados?.cliente?.status !== "negocio_fechado") {
+        setMostrarFechamento(true);
+      }
+      carregar();
+    }
+  }
+
+  async function confirmarFechamento(motivo, detalhe) {
+    const texto = `Negócio fechado — motivo: ${MOTIVO_FECHAMENTO[motivo]}${detalhe ? ` — ${detalhe}` : ""}`;
+    const ok = await apiFetch(`/api/clientes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "negocio_fechado" }),
+    });
+    if (ok) {
+      await fetch(`/api/clientes/${id}/interacoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nota: texto }),
+      });
+      setMostrarFechamento(false);
+      carregar();
+    }
   }
 
   async function adicionarParcela(contratoId, form) {
@@ -234,6 +267,45 @@ export default function ClienteDetalhePage({ params }) {
           </div>
         )}
       </div>
+
+      {mostrarFechamento && (
+        <ModalFechamento cliente={cliente} onConfirmar={confirmarFechamento} onCancelar={() => setMostrarFechamento(false)} />
+      )}
+    </div>
+  );
+}
+
+// Contrato assinado dispara isso automaticamente -- lembra o vendedor de
+// registrar por que o negocio fechou antes do lead virar "negocio fechado" e
+// aparecer na agenda de eventos. Sem motivo, nao muda de status (mesma regra
+// do board: nunca avanca etapa sem preencher a resposta).
+function ModalFechamento({ cliente, onConfirmar, onCancelar }) {
+  const [motivo, setMotivo] = useState("");
+  const [detalhe, setDetalhe] = useState("");
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+      <div className="card" style={{ maxWidth: 420, width: "90%" }}>
+        <h3 style={{ marginTop: 0 }}>Contrato assinado — negócio fechado?</h3>
+        <p style={{ fontSize: 13, color: "var(--granite)" }}>
+          {cliente.nome}{cliente.nome_conjuge ? ` & ${cliente.nome_conjuge}` : ""} vai mover pra "Negócio fechado" e entrar na agenda de eventos.
+        </p>
+        <div className="field">
+          <label>Por que o negócio fechou?</label>
+          <select value={motivo} onChange={(e) => setMotivo(e.target.value)} autoFocus>
+            <option value="">Selecione...</option>
+            {Object.entries(MOTIVO_FECHAMENTO).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label>Detalhes (opcional)</label>
+          <input value={detalhe} onChange={(e) => setDetalhe(e.target.value)} placeholder="Ex: fechou com desconto de fidelidade" />
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button className="btn" onClick={onCancelar}>Cancelar</button>
+          <button className="btn primary" onClick={() => onConfirmar(motivo, detalhe.trim())} disabled={!motivo}>Salvar</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -242,12 +314,39 @@ function Proposta({ proposta: p, onStatus, onAjustar }) {
   const [ajustando, setAjustando] = useState(false);
   const [novoDesconto, setNovoDesconto] = useState(p.desconto);
   const [motivoAjuste, setMotivoAjuste] = useState("");
-  const [motivoPerda, setMotivoPerda] = useState(p.motivo_categoria || "");
-  const [detalhePerda, setDetalhePerda] = useState(p.motivo_detalhe || "");
+  // status pendente aguardando confirmacao -- o select so' muda de verdade
+  // depois que o vendedor preencher motivo (perdida) ou uma nota (demais
+  // status) e clicar Salvar. Nunca commita direto no onChange.
+  const [statusPendente, setStatusPendente] = useState(null);
+  const [motivoPerda, setMotivoPerda] = useState("");
+  const [detalhePerda, setDetalhePerda] = useState("");
+  const [notaStatus, setNotaStatus] = useState("");
 
-  function mudarStatus(novoStatus) {
-    if (novoStatus === "perdida" && !motivoPerda) return; // espera escolher motivo primeiro
-    onStatus(p.id, { status: novoStatus, motivo_categoria: motivoPerda || null, motivo_detalhe: detalhePerda || null });
+  function pedirMudanca(novoStatus) {
+    if (novoStatus === p.status) return;
+    setStatusPendente(novoStatus);
+    setMotivoPerda("");
+    setDetalhePerda("");
+    setNotaStatus("");
+  }
+
+  function confirmarMudanca() {
+    if (statusPendente === "perdida") {
+      if (!motivoPerda) return;
+      onStatus(
+        p.id,
+        { status: "perdida", motivo_categoria: motivoPerda, motivo_detalhe: detalhePerda || null },
+        `Proposta perdida — motivo: ${MOTIVO_PERDA[motivoPerda]}${detalhePerda ? ` — ${detalhePerda}` : ""}`
+      );
+    } else {
+      if (!notaStatus.trim()) return;
+      onStatus(p.id, { status: statusPendente, motivo_categoria: null, motivo_detalhe: null }, notaStatus.trim());
+    }
+    setStatusPendente(null);
+  }
+
+  function cancelarMudanca() {
+    setStatusPendente(null);
   }
 
   const ajustes = p.propostas_ajustes || [];
@@ -259,22 +358,62 @@ function Proposta({ proposta: p, onStatus, onAjustar }) {
         <span>R$ {Number(p.total).toLocaleString("pt-BR")}</span>
       </div>
 
+      {p.status === "perdida" && p.motivo_categoria && (
+        <div style={{ fontSize: 12, color: "var(--granite)", marginBottom: 8 }}>
+          Motivo: {MOTIVO_PERDA[p.motivo_categoria] || p.motivo_categoria}{p.motivo_detalhe ? ` — ${p.motivo_detalhe}` : ""}
+        </div>
+      )}
+
+      {p.valida_ate && (
+        <div style={{ fontSize: 12, color: "var(--granite)", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+          Válida até {new Date(`${p.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")}
+          <button
+            className="btn"
+            style={{ fontSize: 11, padding: "2px 6px" }}
+            onClick={() => onStatus(p.id, { status: p.status, valida_ate: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10) })}
+          >
+            +15 dias
+          </button>
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <select value={p.status} onChange={(e) => mudarStatus(e.target.value)} style={{ fontSize: 12 }}>
+        <select value={statusPendente ?? p.status} onChange={(e) => pedirMudanca(e.target.value)} style={{ fontSize: 12 }}>
           {Object.entries(STATUS_PROPOSTA).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
 
-        {p.status === "perdida" && (
-          <>
-            <select value={motivoPerda} onChange={(e) => { setMotivoPerda(e.target.value); onStatus(p.id, { status: "perdida", motivo_categoria: e.target.value, motivo_detalhe: detalhePerda || null }); }} style={{ fontSize: 12 }}>
-              <option value="">Motivo da perda...</option>
-              {Object.entries(MOTIVO_PERDA).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          </>
-        )}
-
         <button className="btn" onClick={() => setAjustando((a) => !a)} style={{ fontSize: 12, padding: "4px 8px" }}>Ajustar desconto</button>
       </div>
+
+      {statusPendente && (
+        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {statusPendente === "perdida" ? (
+            <>
+              <select value={motivoPerda} onChange={(e) => setMotivoPerda(e.target.value)} style={{ fontSize: 12 }} autoFocus>
+                <option value="">Motivo da perda...</option>
+                {Object.entries(MOTIVO_PERDA).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <input value={detalhePerda} onChange={(e) => setDetalhePerda(e.target.value)} placeholder="Detalhes (opcional)" style={{ flex: 1, minWidth: 140 }} />
+            </>
+          ) : (
+            <input
+              value={notaStatus}
+              onChange={(e) => setNotaStatus(e.target.value)}
+              placeholder={`Por que mudou pra "${STATUS_PROPOSTA[statusPendente]}"? (obrigatório)`}
+              style={{ flex: 1, minWidth: 200 }}
+              autoFocus
+            />
+          )}
+          <button className="btn" onClick={cancelarMudanca}>Cancelar</button>
+          <button
+            className="btn primary"
+            onClick={confirmarMudanca}
+            disabled={statusPendente === "perdida" ? !motivoPerda : !notaStatus.trim()}
+          >
+            Salvar
+          </button>
+        </div>
+      )}
 
       {ajustando && (
         <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>

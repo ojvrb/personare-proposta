@@ -53,7 +53,7 @@ export async function POST(req) {
   if (!user) return NextResponse.json({ error: "nao autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const { cliente, evento, pacote_id, buffet_id, extras_selecionados = [], desconto = 0 } = body;
+  const { cliente, evento, pacote_id, buffet_id, buffets_sugeridos = [], extras_selecionados = [], desconto = 0 } = body;
 
   if (!cliente?.nome) return NextResponse.json({ error: "nome do cliente e obrigatorio" }, { status: 400 });
   if (!evento?.num_convidados && evento?.num_convidados !== 0) {
@@ -109,6 +109,7 @@ export async function POST(req) {
       evento_id: eventoRow.id,
       pacote_id: pacote_id || null,
       buffet_id: buffet_id || null,
+      buffets_sugeridos,
       extras_selecionados,
       desconto,
       subtotal,

@@ -21,6 +21,14 @@ async function getProposta(slug) {
   ]);
   const contratoAtual = contrato?.[0] || null;
 
+  // vitrine de buffet curada pelo atendente -- propostas antigas nao tem
+  // buffets_sugeridos preenchido, cai pro buffet unico de sempre.
+  const idsVitrine = proposta.buffets_sugeridos?.length ? proposta.buffets_sugeridos : (proposta.buffet_id ? [proposta.buffet_id] : []);
+  const { data: buffetsVitrine } = idsVitrine.length
+    ? await supabase.from("buffets").select("*").in("id", idsVitrine)
+    : { data: [] };
+  const vitrineBuffets = idsVitrine.map((id) => buffetsVitrine.find((b) => b.id === id)).filter(Boolean);
+
   const extrasEscolhidos = (proposta.extras_selecionados || [])
     .map((sel) => {
       const extra = extras?.find((e) => e.id === sel.extra_id);
@@ -28,7 +36,7 @@ async function getProposta(slug) {
     })
     .filter(Boolean);
 
-  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, extrasEscolhidos, contrato: contratoAtual, depoimentos: depoimentos || [] };
+  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, contrato: contratoAtual, depoimentos: depoimentos || [] };
 }
 
 export default async function PropostaPublicaPage({ params }) {
@@ -36,7 +44,7 @@ export default async function PropostaPublicaPage({ params }) {
   const dados = await getProposta(slug);
   if (!dados) notFound();
 
-  const { proposta, evento, cliente, pacote, buffet, extrasEscolhidos, contrato, depoimentos } = dados;
+  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, contrato, depoimentos } = dados;
   const nomeCasal = cliente?.nome_conjuge ? `${cliente.nome} & ${cliente.nome_conjuge}` : cliente?.nome;
   const pagamentos = contrato?.pagamentos || [];
   const totalPago = pagamentos.filter((p) => p.status === "pago").reduce((s, p) => s + Number(p.valor), 0);
@@ -72,19 +80,48 @@ export default async function PropostaPublicaPage({ params }) {
           {pacote.fotos?.[0] && <img src={pacote.fotos[0]} alt={pacote.nome} style={{ width: "100%", borderRadius: 8, marginBottom: 12, maxHeight: 260, objectFit: "cover" }} />}
           <h3 style={{ marginTop: 0 }}>{pacote.nome}</h3>
           <p style={{ color: "var(--gold)", fontSize: 20, fontWeight: 600 }}>R$ {Number(pacote.preco).toLocaleString("pt-BR")}</p>
-          <p style={{ fontSize: 13, color: "var(--stone)" }}><b>Inclui:</b> {(pacote.itens_inclusos || []).join(", ")}</p>
+          {(pacote.itens_inclusos || []).length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              {pacote.itens_inclusos.map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "4px 0", color: "var(--bone)" }}>
+                  <span style={{ color: "var(--green)", fontWeight: 700 }}>✓</span> {item}
+                </div>
+              ))}
+            </div>
+          )}
           {pacote.itens_nao_inclusos?.length > 0 && (
-            <p style={{ fontSize: 13, color: "var(--granite)" }}><b>Não inclui:</b> {pacote.itens_nao_inclusos.join(", ")}</p>
+            <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 10 }}><b>Não inclui:</b> {pacote.itens_nao_inclusos.join(", ")}</p>
           )}
         </div>
       )}
 
-      {buffet && (
+      {vitrineBuffets.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
-          {buffet.fotos?.[0] && <img src={buffet.fotos[0]} alt={buffet.nome} style={{ width: "100%", borderRadius: 8, marginBottom: 12, maxHeight: 220, objectFit: "cover" }} />}
-          <h3 style={{ marginTop: 0 }}>Buffet: {buffet.nome}</h3>
-          <p style={{ color: "var(--stone)", fontSize: 13 }}>{buffet.descricao}</p>
-          <p>R$ {Number(buffet.preco_pessoa).toLocaleString("pt-BR")}/pessoa × {evento?.num_convidados} convidados</p>
+          <h3 style={{ marginTop: 0 }}>Escolha seu buffet</h3>
+          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 12 }}>Selecionamos essas opções pensando no seu evento.</p>
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
+            {vitrineBuffets.map((b) => {
+              const recomendado = b.id === proposta.buffet_id;
+              return (
+                <div key={b.id} style={{ minWidth: 200, maxWidth: 220, border: `1px solid ${recomendado ? "var(--gold)" : "var(--stroke)"}`, borderRadius: 8, overflow: "hidden", background: "var(--pitch-2)", flexShrink: 0 }}>
+                  {b.fotos?.[0] ? (
+                    <img src={b.fotos[0]} alt={b.nome} style={{ width: "100%", height: 120, objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: 120, background: "var(--lift)" }} />
+                  )}
+                  <div style={{ padding: 12 }}>
+                    {recomendado && <div className="badge" style={{ borderColor: "var(--gold)", color: "var(--gold)", marginBottom: 6 }}>★ Recomendado</div>}
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{b.nome}</div>
+                    <div style={{ fontSize: 12, color: "var(--stone)", marginTop: 4 }}>{b.descricao}</div>
+                    <div style={{ fontSize: 13, color: "var(--gold)", fontWeight: 600, marginTop: 6 }}>R$ {Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 10 }}>
+            Valor calculado com o buffet recomendado × {evento?.num_convidados} convidados. Quer trocar? É só falar com a gente.
+          </p>
         </div>
       )}
 

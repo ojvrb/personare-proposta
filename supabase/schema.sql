@@ -219,6 +219,14 @@ create policy "staff acesso total" on propostas_ajustes for all using (auth.role
 -- Item de catalogo que faltava no seed original (esta no PDF real do orcamento)
 insert into extras (nome, tipo_preco, valor) values ('Mesa de antepastos', 'pessoa', 30);
 
+-- ============================================================
+-- Vitrine de buffet curada: o atendente pre-seleciona ~3 opcoes que acha que
+-- aquele cliente especifico vai gostar (nao as 5 todas), pro cliente navegar
+-- tipo cardapio na proposta publica. buffet_id continua sendo o preco de
+-- verdade (server-side); buffets_sugeridos e so a vitrine, sem impacto no total.
+-- ============================================================
+alter table propostas add column buffets_sugeridos jsonb not null default '[]';
+
 -- Seed com os valores reais do orcamento do Espaco Personare (memoria_produto_orcamento_espaco_personare.md)
 insert into pacotes (nome, preco, itens_inclusos, itens_nao_inclusos) values (
   'Pacote Essencial',

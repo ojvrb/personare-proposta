@@ -19,7 +19,8 @@ export default function NovaPropostaPage() {
   const [dataEvento, setDataEvento] = useState("");
   const [numConvidados, setNumConvidados] = useState(100);
   const [pacoteId, setPacoteId] = useState("");
-  const [buffetId, setBuffetId] = useState("");
+  const [buffetId, setBuffetId] = useState(""); // recomendado -- e' o que define o preco
+  const [buffetsCurados, setBuffetsCurados] = useState([]); // ate 3 opcoes mostradas na vitrine publica
   const [extrasSel, setExtrasSel] = useState({}); // { extra_id: quantidade }
   const [desconto, setDesconto] = useState(0);
 
@@ -29,7 +30,7 @@ export default function NovaPropostaPage() {
       .then((d) => {
         setDados(d);
         if (d.pacotes?.[0]) setPacoteId(d.pacotes[0].id);
-        if (d.buffets?.[0]) setBuffetId(d.buffets[0].id);
+        if (d.buffets?.[0]) { setBuffetId(d.buffets[0].id); setBuffetsCurados([d.buffets[0].id]); }
       })
       .catch(() => setErro("erro ao carregar pacotes/buffets/extras"));
   }, []);
@@ -53,6 +54,19 @@ export default function NovaPropostaPage() {
     });
   }, [dados, pacoteId, buffetId, numConvidados, extrasSelecionados, desconto]);
 
+  function toggleBuffetCurado(id) {
+    setBuffetsCurados((atual) => {
+      if (atual.includes(id)) {
+        const restante = atual.filter((b) => b !== id);
+        if (buffetId === id) setBuffetId(restante[0] || "");
+        return restante;
+      }
+      if (atual.length >= 3) return atual; // vitrine e' curada, no maximo 3 opcoes
+      if (atual.length === 0) setBuffetId(id);
+      return [...atual, id];
+    });
+  }
+
   function toggleExtra(id, checked, tipoPreco) {
     setExtrasSel((s) => ({ ...s, [id]: checked ? (tipoPreco === "unidade" ? 1 : 1) : 0 }));
   }
@@ -73,6 +87,7 @@ export default function NovaPropostaPage() {
         evento: { tipo, data_evento: dataEvento || null, num_convidados: Number(numConvidados) },
         pacote_id: pacoteId,
         buffet_id: buffetId,
+        buffets_sugeridos: buffetsCurados,
         extras_selecionados: extrasSelecionados,
         desconto: Number(desconto) || 0,
       }),
@@ -177,13 +192,30 @@ export default function NovaPropostaPage() {
             </label>
           ))}
 
-          <h3>Buffet</h3>
-          {dados.buffets.map((b) => (
-            <label key={b.id} className={`radio-row ${buffetId === b.id ? "selected" : ""}`}>
-              <input type="radio" name="buffet" checked={buffetId === b.id} onChange={() => setBuffetId(b.id)} />
-              <div>{b.nome} — R$ {Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa</div>
-            </label>
-          ))}
+          <h3>Buffet — monte a vitrine desse cliente</h3>
+          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8 }}>
+            Escolha até 3 opções que você acha que esse cliente vai gostar (não precisa mostrar todas). O cliente vê essas opções como um cardápio na proposta.
+          </p>
+          {dados.buffets.map((b) => {
+            const curado = buffetsCurados.includes(b.id);
+            return (
+              <label key={b.id} className={`check-row ${curado ? "selected" : ""}`}>
+                <input type="checkbox" checked={curado} onChange={() => toggleBuffetCurado(b.id)} disabled={!curado && buffetsCurados.length >= 3} />
+                {b.fotos?.[0] && <img src={b.fotos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
+                <div style={{ flex: 1 }}>{b.nome} — R$ {Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa</div>
+                {curado && (
+                  <button
+                    type="button"
+                    onClick={() => setBuffetId(b.id)}
+                    className="btn"
+                    style={{ fontSize: 10, padding: "3px 8px", background: buffetId === b.id ? "var(--gold)" : "var(--lift)", color: buffetId === b.id ? "#211408" : "var(--bone)" }}
+                  >
+                    {buffetId === b.id ? "★ Recomendado" : "Marcar recomendado"}
+                  </button>
+                )}
+              </label>
+            );
+          })}
 
           <h3>Extras</h3>
           {dados.extras.map((ex) => {

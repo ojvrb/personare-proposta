@@ -3,6 +3,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { publicClient } from "@/lib/supabase/public";
 import BuffetSlider from "./BuffetSlider";
 import Reveal from "@/app/components/Reveal";
+import AceitarProposta from "./AceitarProposta";
 
 export const dynamic = "force-dynamic";
 
@@ -81,32 +82,10 @@ export default async function PropostaPublicaPage({ params }) {
         </div>
       </section>
 
-      {proposta.valida_ate && (
-        <section style={{ padding: "0 0 8px" }}>
-          <div className="wrap" style={{ maxWidth: 720 }}>
-            <div className="ornament"><span className="ornament-dot" /></div>
-            <Reveal>
-              <div className="flat-card" style={{ padding: "16px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: corValidade }} />
-                <div style={{ color: corValidade, fontWeight: 700, fontSize: 15 }}>
-                  {expirada
-                    ? `Proposta expirada em ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")}`
-                    : `Valores garantidos até ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")} · faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"}`}
-                </div>
-                <p style={{ fontSize: 12, color: "var(--granite)", margin: "4px 0 0" }}>
-                  {expirada
-                    ? "Preços de buffet mudam rápido — fale com a gente pra atualizar sua proposta."
-                    : "Preço de buffet muda rápido: depois dessa data os valores podem ser reajustados."}
-                </p>
-              </div>
-            </Reveal>
-          </div>
-        </section>
-      )}
-
       {pacote && (
         <section className="section-band">
           <div className="wrap" style={{ maxWidth: 720 }}>
+            <div className="ornament"><span className="ornament-dot" /></div>
             <Reveal>
               <div className="flat-card">
                 {pacote.fotos?.[0] && (
@@ -208,8 +187,30 @@ export default async function PropostaPublicaPage({ params }) {
                 <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 12 }}>Investimento total</div>
                 <div className="valor-total">R$ {Number(proposta.total).toLocaleString("pt-BR")}</div>
               </div>
+
+              <div style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--stroke)" }}>
+                <AceitarProposta propostaId={proposta.id} statusInicial={proposta.status} aceitaEmInicial={proposta.aceita_em} />
+              </div>
             </div>
           </Reveal>
+
+          {proposta.valida_ate && (
+            <Reveal style={{ marginTop: 16 }}>
+              <div className="flat-card" style={{ padding: "16px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: corValidade }} />
+                <div style={{ color: corValidade, fontWeight: 700, fontSize: 15 }}>
+                  {expirada
+                    ? `Proposta expirada em ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")}`
+                    : `Valores garantidos até ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")} · faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"}`}
+                </div>
+                <p style={{ fontSize: 12, color: "var(--granite)", margin: "4px 0 0" }}>
+                  {expirada
+                    ? "Preços de buffet mudam rápido — fale com a gente pra atualizar sua proposta."
+                    : "Preço de buffet muda rápido: depois dessa data os valores podem ser reajustados."}
+                </p>
+              </div>
+            </Reveal>
+          )}
 
           {contrato && contrato.status === "assinado" && (
             <Reveal style={{ marginTop: 16 }}>

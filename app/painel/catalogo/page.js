@@ -189,6 +189,39 @@ function arrayParaTexto(arr) {
   return Array.isArray(arr) ? arr.join(", ") : arr || "";
 }
 
+// Upload direto de arquivo -- evita depender de URL de foto ja hospedada em
+// algum lugar (o que o atendente normalmente nao tem). Soma no campo de fotos
+// (append) via onUpload, que cada *Campos define conforme o formato do campo.
+function UploadFoto({ onUpload }) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function enviar(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setEnviando(true);
+    setErro("");
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/midia", { method: "POST", body: fd });
+    const data = await res.json();
+    setEnviando(false);
+    if (!res.ok) return setErro(data.error || "erro ao enviar foto");
+    onUpload(data.url);
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <label className="btn" style={{ cursor: "pointer", fontSize: 12, padding: "6px 12px" }}>
+        {enviando ? "Enviando…" : "+ Enviar foto"}
+        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={enviar} disabled={enviando} style={{ display: "none" }} />
+      </label>
+      {erro && <span style={{ fontSize: 11, color: "var(--red)" }}>{erro}</span>}
+    </div>
+  );
+}
+
 function PacoteCampos(campos, set) {
   return (
     <div style={{ display: "grid", gap: 8 }}>
@@ -197,6 +230,7 @@ function PacoteCampos(campos, set) {
       <input placeholder="Itens inclusos (separados por vírgula)" value={campos.itens_inclusos} onChange={(e) => set({ ...campos, itens_inclusos: e.target.value })} />
       <input placeholder="Itens não inclusos (separados por vírgula)" value={campos.itens_nao_inclusos} onChange={(e) => set({ ...campos, itens_nao_inclusos: e.target.value })} />
       <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
+      <UploadFoto onUpload={(url) => set({ ...campos, fotos: campos.fotos ? `${campos.fotos}, ${url}` : url })} />
     </div>
   );
 }
@@ -208,6 +242,7 @@ function BuffetCampos(campos, set) {
       <input type="number" placeholder="Preço por pessoa" value={campos.preco_pessoa} onChange={(e) => set({ ...campos, preco_pessoa: e.target.value })} />
       <input placeholder="Descrição" value={campos.descricao || ""} onChange={(e) => set({ ...campos, descricao: e.target.value })} />
       <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
+      <UploadFoto onUpload={(url) => set({ ...campos, fotos: campos.fotos ? `${campos.fotos}, ${url}` : url })} />
       <textarea placeholder="Itens do cardápio (separados por vírgula)" rows={2} value={campos.itens || ""} onChange={(e) => set({ ...campos, itens: e.target.value })} />
     </div>
   );
@@ -224,6 +259,7 @@ function ExtraCampos(campos, set) {
       </select>
       <input type="number" placeholder="Valor" value={campos.valor} onChange={(e) => set({ ...campos, valor: e.target.value })} />
       <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
+      <UploadFoto onUpload={(url) => set({ ...campos, fotos: campos.fotos ? `${campos.fotos}, ${url}` : url })} />
     </div>
   );
 }
@@ -234,6 +270,7 @@ function DepoimentoCampos(campos, set) {
       <input placeholder="Nome do autor" value={campos.autor_nome} onChange={(e) => set({ ...campos, autor_nome: e.target.value })} />
       <textarea placeholder="Depoimento" rows={3} value={campos.texto || ""} onChange={(e) => set({ ...campos, texto: e.target.value })} />
       <input placeholder="URL da foto (opcional)" value={campos.foto || ""} onChange={(e) => set({ ...campos, foto: e.target.value })} />
+      <UploadFoto onUpload={(url) => set({ ...campos, foto: url })} />
       <select value={campos.evento_tipo || "casamento"} onChange={(e) => set({ ...campos, evento_tipo: e.target.value })}>
         <option value="casamento">Casamento</option>
         <option value="15_anos">15 anos</option>

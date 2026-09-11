@@ -266,3 +266,13 @@ insert into extras (nome, tipo_preco, valor) values
 -- garante o valor ate essa data -- precisa ficar bem visivel pro cliente
 -- decidir rapido. Default 15 dias a partir da criacao.
 alter table propostas add column valida_ate date not null default (current_date + 15);
+
+-- Aceite self-service: o cliente clica "Aceitar proposta" no link publico e o
+-- status muda pra aceita sozinho, sem depender do staff perceber e mudar
+-- manualmente (sprint3_experiencia_proposta.md). Contrato continua manual.
+alter table propostas add column aceita_em timestamptz;
+
+-- Upload de fotos (pacote/buffet/extras/depoimentos): bucket 'catalogo-midia'
+-- ja criado via Storage API (publico, service role bypassa RLS no insert/
+-- delete pelo /api/midia -- nao precisa de policy separada em storage.objects,
+-- so' o bucket publico pra leitura). Nao precisa rodar SQL pra isso.

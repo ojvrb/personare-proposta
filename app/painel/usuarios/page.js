@@ -8,6 +8,9 @@ export default function UsuariosPage() {
   const [dados, setDados] = useState(null);
   const [pendentes, setPendentes] = useState([]);
   const [erro, setErro] = useState("");
+  const [emailConvite, setEmailConvite] = useState("");
+  const [papelConvite, setPapelConvite] = useState("atendente");
+  const [convidando, setConvidando] = useState(false);
 
   async function carregar() {
     const res = await fetch("/api/perfis");
@@ -30,6 +33,29 @@ export default function UsuariosPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role }),
     });
+    carregar();
+  }
+
+  async function convidar(e) {
+    e.preventDefault();
+    if (!emailConvite.trim()) return;
+    setConvidando(true);
+    setErro("");
+    const res = await fetch("/api/perfis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailConvite.trim(), role: papelConvite }),
+    });
+    const data = await res.json();
+    setConvidando(false);
+    if (!res.ok) return setErro(data.error || "erro ao convidar");
+    setEmailConvite("");
+    carregar();
+  }
+
+  async function remover(userId, email) {
+    if (!confirm(`Remover ${email}? Os leads dele ficam sem dono, mas nada é apagado.`)) return;
+    await fetch(`/api/perfis/${userId}`, { method: "DELETE" });
     carregar();
   }
 
@@ -72,14 +98,35 @@ export default function UsuariosPage() {
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Equipe</h3>
+        {erro && <div className="alert err">{erro}</div>}
         {dados.usuarios.map((u) => (
           <div key={u.user_id} className="resumo-linha">
             <span>{u.email}</span>
-            <select value={u.role} onChange={(e) => mudarPapel(u.user_id, e.target.value)}>
-              {Object.entries(PAPEIS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select value={u.role} onChange={(e) => mudarPapel(u.user_id, e.target.value)}>
+                {Object.entries(PAPEIS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              {u.user_id !== dados.eu.user_id && (
+                <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => remover(u.user_id, u.email)}>Remover</button>
+              )}
+            </span>
           </div>
         ))}
+
+        <form onSubmit={convidar} style={{ display: "flex", gap: 8, marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--stroke)", flexWrap: "wrap" }}>
+          <input
+            type="email"
+            required
+            placeholder="email@exemplo.com"
+            value={emailConvite}
+            onChange={(e) => setEmailConvite(e.target.value)}
+            style={{ flex: 1, minWidth: 200 }}
+          />
+          <select value={papelConvite} onChange={(e) => setPapelConvite(e.target.value)}>
+            {Object.entries(PAPEIS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <button className="btn primary" disabled={convidando}>{convidando ? "Convidando…" : "+ Convidar"}</button>
+        </form>
       </div>
     </div>
   );

@@ -276,3 +276,18 @@ alter table propostas add column aceita_em timestamptz;
 -- ja criado via Storage API (publico, service role bypassa RLS no insert/
 -- delete pelo /api/midia -- nao precisa de policy separada em storage.objects,
 -- so' o bucket publico pra leitura). Nao precisa rodar SQL pra isso.
+
+-- Galeria "nosso espaco" -- fotos de ambiente pro atendente montar uma
+-- historia visual na proposta publica, antes do preco (nao presas a nenhum
+-- pacote especifico). `ordem` controla a sequencia da "historia".
+create table fotos_espaco (
+  id uuid primary key default gen_random_uuid(),
+  url text not null,
+  legenda text,
+  ordem int not null default 0,
+  ativo boolean not null default true,
+  created_at timestamptz not null default now()
+);
+alter table fotos_espaco enable row level security;
+create policy "staff acesso total" on fotos_espaco for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "leitura publica de fotos ativas" on fotos_espaco for select using (ativo = true);

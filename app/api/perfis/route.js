@@ -32,3 +32,25 @@ export async function GET() {
 
   return NextResponse.json({ eu: { user_id: perfil.user.id, email: perfil.user.email, role: perfil.role }, colegas, usuarios });
 }
+
+const PAPEIS_VALIDOS = ["admin", "atendente", "financeiro"];
+
+// POST (admin-only): convida um novo usuario por email (link magico do
+// proprio Supabase Auth, sem senha pra distribuir manualmente) e ja cria o
+// perfil com o cargo escolhido.
+export async function POST(req) {
+  const supabase = await createClient();
+  const negado = await requireRole(supabase, ["admin"]);
+  if (negado) return negado;
+
+  const { email, role = "atendente" } = await req.json();
+  if (!email?.trim()) return NextResponse.json({ error: "email e obrigatorio" }, { status: 400 });
+  if (!PAPEIS_VALIDOS.includes(role)) return NextResponse.json({ error: "cargo invalido" }, { status: 400 });
+
+  const { data, error } = await adminClient().auth.admin.inviteUserByEmail(email.trim());
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await supabase.from("perfis").upsert({ user_id: data.user.id, role }, { onConflict: "user_id" });
+
+  return NextResponse.json({ usuario: { user_id: data.user.id, email: data.user.email, role } });
+}

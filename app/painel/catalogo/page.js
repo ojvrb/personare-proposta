@@ -42,6 +42,126 @@ export default function CatalogoPage() {
         resumo={(d) => `${d.evento_tipo || "—"}`}
         campoNome="autor_nome"
       />
+
+      <GaleriaEspaco />
+    </div>
+  );
+}
+
+// "Nosso espaco" -- galeria de fotos de ambiente pra proposta publica (secao
+// antes do preco, tipo historia). Ordem controla a sequencia; setas trocam
+// posicao com o vizinho, mais simples que drag-and-drop pra reordenar poucas fotos.
+function GaleriaEspaco() {
+  const [fotos, setFotos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function carregar() {
+    setLoading(true);
+    const res = await fetch("/api/fotos-espaco");
+    const data = await res.json();
+    if (res.ok) setFotos((data.items || []).sort((a, b) => a.ordem - b.ordem));
+    setLoading(false);
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  async function enviarFoto(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setEnviando(true);
+    setErro("");
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/midia", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) { setEnviando(false); return setErro(data.error || "erro ao enviar foto"); }
+
+    const novaOrdem = fotos.length ? Math.max(...fotos.map((f) => f.ordem)) + 1 : 0;
+    await fetch("/api/fotos-espaco", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: data.url, ordem: novaOrdem }),
+    });
+    setEnviando(false);
+    carregar();
+  }
+
+  async function mudarLegenda(id, legenda) {
+    setFotos((fs) => fs.map((f) => (f.id === id ? { ...f, legenda } : f)));
+  }
+
+  async function salvarLegenda(id, legenda) {
+    await fetch(`/api/fotos-espaco/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ legenda }),
+    });
+  }
+
+  async function alternarAtivo(foto) {
+    await fetch(`/api/fotos-espaco/${foto.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ativo: !foto.ativo }),
+    });
+    carregar();
+  }
+
+  async function remover(id) {
+    await fetch(`/api/fotos-espaco/${id}`, { method: "DELETE" });
+    carregar();
+  }
+
+  async function mover(index, delta) {
+    const alvo = index + delta;
+    if (alvo < 0 || alvo >= fotos.length) return;
+    const a = fotos[index], b = fotos[alvo];
+    await Promise.all([
+      fetch(`/api/fotos-espaco/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ordem: b.ordem }) }),
+      fetch(`/api/fotos-espaco/${b.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ordem: a.ordem }) }),
+    ]);
+    carregar();
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 20 }}>
+      <h3 style={{ marginTop: 0 }}>Nosso espaço</h3>
+      <p style={{ color: "var(--granite)", fontSize: 13, marginTop: -8, marginBottom: 16 }}>
+        Galeria de fotos do ambiente que aparece na proposta pública, antes do preço — monte a ordem como uma história (ex: fachada → salão → decoração à noite).
+      </p>
+      {erro && <div className="alert err">{erro}</div>}
+      {loading ? (
+        <p style={{ color: "var(--granite)" }}>Carregando…</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {fotos.map((foto, i) => (
+            <div key={foto.id} style={{ display: "flex", gap: 12, alignItems: "center", border: "1px solid var(--stroke)", borderRadius: 10, padding: 10, opacity: foto.ativo ? 1 : 0.5 }}>
+              <img src={foto.url} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+              <input
+                placeholder="Legenda (opcional)"
+                value={foto.legenda || ""}
+                onChange={(e) => mudarLegenda(foto.id, e.target.value)}
+                onBlur={(e) => salvarLegenda(foto.id, e.target.value)}
+                style={{ flex: 1, minWidth: 120 }}
+              />
+              <div style={{ display: "flex", gap: 4 }}>
+                <button className="btn" style={{ padding: "6px 10px" }} onClick={() => mover(i, -1)} disabled={i === 0} aria-label="Mover pra cima">↑</button>
+                <button className="btn" style={{ padding: "6px 10px" }} onClick={() => mover(i, 1)} disabled={i === fotos.length - 1} aria-label="Mover pra baixo">↓</button>
+                <button className="btn" style={{ padding: "6px 10px" }} onClick={() => alternarAtivo(foto)}>{foto.ativo ? "Desativar" : "Ativar"}</button>
+                <button className="btn" style={{ padding: "6px 10px" }} onClick={() => remover(foto.id)}>Excluir</button>
+              </div>
+            </div>
+          ))}
+
+          <label className="btn primary" style={{ cursor: "pointer", textAlign: "center", marginTop: 6 }}>
+            {enviando ? "Enviando…" : "+ Adicionar foto"}
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={enviarFoto} disabled={enviando} style={{ display: "none" }} />
+          </label>
+        </div>
+      )}
     </div>
   );
 }

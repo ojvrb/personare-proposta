@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { adminClient } from "@/lib/supabase/admin";
 import { publicClient } from "@/lib/supabase/public";
 import BuffetSlider from "./BuffetSlider";
+import PacoteGallery from "./PacoteGallery";
+import EspacoStory from "./EspacoStory";
 import Reveal from "@/app/components/Reveal";
 import AceitarProposta from "./AceitarProposta";
 
@@ -12,15 +14,16 @@ async function getProposta(slug) {
   const { data: proposta } = await supabase.from("propostas").select("*").eq("slug", slug).single();
   if (!proposta) return null;
 
-  const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }, { data: contrato }, { data: depoimentos }] = await Promise.all([
+  const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }, { data: contrato }, { data: depoimentos }, { data: fotosEspaco }] = await Promise.all([
     supabase.from("eventos").select("*, clientes(*)").eq("id", proposta.evento_id).single(),
     proposta.pacote_id ? supabase.from("pacotes").select("*").eq("id", proposta.pacote_id).single() : Promise.resolve({ data: null }),
     proposta.buffet_id ? supabase.from("buffets").select("*").eq("id", proposta.buffet_id).single() : Promise.resolve({ data: null }),
     supabase.from("extras").select("*"),
     supabase.from("contratos").select("*, pagamentos(*)").eq("evento_id", proposta.evento_id).limit(1),
-    // depoimentos usa o cliente publico (anon), respeitando a politica de RLS
-    // "leitura publica de depoimentos ativos" -- nao precisa de service role aqui.
+    // depoimentos e fotos_espaco usam o cliente publico (anon), respeitando a
+    // politica de RLS "leitura publica de ativos" -- nao precisa service role.
     publicClient().from("depoimentos").select("*").eq("ativo", true).order("ordem"),
+    publicClient().from("fotos_espaco").select("*").eq("ativo", true).order("ordem"),
   ]);
   const contratoAtual = contrato?.[0] || null;
 
@@ -39,7 +42,7 @@ async function getProposta(slug) {
     })
     .filter(Boolean);
 
-  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, contrato: contratoAtual, depoimentos: depoimentos || [] };
+  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspaco || [] };
 }
 
 export default async function PropostaPublicaPage({ params }) {
@@ -47,7 +50,7 @@ export default async function PropostaPublicaPage({ params }) {
   const dados = await getProposta(slug);
   if (!dados) notFound();
 
-  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, contrato, depoimentos } = dados;
+  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, contrato, depoimentos, fotosEspaco } = dados;
   const pagamentos = contrato?.pagamentos || [];
   const totalPago = pagamentos.filter((p) => p.status === "pago").reduce((s, p) => s + Number(p.valor), 0);
 
@@ -56,15 +59,24 @@ export default async function PropostaPublicaPage({ params }) {
     : null;
   const expirada = diasRestantes !== null && diasRestantes < 0;
   const corValidade = expirada ? "var(--red)" : diasRestantes <= 3 ? "var(--amber)" : "var(--green)";
+  const fotoCapa = fotosEspaco[0]?.url || pacote?.fotos?.[0] || null;
 
   return (
     <div>
       {/* HERO -- a tese da pagina: o nome do casal, nao o preco, e' a primeira
-          coisa que a pessoa ve. Sem foto ainda, o impacto vem da escala
-          tipografica (Fraunces gigante), do "&" em gradiente verde->dourado,
-          do glow ambiente atras do texto e da entrada escalonada no load. */}
-      <section className="hero" style={{ padding: "88px 0 48px", textAlign: "center" }}>
-        <div className="hero-glow" />
+          coisa que a pessoa ve. Assim que existe uma foto (do pacote, feita
+          de capa ate' ter foto de ambiente dedicada), ela vira o fundo cheio
+          do hero, com overlay escuro pro texto continuar legivel. Sem foto,
+          o impacto vem so' da escala tipografica e do glow ambiente. */}
+      <section className={`hero${fotoCapa ? " com-foto" : ""}`} style={{ padding: "88px 0 48px", textAlign: "center" }}>
+        {fotoCapa ? (
+          <>
+            <div className="hero-cover" style={{ backgroundImage: `url(${fotoCapa})` }} />
+            <div className="hero-cover-overlay" />
+          </>
+        ) : (
+          <div className="hero-glow" />
+        )}
         <div className="wrap" style={{ maxWidth: 920 }}>
           <span className="eyebrow">Espaço Personare</span>
           <h1 className="hero-name">
@@ -82,31 +94,24 @@ export default async function PropostaPublicaPage({ params }) {
         </div>
       </section>
 
+      {/* "Nosso espaco" -- antes do pacote/preco, de proposito: a galeria que
+          o atendente monta como historia (ver /painel/catalogo) pra pessoa
+          se imaginar no lugar antes de qualquer numero. */}
+      {fotosEspaco.length > 0 && (
+        <section>
+          <Reveal>
+            <EspacoStory fotos={fotosEspaco} />
+          </Reveal>
+        </section>
+      )}
+
       {pacote && (
         <section className="section-band">
           <div className="wrap" style={{ maxWidth: 720 }}>
             <div className="ornament"><span className="ornament-dot" /></div>
             <Reveal>
-              <div className="flat-card">
-                {pacote.fotos?.[0] && (
-                  <img src={pacote.fotos[0]} alt={pacote.nome} style={{ width: "100%", display: "block", maxHeight: 320, objectFit: "cover" }} />
-                )}
-                <div style={{ padding: 24 }}>
-                  <h3 style={{ marginTop: 0 }}>{pacote.nome}</h3>
-                  <p style={{ color: "var(--gold-dark)", fontSize: 22, fontWeight: 600 }}>R$ {Number(pacote.preco).toLocaleString("pt-BR")}</p>
-                  {(pacote.itens_inclusos || []).length > 0 && (
-                    <div style={{ marginTop: 10 }}>
-                      {pacote.itens_inclusos.map((item, i) => (
-                        <div key={i} className="stagger-item" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "4px 0", color: "var(--bone)" }}>
-                          <span style={{ color: "var(--sage)", fontWeight: 700 }}>✓</span> {item}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {pacote.itens_nao_inclusos?.length > 0 && (
-                    <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 10 }}><b>Não inclui:</b> {pacote.itens_nao_inclusos.join(", ")}</p>
-                  )}
-                </div>
+              <div className="flat-card" style={{ padding: 20 }}>
+                <PacoteGallery pacote={pacote} />
               </div>
             </Reveal>
           </div>
@@ -137,8 +142,13 @@ export default async function PropostaPublicaPage({ params }) {
               <div className="flat-card" style={{ padding: 24 }}>
                 <h3 style={{ marginTop: 0 }}>Extras selecionados</h3>
                 {extrasEscolhidos.map((ex) => (
-                  <div key={ex.id} className="resumo-linha">
-                    <span>{ex.nome}{ex.tipo_preco === "unidade" ? ` × ${ex.quantidade}` : ""}</span>
+                  <div key={ex.id} className="resumo-linha" style={{ alignItems: "center" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {ex.fotos?.[0] && (
+                        <img src={ex.fotos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                      )}
+                      {ex.nome}{ex.tipo_preco === "unidade" ? ` × ${ex.quantidade}` : ""}
+                    </span>
                     <span>R$ {Number(ex.valor).toLocaleString("pt-BR")}</span>
                   </div>
                 ))}

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { adminClient } from "@/lib/supabase/admin";
 import { publicClient } from "@/lib/supabase/public";
+import BuffetSlider from "./BuffetSlider";
 
 export const dynamic = "force-dynamic";
 
@@ -99,28 +100,9 @@ export default async function PropostaPublicaPage({ params }) {
         <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>Escolha seu buffet</h3>
           <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 12 }}>Selecionamos essas opções pensando no seu evento.</p>
-          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
-            {vitrineBuffets.map((b) => {
-              const recomendado = b.id === proposta.buffet_id;
-              return (
-                <div key={b.id} style={{ minWidth: 200, maxWidth: 220, border: `1px solid ${recomendado ? "var(--gold)" : "var(--stroke)"}`, borderRadius: 8, overflow: "hidden", background: "var(--pitch-2)", flexShrink: 0 }}>
-                  {b.fotos?.[0] ? (
-                    <img src={b.fotos[0]} alt={b.nome} style={{ width: "100%", height: 120, objectFit: "cover" }} />
-                  ) : (
-                    <div style={{ width: "100%", height: 120, background: "var(--lift)" }} />
-                  )}
-                  <div style={{ padding: 12 }}>
-                    {recomendado && <div className="badge" style={{ borderColor: "var(--gold)", color: "var(--gold)", marginBottom: 6 }}>★ Recomendado</div>}
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{b.nome}</div>
-                    <div style={{ fontSize: 12, color: "var(--stone)", marginTop: 4 }}>{b.descricao}</div>
-                    <div style={{ fontSize: 13, color: "var(--gold)", fontWeight: 600, marginTop: 6 }}>R$ {Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 10 }}>
-            Valor calculado com o buffet recomendado × {evento?.num_convidados} convidados. Quer trocar? É só falar com a gente.
+          <BuffetSlider buffets={vitrineBuffets} recomendadoId={proposta.buffet_id} numConvidados={evento?.num_convidados} />
+          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 14 }}>
+            Valor calculado com o buffet recomendado. Quer trocar? É só falar com a gente.
           </p>
         </div>
       )}

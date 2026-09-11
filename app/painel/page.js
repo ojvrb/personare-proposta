@@ -16,14 +16,23 @@ const STATUS = [
   { id: "perdido", label: "Perdido" },
 ];
 
-// KanbanBoard generico (app/components) nao tem slot pra um select de status por card,
-// entao aqui e um board simples proprio — mais barato que estender o componente pra um uso so.
+const MOTIVO_PERDA = {
+  capacidade: "Capacidade", preco_alto: "Preço alto", data_indisponivel: "Data indisponível",
+  concorrente: "Concorrente", buffet_nao_agradou: "Buffet não agradou",
+  decoracao_nao_agradou: "Decoração não agradou", sem_retorno: "Sem retorno", outro: "Outro",
+};
+
+// KanbanBoard generico (app/components) nao tem slot pra drag-and-drop com log
+// de motivo -- entao aqui e um board simples proprio, com HTML5 drag nativo
+// (sem biblioteca) e um modal pra registrar por que o lead mudou de etapa.
 export default function PainelPage() {
   const router = useRouter();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [meuPapel, setMeuPapel] = useState(null);
+  const [arrastando, setArrastando] = useState(null); // id do cliente sendo arrastado
+  const [movimento, setMovimento] = useState(null); // { cliente, deStatus, paraStatus }
 
   async function carregar() {
     setLoading(true);
@@ -39,13 +48,26 @@ export default function PainelPage() {
     fetch("/api/perfis").then((r) => r.json()).then((d) => setMeuPapel(d.eu?.role));
   }, []);
 
-  async function mudarStatus(id, status) {
-    setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, status } : c)));
-    await fetch(`/api/clientes/${id}`, {
+  async function moverStatus(cliente, paraStatus) {
+    if (cliente.status === paraStatus) return;
+    setClientes((cs) => cs.map((c) => (c.id === cliente.id ? { ...c, status: paraStatus } : c)));
+    await fetch(`/api/clientes/${cliente.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status: paraStatus }),
     });
+    setMovimento({ cliente, deStatus: cliente.status, paraStatus });
+  }
+
+  async function registrarLog(nota) {
+    if (movimento && nota?.trim()) {
+      await fetch(`/api/clientes/${movimento.cliente.id}/interacoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nota }),
+      });
+    }
+    setMovimento(null);
   }
 
   async function sair() {
@@ -75,18 +97,37 @@ export default function PainelPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
           {STATUS.map((col) => {
-            const itens = clientes.filter((c) => c.status === col.id);
+            const itensCol = clientes.filter((c) => c.status === col.id);
             return (
-              <div key={col.id} className="card" style={{ padding: 0 }}>
+              <div
+                key={col.id}
+                className="card"
+                style={{ padding: 0 }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const cliente = clientes.find((c) => c.id === arrastando);
+                  if (cliente) moverStatus(cliente, col.id);
+                  setArrastando(null);
+                }}
+              >
                 <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--stroke)", display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 13 }}>{col.label}</span>
-                  <span className="badge">{itens.length}</span>
+                  <span className="badge">{itensCol.length}</span>
                 </div>
                 <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8, minHeight: 60 }}>
-                  {itens.length === 0 ? (
+                  {itensCol.length === 0 ? (
                     <span style={{ fontSize: 12, color: "var(--granite)", textAlign: "center", padding: 10 }}>Vazio</span>
                   ) : (
-                    itens.map((c) => <ClienteCard key={c.id} cliente={c} onStatus={mudarStatus} />)
+                    itensCol.map((c) => (
+                      <ClienteCard
+                        key={c.id}
+                        cliente={c}
+                        arrastando={arrastando === c.id}
+                        onDragStart={() => setArrastando(c.id)}
+                        onDragEnd={() => setArrastando(null)}
+                      />
+                    ))
                   )}
                 </div>
               </div>
@@ -94,15 +135,22 @@ export default function PainelPage() {
           })}
         </div>
       )}
+
+      {movimento && <ModalLogMovimento movimento={movimento} onFechar={registrarLog} />}
     </div>
   );
 }
 
-function ClienteCard({ cliente, onStatus }) {
+function ClienteCard({ cliente, arrastando, onDragStart, onDragEnd }) {
   const evento = cliente.eventos?.[0];
   const proposta = evento?.propostas?.[evento?.propostas?.length - 1];
   return (
-    <div style={{ border: "1px solid var(--stroke)", borderRadius: 8, background: "var(--pitch-2)", padding: 10 }}>
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      style={{ border: "1px solid var(--stroke)", borderRadius: 8, background: "var(--pitch-2)", padding: 10, cursor: "grab", opacity: arrastando ? 0.4 : 1 }}
+    >
       <Link href={`/painel/clientes/${cliente.id}`} style={{ fontSize: 13, fontWeight: 600, textDecoration: "underline" }}>
         {cliente.nome}{cliente.nome_conjuge ? ` & ${cliente.nome_conjuge}` : ""}
       </Link>
@@ -125,15 +173,48 @@ function ClienteCard({ cliente, onStatus }) {
           </a>
         </div>
       )}
-      <select
-        value={cliente.status}
-        onChange={(e) => onStatus(cliente.id, e.target.value)}
-        style={{ width: "100%", marginTop: 8, background: "var(--lift)", color: "var(--bone)", border: "1px solid var(--stroke)", borderRadius: 4, fontSize: 11, padding: "4px 6px" }}
-      >
-        {STATUS.map((s) => (
-          <option key={s.id} value={s.id}>{s.label}</option>
-        ))}
-      </select>
+    </div>
+  );
+}
+
+function ModalLogMovimento({ movimento, onFechar }) {
+  const [nota, setNota] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const paraPerdido = movimento.paraStatus === "perdido";
+  const labelPara = STATUS.find((s) => s.id === movimento.paraStatus)?.label;
+
+  function confirmar() {
+    if (paraPerdido && !motivo) return;
+    const textoFinal = paraPerdido
+      ? `Perdido — motivo: ${MOTIVO_PERDA[motivo]}${nota.trim() ? ` — ${nota.trim()}` : ""}`
+      : nota.trim();
+    onFechar(textoFinal || null);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+      <div className="card" style={{ maxWidth: 420, width: "90%" }}>
+        <h3 style={{ marginTop: 0 }}>
+          {movimento.cliente.nome} → {labelPara}
+        </h3>
+        {paraPerdido && (
+          <div className="field">
+            <label>Motivo da perda</label>
+            <select value={motivo} onChange={(e) => setMotivo(e.target.value)} autoFocus>
+              <option value="">Selecione...</option>
+              {Object.entries(MOTIVO_PERDA).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="field">
+          <label>{paraPerdido ? "Detalhes (opcional)" : "O que aconteceu? (opcional)"}</label>
+          <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ex: cliente pediu mais prazo pra decidir" autoFocus={!paraPerdido} />
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button className="btn" onClick={() => onFechar(null)}>Pular</button>
+          <button className="btn primary" onClick={confirmar} disabled={paraPerdido && !motivo}>Salvar</button>
+        </div>
+      </div>
     </div>
   );
 }

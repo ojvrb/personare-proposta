@@ -25,7 +25,7 @@ export default function CatalogoPage() {
       <Secao
         titulo="Buffets"
         endpoint="/api/buffets"
-        campoInicial={{ nome: "", preco_pessoa: 0, descricao: "", fotos: "", ativo: true }}
+        campoInicial={{ nome: "", preco_pessoa: 0, descricao: "", fotos: "", itens: "", ativo: true }}
         renderCampos={BuffetCampos}
         resumo={(b) => `R$ ${Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa`}
       />
@@ -81,6 +81,7 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
       itens_inclusos: arrayParaTexto(item.itens_inclusos),
       itens_nao_inclusos: arrayParaTexto(item.itens_nao_inclusos),
       fotos: arrayParaTexto(item.fotos),
+      itens: arrayParaTexto(item.itens),
     });
   }
 
@@ -173,6 +174,7 @@ function normalizarPayload(campos) {
   if ("itens_inclusos" in out) out.itens_inclusos = textoParaArray(out.itens_inclusos);
   if ("itens_nao_inclusos" in out) out.itens_nao_inclusos = textoParaArray(out.itens_nao_inclusos);
   if ("fotos" in out) out.fotos = textoParaArray(out.fotos);
+  if ("itens" in out) out.itens = textoParaArray(out.itens);
   delete out.id;
   delete out.created_at;
   return out;
@@ -206,6 +208,7 @@ function BuffetCampos(campos, set) {
       <input type="number" placeholder="Preço por pessoa" value={campos.preco_pessoa} onChange={(e) => set({ ...campos, preco_pessoa: e.target.value })} />
       <input placeholder="Descrição" value={campos.descricao || ""} onChange={(e) => set({ ...campos, descricao: e.target.value })} />
       <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
+      <textarea placeholder="Itens do cardápio (separados por vírgula)" rows={2} value={campos.itens || ""} onChange={(e) => set({ ...campos, itens: e.target.value })} />
     </div>
   );
 }

@@ -227,6 +227,17 @@ insert into extras (nome, tipo_preco, valor) values ('Mesa de antepastos', 'pess
 -- ============================================================
 alter table propostas add column buffets_sugeridos jsonb not null default '[]';
 
+-- Cardapio detalhado do buffet (pra vitrine virar slider com foto grande +
+-- lista de itens ao lado, nao so nome/preco). Itens reais tirados do PDF
+-- do orcamento (ORÇAMENTO ESPAÇO PERSONARE CASAMENTO.pdf).
+alter table buffets add column itens jsonb not null default '[]';
+
+update buffets set itens = '["Mix de folhas nobres com molho especial da casa", "Legumes da estação no vapor com ervas finas", "Arroz branco soltinho com salsinha fresca", "Espaguete ao alho dourado", "Estrogonofe de frango ao creme suave", "Posta bovina ao molho madeira"]' where nome = 'Clássico';
+update buffets set itens = '["Barquetes crocantes recheadas com salpicão de frango", "Bruschettas italianas com tomate e manjericão", "Lasanha à bolonhesa caseira", "Pernil suíno assado com molho de ervas", "Posta ao molho madeira com cogumelos frescos"]' where nome = 'Especial';
+update buffets set itens = '["Mix de antepastos: azeitonas, queijo curado, pepino agridoce", "Linguiça assada na brasa", "Pão de alho com manteiga de ervas", "Lasanha à bolonhesa com molho caseiro", "Churrasco: cortes nobres de alcatra grelhados na brasa"]' where nome = 'Churrasco Premium';
+update buffets set itens = '["Escondidinho de carne seca com purê cremoso gratinado", "Rondelli artesanal de queijo e presunto", "Medalhão de frango ao molho de mostarda dijon", "Alcatra ao molho madeira com cogumelos", "Leitão à pururuca com pele crocante"]' where nome = 'Completo';
+update buffets set itens = '["Batatas fritas crocantes com molho especial", "Bruschettas variadas com tomate e ervas", "Mini pizzas artesanais", "Iscas de alcatra ao ponto com molho barbecue", "Mini sanduíches gourmet", "Risoto do dia"]' where nome = 'Finger Foods';
+
 -- Seed com os valores reais do orcamento do Espaco Personare (memoria_produto_orcamento_espaco_personare.md)
 insert into pacotes (nome, preco, itens_inclusos, itens_nao_inclusos) values (
   'Pacote Essencial',

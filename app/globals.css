@@ -1,23 +1,43 @@
 :root{
-  /* Identidade Personare -- convite de casamento a noite: breu + latao + bordo.
-     Paleta nomeada, nao generica: Breu (fundo), Latao (dourado fosco, acento
-     primario), Bordo (vinho, acento de assinatura, usado com moderacao). */
-  --canvas:#14100d;      /* Breu */
-  --pitch:#1c1611;       /* Terracota-noite */
-  --pitch-2:#251d17;     /* Terracota-noite, elevado */
-  --lift:#221a15;
-  --stroke:#3d2f26;      /* Cacau */
-  --graphite:#544234;
-  --granite:#a89a8c;     /* Pedra */
-  --stone:#c9bcae;
-  --bone:#f3ece2;        /* Linho */
-  --chalk:#fbf8f4;
-  --gold:#c69354;        /* Latao -- acento primario */
-  --gold-bright:#dba968; /* hover/destaque do latao */
-  --wine:#8a3345;        /* Bordo -- acento de assinatura, moderado */
-  --green:#3fae4a;       /* status: bom (validado p/ contraste em superficie escura) */
-  --amber:#d99a2b;       /* status: atencao */
-  --red:#d0574f;         /* status: critico */
+  /* Identidade REAL do Personare: verde-salvia + creme + dourado/champagne,
+     derivada do logo de verdade (nao mais a paleta escura Breu/Latao/Bordo
+     inventada numa sessao anterior sem checar a marca).*/
+  --sage:#5C6E52;        /* verde-salvia -- cor primaria da marca */
+  --sage-dark:#46543E;   /* hover/active do verde */
+  --sage-wash:#EDF0E9;   /* verde bem diluido -- fundo de badge/eyebrow */
+  --gold:#C9A05C;        /* dourado/champagne -- destaque de valor e CTA */
+  --gold-bright:#D9B378; /* hover do dourado */
+  --gold-dark:#8F6C34;   /* dourado escurecido -- uso em TEXTO (contraste em fundo claro) */
+  --creme:#F7F5F0;       /* fundo base da pagina */
+  --creme-2:#EFEAE1;     /* banda alternada de secao, hover sutil */
+  --white:#FFFFFF;       /* superficie de card elevado */
+  --line:#E3DDD0;        /* borda hairline (estilo flat-card, sem sombra pesada) */
+  --ink:#2B2B26;         /* texto primario -- grafite quente, nunca preto puro */
+  --stone-2:#6B6558;     /* texto secundario */
+  --granite-2:#8A8172;   /* texto terciario / muted / labels */
+  --good:#4C7A52;
+  --warn:#B8791E;
+  --bad:#B23B32;
+  --shadow-soft:0 8px 40px rgba(43,43,38,.08); /* ambiente, nunca direcional */
+
+  /* aliases -- todo var(--x) ja usado no app aponta pro token novo
+     equivalente, entao o resto do CRM herda a paleta sem precisar editar
+     arquivo por arquivo (ver frontend-design pass, proposta publica). */
+  --canvas:var(--creme);
+  --pitch:var(--white);
+  --pitch-2:#FBF9F5;
+  --lift:var(--creme-2);
+  --stroke:var(--line);
+  --graphite:var(--ink);
+  --granite:var(--granite-2);
+  --stone:var(--stone-2);
+  --bone:var(--ink);
+  --chalk:#FFFDF9;
+  --wine:var(--sage);
+  --green:var(--good);
+  --amber:var(--warn);
+  --red:var(--bad);
+
   --font:var(--font-geist-sans),ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --mono:var(--font-geist-mono),ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --display:var(--font-fraunces),Georgia,"Times New Roman",serif;
@@ -34,8 +54,7 @@ body{
 a{color:inherit}
 .wrap{max-width:1100px;margin:0 auto;padding:24px clamp(16px,4vw,40px)}
 
-/* Titulos usam a serif com moderacao -- nunca no corpo, so aqui. Regua fina
-   + losango bordo embaixo: motivo de "programa impresso" que assina o produto. */
+/* Titulos usam a serif com moderacao -- nunca no corpo, so aqui. */
 h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-0.01em}
 h1{font-size:26px;margin:0 0 4px}
 .top h1{font-size:22px;margin:0}
@@ -43,45 +62,85 @@ h1{font-size:26px;margin:0 0 4px}
   display:inline-flex;align-items:center;gap:8px;margin:2px 0 18px;
   font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--granite);
 }
-.selo::before{content:"";width:6px;height:6px;background:var(--wine);transform:rotate(45deg);flex-shrink:0}
+.selo::before{content:"";width:6px;height:6px;background:var(--sage);transform:rotate(45deg);flex-shrink:0}
 .selo::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--stroke),transparent);max-width:80px}
 
 .btn{
-  font-family:var(--font);font-size:14px;border-radius:6px;padding:10px 16px;
-  border:1px solid var(--stroke);background:var(--lift);color:var(--bone);cursor:pointer;
-  transition:border-color .15s,color .15s;
+  font-family:var(--font);font-size:14px;border-radius:100px;padding:10px 18px;
+  border:1px solid var(--stroke);background:var(--white);color:var(--ink);cursor:pointer;
+  transition:border-color .15s,color .15s,background .15s;
 }
-.btn:hover{border-color:var(--graphite)}
-.btn.primary{background:var(--gold);color:#211408;border-color:var(--gold);font-weight:600}
-.btn.primary:hover{background:var(--gold-bright);border-color:var(--gold-bright)}
-.btn:disabled{opacity:.6;cursor:default}
+.btn:hover{border-color:var(--sage);color:var(--sage-dark)}
+.btn.primary{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:600}
+.btn.primary:hover{background:var(--gold-bright);border-color:var(--gold-bright);color:var(--ink)}
+.btn:disabled{opacity:.55;cursor:default}
 
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .field label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.02em;color:var(--granite)}
 .field input, .field select, .field textarea{
-  background:var(--pitch-2);border:1px solid var(--stroke);border-radius:6px;color:var(--bone);
+  background:var(--pitch-2);border:1px solid var(--stroke);border-radius:10px;color:var(--bone);
   padding:10px 12px;font-size:14px;font-family:var(--font);
 }
-.field input:focus, .field select:focus, .field textarea:focus{outline:1px solid var(--gold)}
+.field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--sage);outline-offset:1px}
 
-.card{border:1px solid var(--stroke);border-radius:10px;background:var(--pitch);padding:20px}
+.card{border:1px solid var(--stroke);border-radius:16px;background:var(--pitch);padding:20px}
 
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
-.badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:var(--lift);border:1px solid var(--stroke);color:var(--granite)}
+.badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:4px 10px;border-radius:100px;background:var(--sage-wash);border:1px solid var(--stroke);color:var(--sage-dark)}
 
-.alert{padding:10px 12px;border-radius:6px;font-size:13px;margin-bottom:14px}
-.alert.err{background:rgba(208,87,79,.14);border:1px solid var(--red);color:var(--bone)}
-.alert.ok{background:rgba(63,174,74,.14);border:1px solid var(--green);color:var(--bone)}
+.alert{padding:10px 12px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.alert.err{background:rgba(178,59,50,.08);border:1px solid var(--red);color:var(--ink)}
+.alert.ok{background:rgba(76,122,82,.08);border:1px solid var(--green);color:var(--ink)}
 
-.radio-row, .check-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--stroke);border-radius:6px;margin-bottom:8px;background:var(--pitch-2)}
+.radio-row, .check-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--stroke);border-radius:10px;margin-bottom:8px;background:var(--pitch-2)}
 .radio-row.selected, .check-row.selected{border-color:var(--gold)}
 
 .resumo-linha{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--stroke)}
-.resumo-total{display:flex;justify-content:space-between;padding:12px 0 0;font-size:18px;font-weight:600;color:var(--gold)}
+.resumo-total{display:flex;justify-content:space-between;padding:12px 0 0;font-size:18px;font-weight:600;color:var(--gold-dark)}
 
-/* Stat tile: regua fina de latao no topo -- assinatura visual reaproveitada
+/* Stat tile: regua fina dourada no topo -- assinatura visual reaproveitada
    em qualquer card de numero (analytics, resumos). */
-.stat{border:1px solid var(--stroke);border-radius:10px;background:var(--pitch);padding:16px 18px;position:relative;overflow:hidden}
+.stat{border:1px solid var(--stroke);border-radius:16px;background:var(--pitch);padding:16px 18px;position:relative;overflow:hidden}
 .stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold)}
 .stat .k{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--granite)}
-.stat .v{font-family:var(--display);font-size:26px;font-weight:600;color:var(--gold-bright);margin-top:6px}
+.stat .v{font-family:var(--display);font-size:26px;font-weight:600;color:var(--sage-dark);margin-top:6px}
+
+/* ============================================================
+   Proposta publica -- reveal por scroll (Apple), bandas de secao
+   alternadas creme/creme-2 (Apple), cards flat com hairline (OpenServ),
+   pill em tudo (consenso das 3 referencias). Motion respeita
+   prefers-reduced-motion.
+   ============================================================ */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:translateY(0)}
+@media (prefers-reduced-motion: reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+}
+
+.section-band{padding:56px 0}
+.section-band.alt{background:var(--creme-2)}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:100px;
+  background:var(--sage-wash);border:1px solid var(--stroke);color:var(--sage-dark);
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+}
+
+.hero-name{
+  font-family:var(--display);font-weight:600;letter-spacing:-0.01em;color:var(--ink);
+  font-size:clamp(40px,7vw,72px);line-height:1.05;margin:18px 0 6px;
+}
+.hero-name-underline{
+  height:2px;width:64px;margin:0 auto 20px;
+  background:linear-gradient(90deg,var(--sage),var(--gold));
+  animation:draw-line 1s ease .3s both;
+}
+@keyframes draw-line{from{width:0}to{width:64px}}
+@media (prefers-reduced-motion: reduce){
+  .hero-name-underline{animation:none;width:64px}
+}
+
+.flat-card{
+  border:1px solid var(--stroke);border-radius:20px;background:var(--white);overflow:hidden;
+}
+.flat-card.elevated{box-shadow:var(--shadow-soft);border-color:transparent}

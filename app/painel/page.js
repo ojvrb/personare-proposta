@@ -173,7 +173,7 @@ function ClienteCard({ cliente, arrastando, onDragStart, onDragEnd }) {
       )}
       {proposta && (
         <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ color: "var(--gold)", fontWeight: 600, fontSize: 13 }}>
+          <span style={{ color: "var(--gold-dark)", fontWeight: 600, fontSize: 13 }}>
             R$ {Number(proposta.total).toLocaleString("pt-BR")}
           </span>
           <a href={`/proposta/${proposta.slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--stone)", textDecoration: "underline" }}>

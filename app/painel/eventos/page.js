@@ -88,7 +88,7 @@ function ListaEventos({ eventos }) {
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ color: "var(--gold)", fontWeight: 600 }}>
+              <div style={{ color: "var(--gold-dark)", fontWeight: 600 }}>
                 {evento?.data_evento ? new Date(`${evento.data_evento}T00:00:00`).toLocaleDateString("pt-BR") : "sem data definida"}
               </div>
               {proposta && (
@@ -178,7 +178,7 @@ function CalendarioEventos({ eventos }) {
                 <Link
                   key={cliente.id}
                   href={`/painel/clientes/${cliente.id}`}
-                  style={{ display: "block", fontSize: 11, color: "var(--gold)", marginTop: 4, textDecoration: "underline", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                  style={{ display: "block", fontSize: 11, color: "var(--gold-dark)", marginTop: 4, textDecoration: "underline", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   title={cliente.nome}
                 >
                   {cliente.nome}

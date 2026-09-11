@@ -19,24 +19,24 @@ export default function BuffetSlider({ buffets, recomendadoId, numConvidados }) 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 220px", minWidth: 220 }}>
           {atual.fotos?.[0] ? (
-            <img src={atual.fotos[0]} alt={atual.nome} style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 8 }} />
+            <img src={atual.fotos[0]} alt={atual.nome} style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 16 }} />
           ) : (
-            <div style={{ width: "100%", height: 220, borderRadius: 8, background: "var(--lift)" }} />
+            <div style={{ width: "100%", height: 220, borderRadius: 16, background: "var(--lift)" }} />
           )}
         </div>
 
         <div style={{ flex: "1 1 220px", minWidth: 220 }}>
-          {recomendado && <div className="badge" style={{ borderColor: "var(--gold)", color: "var(--gold)", marginBottom: 8 }}>★ Recomendado pra você</div>}
+          {recomendado && <div className="badge" style={{ marginBottom: 8 }}>★ Recomendado pra você</div>}
           <h4 style={{ margin: "0 0 4px" }}>{atual.nome}</h4>
           <p style={{ fontSize: 13, color: "var(--stone)", margin: "0 0 8px" }}>{atual.descricao}</p>
-          <div style={{ color: "var(--gold)", fontWeight: 600, marginBottom: 10 }}>
+          <div style={{ color: "var(--gold-dark)", fontWeight: 600, marginBottom: 10 }}>
             R$ {Number(atual.preco_pessoa).toLocaleString("pt-BR")}/pessoa × {numConvidados} convidados
           </div>
           {atual.itens?.length > 0 && (
             <div>
               {atual.itens.map((item, i) => (
                 <div key={i} style={{ display: "flex", gap: 8, fontSize: 13, padding: "3px 0", color: "var(--bone)" }}>
-                  <span style={{ color: "var(--green)" }}>✓</span> {item}
+                  <span style={{ color: "var(--sage)" }}>✓</span> {item}
                 </div>
               ))}
             </div>

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { adminClient } from "@/lib/supabase/admin";
 import { publicClient } from "@/lib/supabase/public";
 import BuffetSlider from "./BuffetSlider";
+import Reveal from "@/app/components/Reveal";
 
 export const dynamic = "force-dynamic";
 
@@ -57,118 +58,172 @@ export default async function PropostaPublicaPage({ params }) {
   const corValidade = expirada ? "var(--red)" : diasRestantes <= 3 ? "var(--amber)" : "var(--green)";
 
   return (
-    <div className="wrap" style={{ maxWidth: 720 }}>
-      <div style={{ textAlign: "center", margin: "32px 0" }}>
-        <div className="badge">ESPAÇO PERSONARE</div>
-        <h1 style={{ fontSize: 28, margin: "10px 0 4px" }}>Proposta para {nomeCasal}</h1>
-        <p style={{ color: "var(--granite)" }}>
-          {evento?.tipo} · {evento?.num_convidados} convidados
-          {evento?.data_evento ? ` · ${new Date(evento.data_evento).toLocaleDateString("pt-BR")}` : ""}
-        </p>
-      </div>
-
-      {proposta.valida_ate && (
-        <div className="card" style={{ marginBottom: 16, borderColor: corValidade, textAlign: "center" }}>
-          <div style={{ color: corValidade, fontWeight: 700, fontSize: 15 }}>
-            {expirada
-              ? `Proposta expirada em ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")}`
-              : `Valores garantidos até ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")} · faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"}`}
-          </div>
-          <p style={{ fontSize: 12, color: "var(--granite)", margin: "4px 0 0" }}>
-            {expirada
-              ? "Preços de buffet mudam rápido — fale com a gente pra atualizar sua proposta."
-              : "Preço de buffet muda rápido: depois dessa data os valores podem ser reajustados."}
+    <div>
+      {/* HERO -- a tese da pagina: o nome do casal, nao o preco, e' a primeira
+          coisa que a pessoa ve. Assinatura visual: o tracinho dourado/verde
+          "se desenhando" embaixo do nome. */}
+      <section style={{ padding: "72px 0 40px", textAlign: "center" }}>
+        <div className="wrap" style={{ maxWidth: 720 }}>
+          <span className="eyebrow">Espaço Personare</span>
+          <h1 className="hero-name">{nomeCasal}</h1>
+          <div className="hero-name-underline" />
+          <p style={{ color: "var(--stone)", fontSize: 16, margin: 0 }}>
+            {evento?.tipo} · {evento?.num_convidados} convidados
+            {evento?.data_evento ? ` · ${new Date(`${evento.data_evento}T00:00:00`).toLocaleDateString("pt-BR")}` : ""}
           </p>
         </div>
-      )}
+      </section>
 
-      {depoimentos.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0 }}>O que dizem sobre a gente</h3>
-          <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 4 }}>
-            {depoimentos.map((d) => (
-              <div key={d.id} style={{ minWidth: 220, maxWidth: 260, border: "1px solid var(--stroke)", borderRadius: 8, padding: 12, background: "var(--pitch-2)" }}>
-                {d.foto && <img src={d.foto} alt={d.autor_nome} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", marginBottom: 8 }} />}
-                <p style={{ fontSize: 13, color: "var(--stone)", fontStyle: "italic" }}>&ldquo;{d.texto}&rdquo;</p>
-                <p style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600, margin: 0 }}>{d.autor_nome}</p>
+      {proposta.valida_ate && (
+        <section style={{ padding: "0 0 8px" }}>
+          <div className="wrap" style={{ maxWidth: 720 }}>
+            <Reveal>
+              <div className="flat-card" style={{ padding: "16px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: corValidade }} />
+                <div style={{ color: corValidade, fontWeight: 700, fontSize: 15 }}>
+                  {expirada
+                    ? `Proposta expirada em ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")}`
+                    : `Valores garantidos até ${new Date(`${proposta.valida_ate}T00:00:00`).toLocaleDateString("pt-BR")} · faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"}`}
+                </div>
+                <p style={{ fontSize: 12, color: "var(--granite)", margin: "4px 0 0" }}>
+                  {expirada
+                    ? "Preços de buffet mudam rápido — fale com a gente pra atualizar sua proposta."
+                    : "Preço de buffet muda rápido: depois dessa data os valores podem ser reajustados."}
+                </p>
               </div>
-            ))}
+            </Reveal>
           </div>
-        </div>
+        </section>
       )}
 
       {pacote && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          {pacote.fotos?.[0] && <img src={pacote.fotos[0]} alt={pacote.nome} style={{ width: "100%", borderRadius: 8, marginBottom: 12, maxHeight: 260, objectFit: "cover" }} />}
-          <h3 style={{ marginTop: 0 }}>{pacote.nome}</h3>
-          <p style={{ color: "var(--gold)", fontSize: 20, fontWeight: 600 }}>R$ {Number(pacote.preco).toLocaleString("pt-BR")}</p>
-          {(pacote.itens_inclusos || []).length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              {pacote.itens_inclusos.map((item, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "4px 0", color: "var(--bone)" }}>
-                  <span style={{ color: "var(--green)", fontWeight: 700 }}>✓</span> {item}
+        <section className="section-band">
+          <div className="wrap" style={{ maxWidth: 720 }}>
+            <Reveal>
+              <div className="flat-card">
+                {pacote.fotos?.[0] && (
+                  <img src={pacote.fotos[0]} alt={pacote.nome} style={{ width: "100%", display: "block", maxHeight: 320, objectFit: "cover" }} />
+                )}
+                <div style={{ padding: 24 }}>
+                  <h3 style={{ marginTop: 0 }}>{pacote.nome}</h3>
+                  <p style={{ color: "var(--gold-dark)", fontSize: 22, fontWeight: 600 }}>R$ {Number(pacote.preco).toLocaleString("pt-BR")}</p>
+                  {(pacote.itens_inclusos || []).length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      {pacote.itens_inclusos.map((item, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "4px 0", color: "var(--bone)" }}>
+                          <span style={{ color: "var(--sage)", fontWeight: 700 }}>✓</span> {item}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {pacote.itens_nao_inclusos?.length > 0 && (
+                    <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 10 }}><b>Não inclui:</b> {pacote.itens_nao_inclusos.join(", ")}</p>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-          {pacote.itens_nao_inclusos?.length > 0 && (
-            <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 10 }}><b>Não inclui:</b> {pacote.itens_nao_inclusos.join(", ")}</p>
-          )}
-        </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
       )}
 
       {vitrineBuffets.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0 }}>Escolha seu buffet</h3>
-          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 12 }}>Selecionamos essas opções pensando no seu evento.</p>
-          <BuffetSlider buffets={vitrineBuffets} recomendadoId={proposta.buffet_id} numConvidados={evento?.num_convidados} />
-          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 14 }}>
-            Valor calculado com o buffet recomendado. Quer trocar? É só falar com a gente.
-          </p>
-        </div>
+        <section className="section-band alt">
+          <div className="wrap" style={{ maxWidth: 720 }}>
+            <Reveal>
+              <div className="flat-card" style={{ padding: 24 }}>
+                <h3 style={{ marginTop: 0 }}>Escolha seu buffet</h3>
+                <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 12 }}>Selecionamos essas opções pensando no seu evento.</p>
+                <BuffetSlider buffets={vitrineBuffets} recomendadoId={proposta.buffet_id} numConvidados={evento?.num_convidados} />
+                <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 14 }}>
+                  Valor calculado com o buffet recomendado. Quer trocar? É só falar com a gente.
+                </p>
+              </div>
+            </Reveal>
+          </div>
+        </section>
       )}
 
       {extrasEscolhidos.length > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0 }}>Extras selecionados</h3>
-          {extrasEscolhidos.map((ex) => (
-            <div key={ex.id} className="resumo-linha">
-              <span>{ex.nome}{ex.tipo_preco === "unidade" ? ` × ${ex.quantidade}` : ""}</span>
-              <span>R$ {Number(ex.valor).toLocaleString("pt-BR")}</span>
-            </div>
-          ))}
-        </div>
+        <section className="section-band">
+          <div className="wrap" style={{ maxWidth: 720 }}>
+            <Reveal>
+              <div className="flat-card" style={{ padding: 24 }}>
+                <h3 style={{ marginTop: 0 }}>Extras selecionados</h3>
+                {extrasEscolhidos.map((ex) => (
+                  <div key={ex.id} className="resumo-linha">
+                    <span>{ex.nome}{ex.tipo_preco === "unidade" ? ` × ${ex.quantidade}` : ""}</span>
+                    <span>R$ {Number(ex.valor).toLocaleString("pt-BR")}</span>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+          </div>
+        </section>
       )}
 
-      <div className="card">
-        <div className="resumo-linha"><span>Subtotal</span><span>R$ {Number(proposta.subtotal).toLocaleString("pt-BR")}</span></div>
-        {Number(proposta.desconto) > 0 && (
-          <div className="resumo-linha"><span>Desconto</span><span>- R$ {Number(proposta.desconto).toLocaleString("pt-BR")}</span></div>
-        )}
-        <div className="resumo-total"><span>Investimento total</span><span>R$ {Number(proposta.total).toLocaleString("pt-BR")}</span></div>
+      {/* Depoimentos logo antes do preco, de proposito -- o casal se ve no
+          espaco antes de olhar pro valor. */}
+      {depoimentos.length > 0 && (
+        <section className="section-band alt">
+          <div className="wrap" style={{ maxWidth: 720 }}>
+            <Reveal>
+              <div>
+                <h3 style={{ textAlign: "center" }}>O que dizem sobre a gente</h3>
+                <div style={{ display: "flex", gap: 14, overflowX: "auto", padding: "4px 4px 12px", scrollSnapType: "x mandatory" }}>
+                  {depoimentos.map((d) => (
+                    <div key={d.id} className="flat-card" style={{ minWidth: 240, maxWidth: 260, padding: 16, scrollSnapAlign: "start", flexShrink: 0 }}>
+                      {d.foto && <img src={d.foto} alt={d.autor_nome} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", marginBottom: 8 }} />}
+                      <p style={{ fontSize: 13, color: "var(--stone)", fontStyle: "italic" }}>&ldquo;{d.texto}&rdquo;</p>
+                      <p style={{ fontSize: 12, color: "var(--gold-dark)", fontWeight: 600, margin: 0 }}>{d.autor_nome}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+      )}
+
+      {/* Investimento total -- maior peso visual da pagina depois do hero. */}
+      <section className="section-band">
+        <div className="wrap" style={{ maxWidth: 720 }}>
+          <Reveal>
+            <div className="flat-card elevated" style={{ padding: 32 }}>
+              <div className="resumo-linha"><span>Subtotal</span><span>R$ {Number(proposta.subtotal).toLocaleString("pt-BR")}</span></div>
+              {Number(proposta.desconto) > 0 && (
+                <div className="resumo-linha"><span>Desconto</span><span>- R$ {Number(proposta.desconto).toLocaleString("pt-BR")}</span></div>
+              )}
+              <div className="resumo-total" style={{ fontSize: 24 }}><span>Investimento total</span><span>R$ {Number(proposta.total).toLocaleString("pt-BR")}</span></div>
+            </div>
+          </Reveal>
+
+          {contrato && contrato.status === "assinado" && (
+            <Reveal style={{ marginTop: 16 }}>
+              <div className="flat-card" style={{ padding: 24 }}>
+                <h3 style={{ marginTop: 0 }}>📋 Seu evento está confirmado</h3>
+                <p style={{ fontSize: 13, color: "var(--stone)" }}>
+                  Pago: R$ {totalPago.toLocaleString("pt-BR")} de R$ {Number(contrato.valor_contratado).toLocaleString("pt-BR")}
+                </p>
+                {pagamentos.map((p) => (
+                  <div key={p.id} className="resumo-linha">
+                    <span>{p.descricao}{p.vencimento ? ` (venc. ${new Date(p.vencimento).toLocaleDateString("pt-BR")})` : ""}</span>
+                    <span>
+                      R$ {Number(p.valor).toLocaleString("pt-BR")}{" "}
+                      <span className="badge">{p.status === "pago" ? "pago" : "pendente"}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+          )}
+        </div>
+      </section>
+
+      <div className="wrap" style={{ maxWidth: 720 }}>
+        <p style={{ textAlign: "center", color: "var(--granite)", fontSize: 12, padding: "8px 0 56px" }}>
+          Fale com o Personare pra tirar dúvidas ou fechar sua data.
+        </p>
       </div>
-
-      {contrato && contrato.status === "assinado" && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <h3 style={{ marginTop: 0 }}>📋 Seu evento está confirmado</h3>
-          <p style={{ fontSize: 13, color: "var(--stone)" }}>
-            Pago: R$ {totalPago.toLocaleString("pt-BR")} de R$ {Number(contrato.valor_contratado).toLocaleString("pt-BR")}
-          </p>
-          {pagamentos.map((p) => (
-            <div key={p.id} className="resumo-linha">
-              <span>{p.descricao}{p.vencimento ? ` (venc. ${new Date(p.vencimento).toLocaleDateString("pt-BR")})` : ""}</span>
-              <span>
-                R$ {Number(p.valor).toLocaleString("pt-BR")}{" "}
-                <span className="badge">{p.status === "pago" ? "pago" : "pendente"}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <p style={{ textAlign: "center", color: "var(--granite)", fontSize: 12, marginTop: 24 }}>
-        Fale com o Personare pra tirar dúvidas ou fechar sua data.
-      </p>
     </div>
   );
 }

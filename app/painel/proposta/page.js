@@ -6,12 +6,15 @@ import { useEffect, useState } from "react";
 // (eyebrow/titulo/lead) sao editaveis em tempo real, com preview do default
 // como placeholder. Momentos extras (foto full-bleed com legenda) podem ser
 // adicionados em qualquer "gancho" da narrativa.
+// Placeholders usam sintaxe amigavel: `{palavras}` viram italico dourado
+// na proposta. O admin nao precisa saber HTML. Suporte a <em>...</em> antigo
+// e' mantido no render (backward-compat), mas nunca sugerido na UI.
 const CAPITULOS = [
-  { chave: "espaco", label: "01 — O lugar", padrao: { eyebrow: "O lugar", titulo: "O lugar do seu evento <em>é aqui.</em>", lead: "A gente montou essa história pra você se ver caminhando por cada canto — a chegada, o salão, o jardim à noite. Deslize as fotos." } },
-  { chave: "buffet", label: "02 — A mesa", padrao: { eyebrow: "A mesa", titulo: "E o que <em>eles vão comer.</em>", lead: "Selecionamos essas opções de buffet pensando no perfil do seu evento. Arraste pra conhecer cada uma." } },
-  { chave: "pacote", label: "03 — Antes do preço", padrao: { eyebrow: "Antes do preço", titulo: "O que <em>já está incluso.</em>", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto." } },
-  { chave: "investimento", label: "04 — Seu investimento", padrao: { eyebrow: "Seu investimento", titulo: "Combinado, então <em>é isso.</em>", lead: "Tudo que você viu até aqui, junto — sem taxa escondida, sem asterisco." } },
-  { chave: "depoimentos", label: "05 — Depoimentos", padrao: { eyebrow: "Quem passou por aqui", titulo: "O que <em>eles guardam</em> do dia.", lead: null } },
+  { chave: "espaco", label: "01 — O lugar", padrao: { eyebrow: "O lugar", titulo: "O lugar do seu casamento {é aqui.}", lead: "A gente montou essa história pra você se ver caminhando por cada canto — a chegada, o salão, o jardim à noite. Deslize as fotos." } },
+  { chave: "buffet", label: "02 — A mesa", padrao: { eyebrow: "A mesa", titulo: "E o que {eles vão comer.}", lead: "Selecionamos essas opções de buffet pensando no perfil do seu evento." } },
+  { chave: "pacote", label: "03 — Antes do preço", padrao: { eyebrow: "Antes do preço", titulo: "O que {já está incluso.}", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto." } },
+  { chave: "investimento", label: "04 — Seu investimento", padrao: { eyebrow: "Seu investimento", titulo: "Combinado, então {é isso.}", lead: "Tudo que você viu até aqui, junto — sem taxa escondida, sem asterisco." } },
+  { chave: "depoimentos", label: "05 — Depoimentos", padrao: { eyebrow: "Quem passou por aqui", titulo: "O que {eles guardam} do dia.", lead: null } },
 ];
 
 const GANCHOS = [
@@ -27,7 +30,8 @@ export default function EditorProposta() {
     <div>
       <h1>Proposta pública</h1>
       <p style={{ color: "var(--granite)", marginTop: -10, marginBottom: 24 }}>
-        Edite o que cada casal lê em cada capítulo da proposta. Deixe em branco pra usar o texto padrão. HTML simples (<code>&lt;em&gt;</code> pra itálico gradient) é permitido no título.
+        Edite o que cada casal lê em cada capítulo da proposta. Deixe em branco pra usar o texto padrão.
+        No <b>título</b>, o que você colocar entre <code style={{ background: "var(--sage-wash)", padding: "1px 6px", borderRadius: 4 }}>{"{chaves}"}</code> vira <em style={{ background: "linear-gradient(100deg,var(--sage-dark),var(--gold-dark))", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", fontStyle: "italic" }}>dourado em itálico</em> — ex.: <code>Combinado, então {"{é isso.}"}</code>
       </p>
       <EditorTextos />
       <EditorMomentos />
@@ -68,10 +72,10 @@ function EditorTextos() {
               <b style={{ fontFamily: "var(--display)", fontSize: 18 }}>{c.label}</b>
               <span style={{ fontSize: 11, color: "var(--granite)", fontFamily: "var(--mono)" }}>{c.chave}</span>
             </div>
-            <CampoInput chave={c.chave} campo="eyebrow" label="Eyebrow (rótulo pequeno)" valor={textos[`${c.chave}_eyebrow`] || ""} placeholder={c.padrao.eyebrow} salvando={salvando[`${c.chave}_eyebrow`]} onSalvar={(v) => salvar(c.chave, "eyebrow", v)} />
-            <CampoInput chave={c.chave} campo="titulo" label="Título (aceita <em>...</em>)" valor={textos[`${c.chave}_titulo`] || ""} placeholder={c.padrao.titulo} salvando={salvando[`${c.chave}_titulo`]} onSalvar={(v) => salvar(c.chave, "titulo", v)} />
+            <CampoInput chave={c.chave} campo="eyebrow" label="Rótulo do capítulo" valor={textos[`${c.chave}_eyebrow`] || ""} placeholder={c.padrao.eyebrow} salvando={salvando[`${c.chave}_eyebrow`]} onSalvar={(v) => salvar(c.chave, "eyebrow", v)} />
+            <CampoInput chave={c.chave} campo="titulo" label={<>Título grande <span style={{ color: "var(--granite)", fontFamily: "var(--font)", textTransform: "none", fontSize: 11, letterSpacing: 0 }}>— use {"{chaves}"} pra pintar em dourado</span></>} valor={textos[`${c.chave}_titulo`] || ""} placeholder={c.padrao.titulo} salvando={salvando[`${c.chave}_titulo`]} onSalvar={(v) => salvar(c.chave, "titulo", v)} />
             {c.padrao.lead !== null && (
-              <CampoTextarea chave={c.chave} campo="lead" label="Copy narrativa (2-3 linhas)" valor={textos[`${c.chave}_lead`] || ""} placeholder={c.padrao.lead} salvando={salvando[`${c.chave}_lead`]} onSalvar={(v) => salvar(c.chave, "lead", v)} />
+              <CampoTextarea chave={c.chave} campo="lead" label="Frase de apoio (2-3 linhas embaixo do título)" valor={textos[`${c.chave}_lead`] || ""} placeholder={c.padrao.lead} salvando={salvando[`${c.chave}_lead`]} onSalvar={(v) => salvar(c.chave, "lead", v)} />
             )}
           </div>
         ))}

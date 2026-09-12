@@ -7,11 +7,16 @@ import EspacoStory from "./EspacoStory";
 import Reveal from "@/app/components/Reveal";
 import AceitarProposta from "./AceitarProposta";
 import Momento from "./Momento";
+import { EscolhaBuffetProvider } from "./EscolhaBuffetContext";
+import InvestimentoBloco from "./InvestimentoBloco";
 
-// Renderiza um titulo customizado com <em> pra tag literal virar itálico
-// gradient. Confio no admin (staff interno) -- HTML controlado por eles mesmos.
-function tituloCustom(html) {
-  const partes = String(html).split(/(<em>[^<]*<\/em>)/g);
+// Renderiza um titulo customizado. Aceita duas sintaxes de destaque:
+//   1) `{palavras}` -- forma amigavel do editor admin
+//   2) `<em>palavras</em>` -- compat com strings antigas
+// As duas viram <em> italico gradient. Nada mais e' interpretado como HTML.
+function tituloCustom(entrada) {
+  const s = String(entrada).replace(/\{([^}]+)\}/g, "<em>$1</em>");
+  const partes = s.split(/(<em>[^<]*<\/em>)/g);
   return partes.map((p, i) => {
     const m = p.match(/^<em>(.*)<\/em>$/);
     return m ? <em key={i}>{m[1]}</em> : <span key={i}>{p}</span>;
@@ -51,22 +56,25 @@ async function getProposta(slug) {
     })
     .filter(Boolean);
 
-  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspaco || [], textosCustom: textosCustom || {}, momentos: momentos || [] };
+  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, extrasTodos: extras || [], contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspaco || [], textosCustom: textosCustom || {}, momentos: momentos || [] };
 }
 
 // Defaults dos textos -- se o admin nao editou o campo em /painel/proposta,
 // cai pra esses. Sempre "algo" vem, nunca vazio.
 const TEXTOS_DEFAULT = {
   espaco: { eyebrow: "O lugar", titulo: "O lugar do seu <TIPO> <em>é aqui.</em>", lead: "A gente montou essa história pra você se ver caminhando por cada canto — a chegada, o salão, o jardim à noite. Deslize as fotos." },
-  buffet: { eyebrow: "A mesa", titulo: "E o que <em>eles vão comer.</em>", lead: "Selecionamos essas opções de buffet pensando no perfil do seu evento. Arraste pra conhecer cada uma — o cardápio completo aparece embaixo da foto." },
+  buffet: { eyebrow: "A mesa", titulo: "E o que <em>eles vão comer.</em>", lead: "Selecionamos <OPCOES> de buffet pensando no perfil do seu evento.<ARRASTE> O cardápio completo aparece embaixo da foto." },
   pacote: { eyebrow: "Antes do preço", titulo: "O que <em>já está incluso.</em>", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto — você não precisa se preocupar em contratar à parte." },
   investimento: { eyebrow: "Seu investimento", titulo: "Combinado, então <em>é isso.</em>", lead: "Tudo que você viu até aqui, junto — sem taxa escondida, sem asterisco." },
   depoimentos: { eyebrow: "Quem passou por aqui", titulo: "O que <em>eles guardam</em> do dia.", lead: null },
 };
-function texto(custom, chave, campo, tipoEvento) {
+function texto(custom, chave, campo, tipoEvento, nBuffets = 0) {
   const v = custom[`${chave}_${campo}`];
   const padrao = TEXTOS_DEFAULT[chave][campo];
-  return (v || padrao || "").replace("<TIPO>", tipoEvento === "casamento" ? "casamento" : "evento");
+  return (v || padrao || "")
+    .replace("<TIPO>", tipoEvento === "casamento" ? "casamento" : "evento")
+    .replace("<OPCOES>", nBuffets === 1 ? "essa opção" : `essas ${nBuffets} opções`)
+    .replace("<ARRASTE>", nBuffets > 1 ? " Arraste pra conhecer cada uma —" : "");
 }
 
 export default async function PropostaPublicaPage({ params }) {
@@ -74,8 +82,9 @@ export default async function PropostaPublicaPage({ params }) {
   const dados = await getProposta(slug);
   if (!dados) notFound();
 
-  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, contrato, depoimentos, fotosEspaco, textosCustom, momentos } = dados;
-  const t = (chave, campo) => texto(textosCustom, chave, campo, evento?.tipo);
+  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, extrasTodos, contrato, depoimentos, fotosEspaco, textosCustom, momentos } = dados;
+  const t = (chave, campo) => texto(textosCustom, chave, campo, evento?.tipo, vitrineBuffets.length);
+  const jaAceita = proposta.status === "aceita";
   const momentosDe = (gancho) => momentos.filter((m) => m.depois_de === gancho);
   const jaAssinado = contrato?.status === "assinado";
   const pagamentos = contrato?.pagamentos || [];
@@ -155,6 +164,12 @@ export default async function PropostaPublicaPage({ params }) {
 
       {momentosDe("espaco").map((m) => <Momento key={m.id} momento={m} />)}
 
+      {/* Do capitulo 02 ate o 04, tudo dentro do Provider da escolha de buffet
+          -- assim o slider (client) e o bloco de investimento (client) leem
+          o mesmo estado. As secoes SERVER entre eles (checklist do pacote)
+          continuam server-rendered normalmente, sao apenas children do provider. */}
+      <EscolhaBuffetProvider recomendadoId={proposta.buffet_id}>
+
       {/* CAPITULO 02 -- A COMIDA */}
       {vitrineBuffets.length > 0 && (
         <section className="story story--wash">
@@ -196,8 +211,8 @@ export default async function PropostaPublicaPage({ params }) {
             <div style={{ display: "grid", gridTemplateColumns: extrasEscolhidos.length > 0 ? "1fr 1fr" : "1fr", gap: "clamp(24px,3vw,48px)", maxWidth: 1000, margin: "40px auto 0" }}>
               <Reveal>
                 <div>
-                  <h3 style={{ fontFamily: "var(--display)", fontSize: 24, fontWeight: 500, margin: "0 0 4px" }}>Está incluso</h3>
-                  <p style={{ fontSize: 13, color: "var(--granite)", margin: "0 0 12px" }}>{pacote.nome} — R$ {Number(pacote.preco).toLocaleString("pt-BR")}</p>
+                  <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 14 }}>Está incluso</div>
+                  <h3 style={{ fontFamily: "var(--display)", fontSize: "clamp(32px,3.6vw,44px)", fontWeight: 500, margin: "0 0 20px", letterSpacing: "-0.01em" }}>{pacote.nome}</h3>
                   <ul className="checklist">
                     {(pacote.itens_inclusos || []).map((item, i) => <li key={i} className="stagger-item">{item}</li>)}
                   </ul>
@@ -215,8 +230,8 @@ export default async function PropostaPublicaPage({ params }) {
               {extrasEscolhidos.length > 0 && (
                 <Reveal>
                   <div>
-                    <h3 style={{ fontFamily: "var(--display)", fontSize: 24, fontWeight: 500, margin: "0 0 4px" }}>Você também escolheu</h3>
-                    <p style={{ fontSize: 13, color: "var(--granite)", margin: "0 0 12px" }}>Extras somados no total.</p>
+                    <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 14 }}>Você escolheu</div>
+                    <h3 style={{ fontFamily: "var(--display)", fontSize: "clamp(28px,3.2vw,36px)", fontWeight: 500, margin: "0 0 20px", letterSpacing: "-0.01em" }}>Extras selecionados</h3>
                     <ul className="checklist">
                       {extrasEscolhidos.map((ex) => (
                         <li key={ex.id} className="stagger-item" style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -224,7 +239,6 @@ export default async function PropostaPublicaPage({ params }) {
                             <img src={ex.fotos[0]} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flexShrink: 0, marginLeft: -8 }} />
                           )}
                           <span style={{ flex: 1 }}>{ex.nome}{ex.tipo_preco === "unidade" ? ` × ${ex.quantidade}` : ""}</span>
-                          <span style={{ color: "var(--gold-dark)", fontWeight: 600 }}>R$ {Number(ex.valor).toLocaleString("pt-BR")}</span>
                         </li>
                       ))}
                     </ul>
@@ -259,26 +273,19 @@ export default async function PropostaPublicaPage({ params }) {
           </Reveal>
 
           <Reveal>
-            <div className="investimento-hero" style={{ marginTop: 40 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 420 }}>
-                <div className="resumo-linha"><span>Subtotal</span><span>R$ {Number(proposta.subtotal).toLocaleString("pt-BR")}</span></div>
-                {Number(proposta.desconto) > 0 && (
-                  <div className="resumo-linha" style={{ color: "var(--sage-dark)" }}><span>Desconto</span><span>- R$ {Number(proposta.desconto).toLocaleString("pt-BR")}</span></div>
-                )}
-              </div>
-              <div style={{ marginTop: 20 }}>
-                <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 16 }}>{jaAssinado ? "Valor contratado" : "Investimento total"}</div>
-                <div className="valor-total">R$ {Number(jaAssinado ? contrato.valor_contratado : proposta.total).toLocaleString("pt-BR")}</div>
-              </div>
-              {!jaAssinado && (
-                <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--stroke)", width: "100%" }}>
-                  <AceitarProposta propostaId={proposta.id} statusInicial={proposta.status} aceitaEmInicial={proposta.aceita_em} motivoInicial={proposta.motivo_categoria} />
-                </div>
-              )}
-            </div>
+            <InvestimentoBloco
+              proposta={proposta}
+              pacote={pacote}
+              buffets={vitrineBuffets}
+              extras={extrasTodos}
+              extrasEscolhidos={extrasEscolhidos}
+              numConvidados={evento?.num_convidados || 0}
+              jaAssinado={jaAssinado}
+              valorContratado={contrato?.valor_contratado}
+            />
           </Reveal>
 
-          {proposta.valida_ate && !jaAssinado && (
+          {proposta.valida_ate && !jaAssinado && !jaAceita && (
             <Reveal style={{ marginTop: 20 }}>
               <div className="flat-card" style={{ padding: "16px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: corValidade }} />
@@ -317,6 +324,8 @@ export default async function PropostaPublicaPage({ params }) {
           )}
         </div>
       </section>
+
+      </EscolhaBuffetProvider>
 
       {momentosDe("investimento").map((m) => <Momento key={m.id} momento={m} />)}
 

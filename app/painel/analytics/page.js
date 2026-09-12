@@ -204,9 +204,12 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {alertas && (alertas.semInteracao.length + alertas.validadeVencida.length + alertas.eventoSemContrato.length > 0) && (
-        <div className="card" style={{ marginBottom: 24, borderColor: "var(--warn)" }}>
+      {alertas && (
+        <div className="card" style={{ marginBottom: 24, borderColor: alertas.semInteracao.length + alertas.validadeVencida.length + alertas.eventoSemContrato.length > 0 ? "var(--warn)" : undefined }}>
           <h3 style={{ marginTop: 0 }}>⚠ Precisa de atenção</h3>
+          {alertas.semInteracao.length + alertas.validadeVencida.length + alertas.eventoSemContrato.length === 0 ? (
+            <p style={{ color: "var(--granite)", fontSize: 13, margin: 0 }}>Tudo em dia — nenhum lead parado, proposta vencida ou evento sem contrato.</p>
+          ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
             <AlertaCard
               titulo="Sem contato há mais de 7 dias"
@@ -230,6 +233,7 @@ export default function AnalyticsPage() {
               render={(i) => <>{i.cliente.nome} <span style={{ color: "var(--granite)" }}>· {new Date(`${i.evento.data_evento}T00:00:00`).toLocaleDateString("pt-BR")}</span></>}
             />
           </div>
+          )}
         </div>
       )}
 

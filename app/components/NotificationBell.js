@@ -9,7 +9,9 @@ import Link from "next/link";
 export default function NotificationBell() {
   const [dados, setDados] = useState({ propostasAceitas: [], transferenciasPendentes: [] });
   const [aberto, setAberto] = useState(false);
+  const [estiloPainel, setEstiloPainel] = useState(null);
   const ref = useRef(null);
+  const botaoRef = useRef(null);
 
   async function carregar() {
     const res = await fetch("/api/notificacoes");
@@ -28,9 +30,26 @@ export default function NotificationBell() {
 
   const total = dados.propostasAceitas.length + dados.transferenciasPendentes.length;
 
+  function alternar() {
+    setAberto((a) => {
+      const abrir = !a;
+      // no desktop a sidebar tem overflow-y:auto -- um painel absolute
+      // dentro dela e' cortado pelo clip do scroll. Fixed com coordenada
+      // calculada do botao escapa esse clip; no mobile a folha ja e'
+      // fixed via CSS (media query), entao nao mexe la.
+      if (abrir && botaoRef.current && window.innerWidth > 860) {
+        const r = botaoRef.current.getBoundingClientRect();
+        setEstiloPainel({ position: "fixed", left: r.left, bottom: window.innerHeight - r.top + 8 });
+      } else if (abrir) {
+        setEstiloPainel(null);
+      }
+      return abrir;
+    });
+  }
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button className="notif-bell" onClick={() => setAberto((a) => !a)} aria-label="Notificações">
+      <button ref={botaoRef} className="notif-bell" onClick={alternar} aria-label="Notificações">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
@@ -39,7 +58,7 @@ export default function NotificationBell() {
       </button>
 
       {aberto && (
-        <div className="notif-panel">
+        <div className="notif-panel" style={estiloPainel || undefined}>
           {total === 0 ? (
             <p style={{ fontSize: 13, color: "var(--granite)", padding: "10px 12px", margin: 0 }}>Nenhuma novidade por enquanto.</p>
           ) : (

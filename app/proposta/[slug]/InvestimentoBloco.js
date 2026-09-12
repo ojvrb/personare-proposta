@@ -10,7 +10,7 @@ import { useEscolhaBuffet } from "./EscolhaBuffetContext";
 // extras / desconto) pra tirar a pergunta "por que R$ 30.550?".
 export default function InvestimentoBloco({
   proposta, pacote, buffets, extras, extrasEscolhidos, numConvidados,
-  jaAssinado, valorContratado,
+  jaAssinado, valorContratado, evento,
 }) {
   const { escolhidoId, recomendadoId } = useEscolhaBuffet();
   const buffetAtual = buffets.find((b) => b.id === (escolhidoId || recomendadoId)) || null;
@@ -40,7 +40,9 @@ export default function InvestimentoBloco({
         <div className="breakdown-linha">
           <div>
             <b>{pacote?.nome || "Pacote"}</b>
-            <span className="breakdown-sub">pacote base</span>
+            {pacote?.itens_inclusos?.length > 0 && (
+              <span className="breakdown-sub">inclui {pacote.itens_inclusos.join(" · ")}</span>
+            )}
           </div>
           <span className="breakdown-val">R$ {precoPacote.toLocaleString("pt-BR")}</span>
         </div>
@@ -79,7 +81,17 @@ export default function InvestimentoBloco({
       </div>
       {!jaAssinado && (
         <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--stroke)", width: "100%" }}>
-          <AceitarProposta propostaId={proposta.id} statusInicial={proposta.status} aceitaEmInicial={proposta.aceita_em} motivoInicial={proposta.motivo_categoria} />
+          <AceitarProposta
+            propostaId={proposta.id}
+            statusInicial={proposta.status}
+            aceitaEmInicial={proposta.aceita_em}
+            motivoInicial={proposta.motivo_categoria}
+            contexto={{
+              valorTotal: total,
+              dataEvento: evento?.data_evento,
+              numConvidados,
+            }}
+          />
         </div>
       )}
     </div>

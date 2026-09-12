@@ -24,11 +24,15 @@ export async function GET() {
     return NextResponse.json({ eu: { user_id: perfil.user.id, email: perfil.user.email, role: perfil.role }, colegas });
   }
 
-  const usuarios = authList.users.map((u) => ({
-    user_id: u.id,
-    email: u.email,
-    role: roles.find((r) => r.user_id === u.id)?.role || "atendente",
-  }));
+  const usuarios = authList.users.map((u) => {
+    const p = roles.find((r) => r.user_id === u.id);
+    return {
+      user_id: u.id, email: u.email,
+      role: p?.role || "atendente",
+      nome: p?.nome || null,
+      telefone_whatsapp: p?.telefone_whatsapp || null,
+    };
+  });
 
   return NextResponse.json({ eu: { user_id: perfil.user.id, email: perfil.user.email, role: perfil.role }, colegas, usuarios });
 }

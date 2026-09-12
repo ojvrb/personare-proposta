@@ -258,6 +258,19 @@ h1{font-size:26px;margin:0 0 4px}
 }
 .checklist--excl li{color:var(--stone)}
 
+/* Modal de aceite eletronico -- overlay escuro, caixa central com tres regioes:
+   cabecalho fixo, corpo com scroll (termos legiveis) e rodape com checkbox +
+   inputs + botao confirmar. O aceite so' libera apos scroll ate o fim. */
+.modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(43,43,38,.65);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.modal-caixa{background:var(--white);border-radius:20px;max-width:640px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 80px rgba(0,0,0,.35);overflow:hidden}
+.modal-cabecalho{padding:20px 24px 16px;border-bottom:1px solid var(--stroke);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-shrink:0}
+.modal-conteudo{padding:24px;overflow-y:auto;flex:1;text-align:left}
+.modal-rodape{padding:20px 24px 24px;border-top:1px solid var(--stroke);flex-shrink:0;background:var(--pitch-2)}
+@media (max-width:600px){
+  .modal-backdrop{padding:0}
+  .modal-caixa{max-height:100vh;border-radius:0;height:100%}
+}
+
 /* Momento cinematografico entre capitulos -- foto edge-to-edge, altura
    ~viewport, opcional uma frase serifa gigante centralizada. Sem card,
    sem padding, essa e' a "pausa visual" da narrativa. */

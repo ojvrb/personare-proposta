@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 
 const PAPEIS = { admin: "Admin", atendente: "Atendente", financeiro: "Financeiro" };
 
+// exibe 5544 99999 8888 como (44) 99999-8888 -- so' pra input, backend guarda so digitos.
+function formatarWhats(digitos) {
+  const s = String(digitos || "").replace(/\D/g, "").replace(/^55/, "");
+  if (s.length === 11) return `(${s.slice(0, 2)}) ${s.slice(2, 7)}-${s.slice(7)}`;
+  if (s.length === 10) return `(${s.slice(0, 2)}) ${s.slice(2, 6)}-${s.slice(6)}`;
+  return s;
+}
+
 export default function UsuariosPage() {
   const [dados, setDados] = useState(null);
   const [pendentes, setPendentes] = useState([]);
@@ -27,11 +35,11 @@ export default function UsuariosPage() {
     carregar();
   }, []);
 
-  async function mudarPapel(userId, role) {
+  async function atualizar(userId, patch) {
     await fetch(`/api/perfis/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
+      body: JSON.stringify(patch),
     });
     carregar();
   }
@@ -99,17 +107,34 @@ export default function UsuariosPage() {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Equipe</h3>
         {erro && <div className="alert err">{erro}</div>}
+        <p style={{ fontSize: 13, color: "var(--granite)", marginTop: -6, marginBottom: 14 }}>
+          Nome e WhatsApp aparecem no rodapé de cada proposta pública feita por essa pessoa — o casal clica no telefone e cai direto no WhatsApp dela.
+        </p>
         {dados.usuarios.map((u) => (
-          <div key={u.user_id} className="resumo-linha">
-            <span>{u.email}</span>
-            <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select value={u.role} onChange={(e) => mudarPapel(u.user_id, e.target.value)}>
-                {Object.entries(PAPEIS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-              {u.user_id !== dados.eu.user_id && (
-                <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => remover(u.user_id, u.email)}>Remover</button>
-              )}
-            </span>
+          <div key={u.user_id} style={{ padding: "12px 0", borderBottom: "1px solid var(--stroke)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+              <b style={{ fontSize: 14 }}>{u.email}</b>
+              <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <select value={u.role} onChange={(e) => atualizar(u.user_id, { role: e.target.value })}>
+                  {Object.entries(PAPEIS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+                {u.user_id !== dados.eu.user_id && (
+                  <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => remover(u.user_id, u.email)}>Remover</button>
+                )}
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <input
+                placeholder="Nome (ex: Fernanda Alves)"
+                defaultValue={u.nome || ""}
+                onBlur={(e) => e.target.value !== (u.nome || "") && atualizar(u.user_id, { nome: e.target.value })}
+              />
+              <input
+                placeholder="WhatsApp (ex: 42 99999-8888)"
+                defaultValue={u.telefone_whatsapp ? formatarWhats(u.telefone_whatsapp) : ""}
+                onBlur={(e) => e.target.value !== (u.telefone_whatsapp ? formatarWhats(u.telefone_whatsapp) : "") && atualizar(u.user_id, { telefone_whatsapp: e.target.value })}
+              />
+            </div>
           </div>
         ))}
 

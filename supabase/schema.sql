@@ -334,6 +334,23 @@ alter table proposta_momentos enable row level security;
 create policy "staff edita" on proposta_momentos for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "leitura publica" on proposta_momentos for select using (ativo = true);
 
+-- Perfil do atendente: nome e whatsapp aparecem no rodape da proposta publica
+-- (o casal precisa saber com quem estao falando + link direto pro contato).
+alter table perfis add column if not exists nome text;
+alter table perfis add column if not exists telefone_whatsapp text;
+
+-- Evidencia legal do aceite (sprint7): sob a lei brasileira, uma "assinatura
+-- eletronica simples" (clique num botao) so' vale como prova se houver
+-- (a) consentimento inequivoco -- MP 2.200-2/2001, Lei 14.063/2020, Codigo
+-- Civil art. 219 -- e (b) evidencia auditavel de quem, quando e de onde.
+-- CDC art. 46 exige que os termos sejam apresentados antes do aceite.
+-- LGPD exige base legal explicita pro tratamento de CPF (execucao de contrato).
+alter table propostas add column if not exists aceite_ip text;
+alter table propostas add column if not exists aceite_user_agent text;
+alter table propostas add column if not exists aceite_cpf text;
+alter table propostas add column if not exists aceite_nome_completo text;
+alter table propostas add column if not exists aceite_termos_versao text;
+
 -- sprint5 (alertas + desempenho por atendente): NAO cria as views do
 -- schema_sprint5.sql original -- elas referenciavam nomes que ja mudamos
 -- (valida_ate em vez de validade_ate, negocio_fechado em vez de

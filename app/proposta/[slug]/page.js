@@ -43,6 +43,13 @@ async function getProposta(slug) {
   ]);
   const contratoAtual = contrato?.[0] || null;
 
+  // Perfil do atendente pra assinar o rodape ("proposta feita por Fernanda").
+  // adminClient pra ler mesmo com RLS restrito -- proposta e' publica, entao
+  // o dado do responsavel tb precisa vir independente de sessao do lado do casal.
+  const { data: atendente } = proposta.atendente_id
+    ? await supabase.from("perfis").select("nome, telefone_whatsapp").eq("user_id", proposta.atendente_id).maybeSingle()
+    : { data: null };
+
   const idsVitrine = proposta.buffets_sugeridos?.length ? proposta.buffets_sugeridos : (proposta.buffet_id ? [proposta.buffet_id] : []);
   const { data: buffetsVitrine } = idsVitrine.length
     ? await supabase.from("buffets").select("*").in("id", idsVitrine)
@@ -56,7 +63,7 @@ async function getProposta(slug) {
     })
     .filter(Boolean);
 
-  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, extrasTodos: extras || [], contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspaco || [], textosCustom: textosCustom || {}, momentos: momentos || [] };
+  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, extrasTodos: extras || [], contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspaco || [], textosCustom: textosCustom || {}, momentos: momentos || [], atendente };
 }
 
 // Defaults dos textos -- se o admin nao editou o campo em /painel/proposta,
@@ -82,7 +89,7 @@ export default async function PropostaPublicaPage({ params }) {
   const dados = await getProposta(slug);
   if (!dados) notFound();
 
-  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, extrasTodos, contrato, depoimentos, fotosEspaco, textosCustom, momentos } = dados;
+  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, extrasTodos, contrato, depoimentos, fotosEspaco, textosCustom, momentos, atendente } = dados;
   const t = (chave, campo) => texto(textosCustom, chave, campo, evento?.tipo, vitrineBuffets.length);
   const jaAceita = proposta.status === "aceita";
   const momentosDe = (gancho) => momentos.filter((m) => m.depois_de === gancho);
@@ -282,6 +289,7 @@ export default async function PropostaPublicaPage({ params }) {
               numConvidados={evento?.num_convidados || 0}
               jaAssinado={jaAssinado}
               valorContratado={contrato?.valor_contratado}
+              evento={evento}
             />
           </Reveal>
 
@@ -352,11 +360,45 @@ export default async function PropostaPublicaPage({ params }) {
         </section>
       )}
 
-      <div className="wrap" style={{ maxWidth: 720, textAlign: "center", padding: "0 0 56px" }}>
+      <RodapeAssinatura atendente={atendente} />
+    </div>
+  );
+}
+
+// Rodape: assina a proposta com o nome do atendente que a preparou e um link
+// direto pro WhatsApp dele. Se o admin nao preencheu nome+telefone em
+// /painel/usuarios, cai pra mensagem generica sem link.
+function RodapeAssinatura({ atendente }) {
+  const temContato = atendente?.nome && atendente?.telefone_whatsapp;
+  return (
+    <div className="wrap" style={{ maxWidth: 720, textAlign: "center", padding: "24px 0 56px" }}>
+      {temContato ? (
+        <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "24px 32px", background: "var(--white)", border: "1px solid var(--stroke)", borderRadius: 16 }}>
+          <span className="eyebrow" style={{ animation: "none", opacity: 1 }}>Sua proposta foi feita por</span>
+          <b style={{ fontFamily: "var(--display)", fontSize: 22, fontWeight: 500, color: "var(--ink)" }}>{atendente.nome}</b>
+          <a
+            href={`https://wa.me/${atendente.telefone_whatsapp}?text=${encodeURIComponent(`Oi ${atendente.nome.split(" ")[0]}, tudo bem? Estou olhando a proposta e queria tirar uma dúvida.`)}`}
+            target="_blank" rel="noopener"
+            className="btn primary"
+            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8, marginTop: 4 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.76.46 3.42 1.27 4.86L2 22l5.28-1.39A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm5.15 14.14c-.22.62-1.28 1.19-1.79 1.22-.46.03-1.03.04-1.65-.11-.38-.09-.87-.25-1.5-.51-2.63-1.11-4.35-3.7-4.48-3.87-.13-.17-1.07-1.42-1.07-2.71 0-1.29.68-1.92.92-2.19.24-.27.53-.34.7-.34l.51.01c.16.01.38-.06.6.46.22.53.75 1.83.82 1.96.07.13.11.28.02.45-.09.17-.14.28-.27.43-.13.15-.28.34-.4.46-.13.13-.27.28-.12.55.15.27.68 1.11 1.45 1.8.99.88 1.82 1.15 2.09 1.28.27.13.42.11.58-.07.16-.18.66-.77.84-1.03.18-.27.37-.22.62-.13.25.09 1.59.75 1.86.89.27.13.45.2.52.31.06.11.06.65-.16 1.27z"/></svg>
+            Falar no WhatsApp
+          </a>
+          <span style={{ fontSize: 12, color: "var(--granite)", fontFamily: "var(--mono)" }}>{formatarWhatsPub(atendente.telefone_whatsapp)}</span>
+        </div>
+      ) : (
         <p style={{ color: "var(--granite)", fontSize: 13 }}>
           Fale com o Personare pra tirar dúvidas ou fechar sua data.
         </p>
-      </div>
+      )}
     </div>
   );
+}
+
+function formatarWhatsPub(digitos) {
+  const s = String(digitos || "").replace(/\D/g, "").replace(/^55/, "");
+  if (s.length === 11) return `(${s.slice(0, 2)}) ${s.slice(2, 7)}-${s.slice(7)}`;
+  if (s.length === 10) return `(${s.slice(0, 2)}) ${s.slice(2, 6)}-${s.slice(6)}`;
+  return s;
 }

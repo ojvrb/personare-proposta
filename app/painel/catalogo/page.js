@@ -13,7 +13,7 @@ export default function CatalogoPage() {
       <Secao
         titulo="Pacotes"
         endpoint="/api/pacotes"
-        campoInicial={{ nome: "", preco: 0, itens_inclusos: "", itens_nao_inclusos: "", fotos: "", ativo: true }}
+        campoInicial={{ nome: "", preco: 0, itens_inclusos: "", itens_nao_inclusos: "", ativo: true }}
         renderCampos={PacoteCampos}
         resumo={(p) => `R$ ${Number(p.preco).toLocaleString("pt-BR")}`}
       />
@@ -21,7 +21,7 @@ export default function CatalogoPage() {
       <Secao
         titulo="Buffets"
         endpoint="/api/buffets"
-        campoInicial={{ nome: "", preco_pessoa: 0, descricao: "", fotos: "", itens: "", ativo: true }}
+        campoInicial={{ nome: "", preco_pessoa: 0, descricao: "", itens: "", ativo: true }}
         renderCampos={BuffetCampos}
         resumo={(b) => `R$ ${Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa`}
       />
@@ -29,7 +29,7 @@ export default function CatalogoPage() {
       <Secao
         titulo="Extras"
         endpoint="/api/extras"
-        campoInicial={{ nome: "", tipo_preco: "fixo", valor: 0, fotos: "", ativo: true }}
+        campoInicial={{ nome: "", tipo_preco: "fixo", valor: 0, ativo: true }}
         renderCampos={ExtraCampos}
         resumo={(e) => `R$ ${Number(e.valor).toLocaleString("pt-BR")} (${e.tipo_preco})`}
       />
@@ -272,20 +272,29 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
                 </div>
               </div>
             ) : (
-              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--stroke)", borderRadius: 8, padding: 10, opacity: item.ativo ? 1 : 0.5 }}>
-                <div>
-                  <b>{item[campoNome]}</b> — {resumo(item)} {!item.ativo && <span className="badge">inativo</span>}
+              <div key={item.id} style={{ border: "1px solid var(--stroke)", borderRadius: 8, padding: 12, opacity: item.ativo ? 1 : 0.5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <b>{item[campoNome]}</b> — {resumo(item)} {!item.ativo && <span className="badge">inativo</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {temOrdem(itens) && (
+                      <>
+                        <button className="btn" style={{ padding: "6px 10px" }} onClick={() => mover(itens.indexOf(item), -1)} disabled={itens.indexOf(item) === 0} aria-label="Mover pra cima">↑</button>
+                        <button className="btn" style={{ padding: "6px 10px" }} onClick={() => mover(itens.indexOf(item), 1)} disabled={itens.indexOf(item) === itens.length - 1} aria-label="Mover pra baixo">↓</button>
+                      </>
+                    )}
+                    <button className="btn" onClick={() => iniciarEdicao(item)}>Editar</button>
+                    <button className="btn" onClick={() => alternarAtivo(item)}>{item.ativo ? "Desativar" : "Ativar"}</button>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {temOrdem(itens) && (
-                    <>
-                      <button className="btn" style={{ padding: "6px 10px" }} onClick={() => mover(itens.indexOf(item), -1)} disabled={itens.indexOf(item) === 0} aria-label="Mover pra cima">↑</button>
-                      <button className="btn" style={{ padding: "6px 10px" }} onClick={() => mover(itens.indexOf(item), 1)} disabled={itens.indexOf(item) === itens.length - 1} aria-label="Mover pra baixo">↓</button>
-                    </>
-                  )}
-                  <button className="btn" onClick={() => iniciarEdicao(item)}>Editar</button>
-                  <button className="btn" onClick={() => alternarAtivo(item)}>{item.ativo ? "Desativar" : "Ativar"}</button>
-                </div>
+                {Array.isArray(item.fotos) && (
+                  <GaleriaItem
+                    endpoint={endpoint}
+                    item={item}
+                    onChange={(fotos) => setItens((all) => all.map((i) => (i.id === item.id ? { ...i, fotos } : i)))}
+                  />
+                )}
               </div>
             )
           )}
@@ -329,14 +338,57 @@ function temOrdem(itens) {
   return itens.length > 0 && "ordem" in itens[0];
 }
 
-// Upload direto de arquivo -- evita depender de URL de foto ja hospedada em
-// algum lugar (o que o atendente normalmente nao tem). Soma no campo de fotos
-// (append) via onUpload, que cada *Campos define conforme o formato do campo.
+// Upload de uma foto so' -- ainda usado em Depoimentos (campo `foto` singular).
+// Preenche o campo do rascunho; o "Salvar" do formulario e' que persiste.
 function UploadFoto({ onUpload }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-
   async function enviar(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setEnviando(true); setErro("");
+    const fd = new FormData(); fd.append("file", file);
+    const res = await fetch("/api/midia", { method: "POST", body: fd });
+    const data = await res.json();
+    setEnviando(false);
+    if (!res.ok) return setErro(data.error || "erro ao enviar foto");
+    onUpload(data.url);
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <label className="btn" style={{ cursor: "pointer", fontSize: 12, padding: "6px 12px" }}>
+        {enviando ? "Enviando…" : "+ Enviar foto"}
+        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={enviar} disabled={enviando} style={{ display: "none" }} />
+      </label>
+      {erro && <span style={{ fontSize: 11, color: "var(--bad)" }}>{erro}</span>}
+    </div>
+  );
+}
+
+// Galeria de fotos por item (varias) -- upload/remocao/reordenacao persistem
+// na hora (PATCH direto), sem depender de entrar em modo edicao. Substituiu
+// a antiga combinacao "campo de URLs + botao upload" que confundia.
+function GaleriaItem({ endpoint, item, onChange }) {
+  const fotos = item.fotos || [];
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function persistir(novas) {
+    onChange(novas);
+    const res = await fetch(`${endpoint}/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fotos: novas }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setErro(data.error || "erro ao salvar");
+      onChange(fotos);
+    }
+  }
+
+  async function adicionar(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -348,16 +400,43 @@ function UploadFoto({ onUpload }) {
     const data = await res.json();
     setEnviando(false);
     if (!res.ok) return setErro(data.error || "erro ao enviar foto");
-    onUpload(data.url);
+    await persistir([...fotos, data.url]);
+  }
+
+  async function remover(url) {
+    await persistir(fotos.filter((u) => u !== url));
+  }
+
+  async function mover(index, delta) {
+    const alvo = index + delta;
+    if (alvo < 0 || alvo >= fotos.length) return;
+    const copia = [...fotos];
+    [copia[index], copia[alvo]] = [copia[alvo], copia[index]];
+    await persistir(copia);
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <label className="btn" style={{ cursor: "pointer", fontSize: 12, padding: "6px 12px" }}>
-        {enviando ? "Enviando…" : "+ Enviar foto"}
-        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={enviar} disabled={enviando} style={{ display: "none" }} />
+    <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+      {fotos.map((url, i) => (
+        <div key={url} style={{ position: "relative", width: 72, height: 72 }}>
+          <img src={url} alt="" style={{ width: 72, height: 72, borderRadius: 8, objectFit: "cover", display: "block" }} />
+          <button
+            type="button" onClick={() => remover(url)} aria-label="Remover foto"
+            style={{ position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 100, border: "1px solid var(--line)", background: "var(--white)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0 }}
+          >×</button>
+          <div style={{ position: "absolute", bottom: 2, left: 2, display: "flex", gap: 2 }}>
+            <button type="button" onClick={() => mover(i, -1)} disabled={i === 0} aria-label="Mover foto pra esquerda"
+              style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "rgba(0,0,0,.5)", color: "#fff", cursor: i === 0 ? "default" : "pointer", fontSize: 12, lineHeight: 1, padding: 0, opacity: i === 0 ? 0.4 : 1 }}>‹</button>
+            <button type="button" onClick={() => mover(i, 1)} disabled={i === fotos.length - 1} aria-label="Mover foto pra direita"
+              style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "rgba(0,0,0,.5)", color: "#fff", cursor: i === fotos.length - 1 ? "default" : "pointer", fontSize: 12, lineHeight: 1, padding: 0, opacity: i === fotos.length - 1 ? 0.4 : 1 }}>›</button>
+          </div>
+        </div>
+      ))}
+      <label style={{ width: 72, height: 72, borderRadius: 8, border: "1px dashed var(--stroke)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--granite)", fontSize: 12, textAlign: "center", padding: 4, background: "var(--creme-2)" }}>
+        {enviando ? "…" : "+ foto"}
+        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={adicionar} disabled={enviando} style={{ display: "none" }} />
       </label>
-      {erro && <span style={{ fontSize: 11, color: "var(--red)" }}>{erro}</span>}
+      {erro && <span style={{ fontSize: 11, color: "var(--bad)", flexBasis: "100%" }}>{erro}</span>}
     </div>
   );
 }
@@ -369,8 +448,6 @@ function PacoteCampos(campos, set) {
       <input type="number" placeholder="Preço" value={campos.preco} onChange={(e) => set({ ...campos, preco: e.target.value })} />
       <input placeholder="Itens inclusos (separados por vírgula)" value={campos.itens_inclusos} onChange={(e) => set({ ...campos, itens_inclusos: e.target.value })} />
       <input placeholder="Itens não inclusos (separados por vírgula)" value={campos.itens_nao_inclusos} onChange={(e) => set({ ...campos, itens_nao_inclusos: e.target.value })} />
-      <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
-      <UploadFoto onUpload={(url) => set({ ...campos, fotos: campos.fotos ? `${campos.fotos}, ${url}` : url })} />
     </div>
   );
 }
@@ -381,8 +458,6 @@ function BuffetCampos(campos, set) {
       <input placeholder="Nome" value={campos.nome} onChange={(e) => set({ ...campos, nome: e.target.value })} />
       <input type="number" placeholder="Preço por pessoa" value={campos.preco_pessoa} onChange={(e) => set({ ...campos, preco_pessoa: e.target.value })} />
       <input placeholder="Descrição" value={campos.descricao || ""} onChange={(e) => set({ ...campos, descricao: e.target.value })} />
-      <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
-      <UploadFoto onUpload={(url) => set({ ...campos, fotos: campos.fotos ? `${campos.fotos}, ${url}` : url })} />
       <textarea placeholder="Itens do cardápio (separados por vírgula)" rows={2} value={campos.itens || ""} onChange={(e) => set({ ...campos, itens: e.target.value })} />
     </div>
   );
@@ -398,8 +473,6 @@ function ExtraCampos(campos, set) {
         <option value="unidade">Por unidade</option>
       </select>
       <input type="number" placeholder="Valor" value={campos.valor} onChange={(e) => set({ ...campos, valor: e.target.value })} />
-      <input placeholder="URLs de fotos (separadas por vírgula)" value={campos.fotos} onChange={(e) => set({ ...campos, fotos: e.target.value })} />
-      <UploadFoto onUpload={(url) => set({ ...campos, fotos: campos.fotos ? `${campos.fotos}, ${url}` : url })} />
     </div>
   );
 }

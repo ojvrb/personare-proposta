@@ -12,6 +12,12 @@ export default function PhotoSlider({ fotos, indice, onIndiceChange, altura = 36
   const [arrastando, setArrastando] = useState(false);
   const inicioX = useRef(0);
 
+  // Se nenhum slide tem foto real, oculta o container inteiro em vez de
+  // renderizar um bloco cinza "Foto em breve" (ficava feio na proposta).
+  // O children continua aparecendo -- o menu/descricao ainda tem valor sem foto.
+  const temAlgumaFoto = fotos.some(Boolean);
+  if (!temAlgumaFoto) return <div>{children}</div>;
+
   function ir(delta) {
     onIndiceChange((indice + delta + fotos.length) % fotos.length);
   }

@@ -237,6 +237,25 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {rangeDias && bruto && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 style={{ marginTop: 0 }}>Movimento</h3>
+          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 14 }}>Leads que chegaram e contratos assinados ao longo do período — passe o mouse pra ver a semana.</p>
+          <SerieTemporal
+            clientesRange={clientesRange}
+            contratosRange={bruto.contratos.filter((c) => c.status === "assinado" && (agora - new Date(c.created_at)) / 86400000 <= rangeDias)}
+            rangeDias={rangeDias}
+            agora={agora}
+          />
+        </div>
+      )}
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0 }}>Por origem</h3>
+        <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 14 }}>De onde vêm os leads — e qual origem fecha mais.</p>
+        <OrigemBreakdown clientesRange={clientesRange} eventos={bruto?.eventos || []} contratos={bruto?.contratos || []} />
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 14, marginBottom: 24 }}>
         <Stat label="Leads" valor={dados.totalLeads} delta={deltas?.totalLeads} />
         <Stat label="Propostas enviadas" valor={dados.totalPropostas} />
@@ -294,6 +313,108 @@ export default function AnalyticsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Serie temporal -- bucket por dia (<=30d) ou semana (>30d), pra caber num
+// unico grafico legivel independente do range. SVG puro, sem lib. Duas series
+// empilhadas (leads/contratos) com hover-tooltip via <title> (bem simples).
+function SerieTemporal({ clientesRange, contratosRange, rangeDias, agora }) {
+  const [foco, setFoco] = useState(null);
+  const bucketDias = rangeDias <= 30 ? 1 : 7;
+  const nBuckets = Math.ceil(rangeDias / bucketDias);
+  const buckets = Array.from({ length: nBuckets }, (_, i) => {
+    const fim = new Date(agora.getTime() - i * bucketDias * 86400000);
+    const inicio = new Date(fim.getTime() - bucketDias * 86400000);
+    return { inicio, fim, leads: 0, contratos: 0 };
+  }).reverse();
+  const dentro = (data, b) => {
+    const t = new Date(data).getTime();
+    return t >= b.inicio.getTime() && t < b.fim.getTime();
+  };
+  clientesRange.forEach((c) => { const b = buckets.find((x) => dentro(c.created_at, x)); if (b) b.leads += 1; });
+  contratosRange.forEach((c) => { const b = buckets.find((x) => dentro(c.created_at, x)); if (b) b.contratos += 1; });
+
+  const max = Math.max(1, ...buckets.map((b) => b.leads + b.contratos));
+  const W = 100, H = 40, gap = 1.2, larg = (W - gap * (nBuckets - 1)) / nBuckets;
+  const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
+  return (
+    <div style={{ position: "relative" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 160, display: "block" }} onPointerLeave={() => setFoco(null)}>
+        {buckets.map((b, i) => {
+          const total = b.leads + b.contratos;
+          const alturaTotal = (total / max) * H;
+          const alturaLeads = (b.leads / max) * H;
+          const alturaContratos = (b.contratos / max) * H;
+          const x = i * (larg + gap);
+          return (
+            <g key={i} onPointerEnter={() => setFoco(i)} style={{ cursor: "pointer" }}>
+              {/* trilho de fundo pra ampliar area de hover mesmo com barra pequena */}
+              <rect x={x} y={0} width={larg} height={H} fill="transparent" />
+              <rect x={x} y={H - alturaLeads} width={larg} height={alturaLeads} fill="var(--sage)" opacity={foco === i ? 1 : 0.75} rx="0.5" />
+              <rect x={x} y={H - alturaTotal} width={larg} height={alturaContratos} fill="var(--gold)" opacity={foco === i ? 1 : 0.9} rx="0.5" />
+            </g>
+          );
+        })}
+      </svg>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--granite)", marginTop: 6, fontFamily: "var(--mono)" }}>
+        <span>{fmt(buckets[0].inicio)}</span>
+        <span>{fmt(buckets[buckets.length - 1].fim)}</span>
+      </div>
+      <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--stone)", marginTop: 10, alignItems: "center" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ width: 10, height: 10, background: "var(--sage)", borderRadius: 2 }} /> Leads novos
+        </span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ width: 10, height: 10, background: "var(--gold)", borderRadius: 2 }} /> Contratos assinados
+        </span>
+        {foco !== null && (
+          <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--ink)" }}>
+            <b>{fmt(buckets[foco].inicio)}–{fmt(buckets[foco].fim)}:</b>{" "}
+            {buckets[foco].leads} lead{buckets[foco].leads !== 1 ? "s" : ""} · {buckets[foco].contratos} contrato{buckets[foco].contratos !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Breakdown por origem -- quantos leads chegaram por origem, quantos viraram
+// contrato, taxa de conversao. Ajuda a decidir onde investir marketing.
+function OrigemBreakdown({ clientesRange, eventos, contratos }) {
+  const contratosAssinados = new Set(contratos.filter((c) => c.status === "assinado").map((c) => c.evento_id));
+  const clientePorEvento = {};
+  eventos.forEach((e) => { (clientePorEvento[e.cliente_id] = clientePorEvento[e.cliente_id] || []).push(e.id); });
+
+  const porOrigem = {};
+  clientesRange.forEach((c) => {
+    const origem = c.origem || "sem_origem";
+    if (!porOrigem[origem]) porOrigem[origem] = { total: 0, fechados: 0 };
+    porOrigem[origem].total += 1;
+    const eventosDele = clientePorEvento[c.id] || [];
+    if (eventosDele.some((eid) => contratosAssinados.has(eid))) porOrigem[origem].fechados += 1;
+  });
+  const lista = Object.entries(porOrigem).map(([origem, dados]) => ({
+    origem, ...dados, conversao: dados.total > 0 ? (dados.fechados / dados.total) * 100 : 0,
+  })).sort((a, b) => b.total - a.total);
+
+  if (lista.length === 0) return <p style={{ fontSize: 13, color: "var(--granite)", margin: 0 }}>Nenhum lead com origem no período.</p>;
+  const maxTotal = Math.max(...lista.map((l) => l.total));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {lista.map((l) => (
+        <div key={l.origem} style={{ display: "grid", gridTemplateColumns: "160px 1fr 90px 60px", gap: 10, alignItems: "center", fontSize: 13 }}>
+          <span style={{ color: "var(--stone)", textTransform: "capitalize" }}>{l.origem.replace(/_/g, " ")}</span>
+          <div style={{ height: 9, background: "var(--lift)", borderRadius: 5, overflow: "hidden" }}>
+            <div style={{ width: `${(l.total / maxTotal) * 100}%`, height: "100%", background: "var(--sage)", transition: "width .3s" }} />
+          </div>
+          <span style={{ fontSize: 12, color: "var(--stone)", fontFamily: "var(--mono)" }}>{l.total} lead{l.total !== 1 ? "s" : ""}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: l.conversao >= 30 ? "var(--sage-dark)" : l.conversao > 0 ? "var(--gold-dark)" : "var(--granite)", textAlign: "right" }}>{l.conversao.toFixed(0)}%</span>
+        </div>
+      ))}
     </div>
   );
 }

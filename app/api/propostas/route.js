@@ -23,9 +23,9 @@ export async function GET() {
 
   const [clientesRes, pacotesRes, buffetsRes, extrasRes] = await Promise.all([
     query,
-    supabase.from("pacotes").select("*").eq("ativo", true),
-    supabase.from("buffets").select("*").eq("ativo", true),
-    supabase.from("extras").select("*").eq("ativo", true),
+    supabase.from("pacotes").select("*").eq("ativo", true).order("ordem"),
+    supabase.from("buffets").select("*").eq("ativo", true).order("ordem"),
+    supabase.from("extras").select("*").eq("ativo", true).order("ordem"),
   ]);
 
   if (clientesRes.error) return NextResponse.json({ error: clientesRes.error.message }, { status: 500 });

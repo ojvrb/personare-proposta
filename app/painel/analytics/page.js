@@ -72,11 +72,77 @@ function agregar(clientesF, propostasF, contratosF, eventos, buffets, extras) {
   };
 }
 
+// Alertas (sprint5) -- sempre sobre o estado ATUAL, independente do filtro de
+// range (nao faz sentido "alerta dos ultimos 7 dias", ou esta parado agora
+// ou nao esta). Calculado em cima do que ja vem de /api/analytics, sem view.
+function calcularAlertas(bruto, agora) {
+  const ultimaInteracaoPorCliente = {};
+  bruto.interacoes.forEach((i) => {
+    const atual = ultimaInteracaoPorCliente[i.cliente_id];
+    if (!atual || new Date(i.created_at) > new Date(atual)) ultimaInteracaoPorCliente[i.cliente_id] = i.created_at;
+  });
+
+  const clientePorEvento = {};
+  bruto.eventos.forEach((e) => { clientePorEvento[e.id] = e.cliente_id; });
+  const clientePorId = {};
+  bruto.clientes.forEach((c) => { clientePorId[c.id] = c; });
+
+  const semInteracao = bruto.propostas
+    .filter((p) => ["enviada", "em_negociacao"].includes(p.status))
+    .map((p) => {
+      const clienteId = clientePorEvento[p.evento_id];
+      const cliente = clientePorId[clienteId];
+      if (!cliente) return null;
+      const ultima = ultimaInteracaoPorCliente[clienteId] || p.created_at;
+      if (diasAtras(ultima, agora) <= 7) return null;
+      return { proposta: p, cliente, diasParado: Math.floor(diasAtras(ultima, agora)) };
+    })
+    .filter(Boolean);
+
+  const validadeVencida = bruto.propostas
+    .filter((p) => p.valida_ate && new Date(p.valida_ate) < agora && !["aceita", "perdida"].includes(p.status))
+    .map((p) => {
+      const cliente = clientePorId[clientePorEvento[p.evento_id]];
+      return cliente ? { proposta: p, cliente } : null;
+    })
+    .filter(Boolean);
+
+  const contratosAssinadosPorEvento = new Set(bruto.contratos.filter((c) => c.status === "assinado").map((c) => c.evento_id));
+  const eventoSemContrato = bruto.eventos
+    .filter((e) => e.data_evento && diasAtras(agora, new Date(e.data_evento)) <= 60 && diasAtras(agora, new Date(e.data_evento)) >= 0 && !contratosAssinadosPorEvento.has(e.id))
+    .map((e) => {
+      const cliente = clientePorId[e.cliente_id];
+      return cliente ? { evento: e, cliente } : null;
+    })
+    .filter(Boolean);
+
+  return { semInteracao, validadeVencida, eventoSemContrato };
+}
+
+// Desempenho por atendente (sprint5) -- so' admin ve, e' pra comparar vendedores.
+function calcularDesempenho(bruto) {
+  const porAtendente = {};
+  bruto.propostas.forEach((p) => {
+    const id = p.atendente_id || "sem_dono";
+    if (!porAtendente[id]) porAtendente[id] = { total: 0, fechadas: 0, perdidas: 0 };
+    porAtendente[id].total += 1;
+    if (p.status === "aceita") porAtendente[id].fechadas += 1;
+    if (p.status === "perdida") porAtendente[id].perdidas += 1;
+  });
+  return Object.entries(porAtendente).map(([id, v]) => ({
+    id,
+    email: id === "sem_dono" ? "Sem dono" : bruto.emailPorId[id] || id,
+    ...v,
+    conversao: v.total > 0 ? (v.fechadas / v.total) * 100 : 0,
+  })).sort((a, b) => b.total - a.total);
+}
+
 export default function AnalyticsPage() {
   const [bruto, setBruto] = useState(null);
   const [erro, setErro] = useState("");
   const [rangeDias, setRangeDias] = useState(30);
   const [etapaSelecionada, setEtapaSelecionada] = useState(null);
+  const [alertaAberto, setAlertaAberto] = useState(null);
 
   useEffect(() => {
     fetch("/api/analytics")
@@ -112,6 +178,10 @@ export default function AnalyticsPage() {
     return { clientesRange, dados, deltas };
   }, [bruto, rangeDias, agora]);
 
+  const alertas = useMemo(() => (bruto ? calcularAlertas(bruto, agora) : null), [bruto, agora]);
+  const desempenho = useMemo(() => (bruto ? calcularDesempenho(bruto) : []), [bruto]);
+  const souAdmin = Object.keys(bruto?.emailPorId || {}).length > 0;
+
   if (erro) return <div className="alert err">{erro}</div>;
   if (!dados) return <p style={{ color: "var(--granite)" }}>Carregando…</p>;
 
@@ -133,6 +203,35 @@ export default function AnalyticsPage() {
           ))}
         </div>
       </div>
+
+      {alertas && (alertas.semInteracao.length + alertas.validadeVencida.length + alertas.eventoSemContrato.length > 0) && (
+        <div className="card" style={{ marginBottom: 24, borderColor: "var(--warn)" }}>
+          <h3 style={{ marginTop: 0 }}>⚠ Precisa de atenção</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+            <AlertaCard
+              titulo="Sem contato há mais de 7 dias"
+              itens={alertas.semInteracao}
+              aberto={alertaAberto === "semInteracao"}
+              onToggle={() => setAlertaAberto((a) => (a === "semInteracao" ? null : "semInteracao"))}
+              render={(i) => <>{i.cliente.nome} <span style={{ color: "var(--granite)" }}>· {i.diasParado}d parado</span></>}
+            />
+            <AlertaCard
+              titulo="Validade da proposta vencida"
+              itens={alertas.validadeVencida}
+              aberto={alertaAberto === "validadeVencida"}
+              onToggle={() => setAlertaAberto((a) => (a === "validadeVencida" ? null : "validadeVencida"))}
+              render={(i) => i.cliente.nome}
+            />
+            <AlertaCard
+              titulo="Evento em até 60 dias sem contrato"
+              itens={alertas.eventoSemContrato}
+              aberto={alertaAberto === "eventoSemContrato"}
+              onToggle={() => setAlertaAberto((a) => (a === "eventoSemContrato" ? null : "eventoSemContrato"))}
+              render={(i) => <>{i.cliente.nome} <span style={{ color: "var(--granite)" }}>· {new Date(`${i.evento.data_evento}T00:00:00`).toLocaleDateString("pt-BR")}</span></>}
+            />
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 14, marginBottom: 24 }}>
         <Stat label="Leads" valor={dados.totalLeads} delta={deltas?.totalLeads} />
@@ -171,6 +270,53 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
+
+      {souAdmin && desempenho.length > 0 && (
+        <div className="card" style={{ marginTop: 20 }}>
+          <h3 style={{ marginTop: 0 }}>Desempenho por atendente</h3>
+          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 14 }}>Todo o período — pra comparar quem está fechando mais.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {desempenho.map((d) => (
+              <div key={d.id} className="resumo-linha">
+                <span>{d.email}</span>
+                <span style={{ display: "flex", gap: 14, fontSize: 12, color: "var(--stone)" }}>
+                  <span>{d.total} propostas</span>
+                  <span style={{ color: "var(--sage-dark)", fontWeight: 600 }}>{d.fechadas} fechadas</span>
+                  <span style={{ color: "var(--bad)" }}>{d.perdidas} perdidas</span>
+                  <span style={{ fontWeight: 600 }}>{d.conversao.toFixed(0)}%</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AlertaCard({ titulo, itens, aberto, onToggle, render }) {
+  if (itens.length === 0) return null;
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        style={{
+          width: "100%", textAlign: "left", cursor: "pointer", background: "var(--pitch-2)",
+          border: "1px solid var(--stroke)", borderRadius: 10, padding: 12, fontFamily: "var(--font)",
+        }}
+      >
+        <div style={{ fontSize: 22, fontWeight: 700, color: "var(--warn)" }}>{itens.length}</div>
+        <div style={{ fontSize: 12, color: "var(--stone)" }}>{titulo}</div>
+      </button>
+      {aberto && (
+        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
+          {itens.map((i, idx) => (
+            <Link key={idx} href={`/painel/clientes/${i.cliente.id}`} style={{ fontSize: 12, padding: "6px 8px", textDecoration: "none", color: "var(--ink)", borderRadius: 6 }}>
+              {render(i)}
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

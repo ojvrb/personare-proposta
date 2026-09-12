@@ -182,7 +182,7 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
     setLoading(true);
     const res = await fetch(endpoint);
     const data = await res.json();
-    if (res.ok) setItens(data.items);
+    if (res.ok) setItens(temOrdem(data.items) ? [...data.items].sort((a, b) => a.ordem - b.ordem) : data.items);
     setLoading(false);
   }
 
@@ -230,6 +230,7 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
     setErro("");
     setCriando(true);
     const payload = normalizarPayload(novo);
+    payload.ordem = itens.length ? Math.max(...itens.map((i) => i.ordem || 0)) + 1 : 0;
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -240,6 +241,17 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
     if (!res.ok) return setErro(data.error || "erro ao criar");
     setItens((all) => [...all, data.item]);
     setNovo(campoInicial);
+  }
+
+  async function mover(index, delta) {
+    const alvo = index + delta;
+    if (alvo < 0 || alvo >= itens.length) return;
+    const a = itens[index], b = itens[alvo];
+    await Promise.all([
+      fetch(`${endpoint}/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ordem: b.ordem ?? alvo }) }),
+      fetch(`${endpoint}/${b.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ordem: a.ordem ?? index }) }),
+    ]);
+    carregar();
   }
 
   return (
@@ -265,6 +277,12 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
                   <b>{item[campoNome]}</b> — {resumo(item)} {!item.ativo && <span className="badge">inativo</span>}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
+                  {temOrdem(itens) && (
+                    <>
+                      <button className="btn" style={{ padding: "6px 10px" }} onClick={() => mover(itens.indexOf(item), -1)} disabled={itens.indexOf(item) === 0} aria-label="Mover pra cima">↑</button>
+                      <button className="btn" style={{ padding: "6px 10px" }} onClick={() => mover(itens.indexOf(item), 1)} disabled={itens.indexOf(item) === itens.length - 1} aria-label="Mover pra baixo">↓</button>
+                    </>
+                  )}
                   <button className="btn" onClick={() => iniciarEdicao(item)}>Editar</button>
                   <button className="btn" onClick={() => alternarAtivo(item)}>{item.ativo ? "Desativar" : "Ativar"}</button>
                 </div>
@@ -303,6 +321,12 @@ function textoParaArray(txt) {
 
 function arrayParaTexto(arr) {
   return Array.isArray(arr) ? arr.join(", ") : arr || "";
+}
+
+// pacotes/buffets/extras ganharam "ordem" no sprint4; depoimentos ja tinha
+// desde o sprint2 -- checa dinamicamente em vez de fixar quais tabelas tem.
+function temOrdem(itens) {
+  return itens.length > 0 && "ordem" in itens[0];
 }
 
 // Upload direto de arquivo -- evita depender de URL de foto ja hospedada em

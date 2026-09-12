@@ -291,3 +291,20 @@ create table fotos_espaco (
 alter table fotos_espaco enable row level security;
 create policy "staff acesso total" on fotos_espaco for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "leitura publica de fotos ativas" on fotos_espaco for select using (ativo = true);
+
+-- Ordenacao do catalogo (sprint4): sem isso, a ordem de exibicao dependia de
+-- created_at, o que quebra assim que a equipe reorganiza o catalogo.
+-- depoimentos e fotos_espaco ja tem "ordem" desde antes.
+alter table pacotes add column ordem int not null default 0;
+alter table buffets add column ordem int not null default 0;
+alter table extras  add column ordem int not null default 0;
+
+-- sprint5 (alertas + desempenho por atendente): NAO cria as views do
+-- schema_sprint5.sql original -- elas referenciavam nomes que ja mudamos
+-- (valida_ate em vez de validade_ate, negocio_fechado em vez de
+-- evento_confirmado) e um status "contrato" em propostas que nunca existiu
+-- (contrato eh status de clientes, nao de propostas). E "interacoes" ja
+-- existe desde o sprint2 com colunas diferentes (nota/created_at, nao
+-- observacao/tipo/criado_em) -- recriar quebraria o que ja usa a tabela.
+-- Os alertas e o desempenho por atendente foram implementados calculando em
+-- cima dos dados existentes (ver /api/analytics), sem tabela nova.

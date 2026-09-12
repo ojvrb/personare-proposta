@@ -254,13 +254,34 @@ h1{font-size:26px;margin:0 0 4px}
 
 .painel-main{flex:1;min-width:0}
 
+.mobile-topbar{display:none}
+.sidebar-close{display:none}
+
 @media (max-width: 860px){
+  /* No mobile a sidebar vira uma gaveta: escondida fora da tela por padrao,
+     desliza por cima do conteudo quando aberta pelo hamburger -- nunca mais
+     um monte de botao quebrando linha no topo da pagina. */
   .painel-shell{flex-direction:column}
-  .sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;align-items:center;padding:14px 18px}
-  .sidebar-user{display:none}
-  .sidebar-label{display:none}
-  .sidebar-nav{flex-direction:row;flex-wrap:wrap}
-  .sidebar-cta{padding:9px 16px}
+  .mobile-topbar{
+    display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
+    border-bottom:1px solid var(--line);background:var(--white);position:sticky;top:0;z-index:60;
+  }
+  .hamburger-btn{
+    background:none;border:1px solid var(--line);border-radius:10px;width:38px;height:38px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);flex-shrink:0;
+  }
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:min(300px,82vw);height:100vh;z-index:100;
+    transform:translateX(-100%);transition:transform .3s cubic-bezier(.16,1,.3,1);
+    box-shadow:var(--shadow-soft);
+  }
+  .sidebar.aberta{transform:translateX(0)}
+  .sidebar-close{
+    display:flex;align-self:flex-end;background:none;border:1px solid var(--line);border-radius:10px;
+    width:32px;height:32px;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);margin-bottom:-8px;
+  }
+  .sidebar-backdrop{position:fixed;inset:0;background:rgba(43,43,38,.4);z-index:99}
+  .sidebar-bell-desktop{display:none}
 }
 
 /* Notificacoes: sino com contagem + painel dropdown. */

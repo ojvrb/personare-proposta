@@ -299,6 +299,41 @@ alter table pacotes add column ordem int not null default 0;
 alter table buffets add column ordem int not null default 0;
 alter table extras  add column ordem int not null default 0;
 
+-- Personalizacao dos textos da proposta publica (sprint6): linha unica,
+-- editada pelo admin em /painel/proposta. Cada capitulo tem eyebrow +
+-- titulo + lead editaveis. Rendered public com fallback pros defaults do
+-- codigo se algum campo for null.
+create table proposta_textos (
+  id smallint primary key default 1,  -- singleton (unica linha)
+  espaco_eyebrow text, espaco_titulo text, espaco_lead text,
+  buffet_eyebrow text, buffet_titulo text, buffet_lead text,
+  pacote_eyebrow text, pacote_titulo text, pacote_lead text,
+  investimento_eyebrow text, investimento_titulo text, investimento_lead text,
+  depoimentos_eyebrow text, depoimentos_titulo text,
+  atualizado_em timestamptz not null default now(),
+  constraint proposta_textos_singleton check (id = 1)
+);
+insert into proposta_textos (id) values (1) on conflict do nothing;
+alter table proposta_textos enable row level security;
+create policy "staff edita" on proposta_textos for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "leitura publica" on proposta_textos for select using (true);
+
+-- Momentos extras -- fotos-cheia entre capitulos, sem card, tipo o "photo
+-- moment" da Apple. O admin adiciona quantos quiser em /painel/proposta e
+-- escolhe em qual "gancho" (depois_de) o momento entra na narrativa.
+create table proposta_momentos (
+  id uuid primary key default gen_random_uuid(),
+  foto_url text not null,
+  frase text,  -- opcional; se preenchido vira legenda cinematografica
+  depois_de text not null,  -- 'hero' | 'espaco' | 'buffet' | 'pacote' | 'investimento'
+  ordem int not null default 0,
+  ativo boolean not null default true,
+  created_at timestamptz not null default now()
+);
+alter table proposta_momentos enable row level security;
+create policy "staff edita" on proposta_momentos for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "leitura publica" on proposta_momentos for select using (ativo = true);
+
 -- sprint5 (alertas + desempenho por atendente): NAO cria as views do
 -- schema_sprint5.sql original -- elas referenciavam nomes que ja mudamos
 -- (valida_ate em vez de validade_ate, negocio_fechado em vez de

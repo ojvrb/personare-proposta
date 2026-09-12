@@ -258,6 +258,19 @@ h1{font-size:26px;margin:0 0 4px}
 }
 .checklist--excl li{color:var(--stone)}
 
+/* Momento cinematografico entre capitulos -- foto edge-to-edge, altura
+   ~viewport, opcional uma frase serifa gigante centralizada. Sem card,
+   sem padding, essa e' a "pausa visual" da narrativa. */
+.momento{position:relative;height:min(84vh,720px);overflow:hidden;margin:0;scroll-snap-align:start}
+.momento-foto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.02)}
+.momento-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,.15) 50%,rgba(0,0,0,.4) 100%);pointer-events:none}
+.momento-frase-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:clamp(24px,6vw,80px);text-align:center}
+.momento-frase{
+  font-family:var(--display);font-style:italic;font-weight:500;color:#fff;letter-spacing:-0.01em;
+  font-size:clamp(28px,4.4vw,54px);line-height:1.15;max-width:14ch;margin:0;
+  text-shadow:0 2px 24px rgba(0,0,0,.35);
+}
+
 .investimento-hero{
   display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;
   padding:clamp(40px,6vw,72px) clamp(24px,4vw,40px);

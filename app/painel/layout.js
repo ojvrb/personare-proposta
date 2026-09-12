@@ -8,6 +8,7 @@ import NotificationBell from "@/app/components/NotificationBell";
 
 const ICONES = {
   home: <path d="M3 11.5 12 4l9 7.5M5 10v10h5v-6h4v6h5V10" />,
+  livro: <><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z" /><path d="M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z" /></>,
   chart: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
   grid: <><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="8" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" /></>,
@@ -58,6 +59,7 @@ export default function PainelLayout({ children }) {
     { href: "/painel/analytics", label: "Analytics", icone: "chart", mostrar: podeVerAnalytics },
     { href: "/painel/eventos", label: "Agenda de eventos", icone: "calendar", mostrar: true },
     { href: "/painel/catalogo", label: "Catálogo", icone: "grid", mostrar: admin },
+    { href: "/painel/proposta", label: "Proposta pública", icone: "livro", mostrar: admin },
     { href: "/painel/usuarios", label: "Usuários", icone: "users", mostrar: admin },
   ];
 

@@ -3,9 +3,8 @@
 import { useState } from "react";
 import PhotoSlider from "@/app/components/PhotoSlider";
 
-// "Antes de ver o preco, olhe mais esse lugar" -- galeria cheia (sem card,
-// sem borda arredondada) montada pelo atendente em /painel/catalogo, na
-// ordem que ele escolher (a "historia" do espaco).
+// Galeria imersiva do espaco, quase full-viewport de altura pra bater
+// como uma foto de campanha (mesma cara de hero de app do Airbnb/Apple).
 export default function EspacoStory({ fotos }) {
   const [indice, setIndice] = useState(0);
   return (
@@ -14,8 +13,8 @@ export default function EspacoStory({ fotos }) {
       legendas={fotos.map((f) => f.legenda)}
       indice={indice}
       onIndiceChange={setIndice}
-      altura={480}
-      arredondado={false}
+      altura="min(620px, 74vh)"
+      arredondado={true}
     />
   );
 }

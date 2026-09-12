@@ -45,6 +45,7 @@ export default function PhotoSlider({ fotos, indice, onIndiceChange, altura = 36
   return (
     <div>
       <div
+        className="photo-slider-viewport"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={soltar}
@@ -62,8 +63,8 @@ export default function PhotoSlider({ fotos, indice, onIndiceChange, altura = 36
             draggable={false}
             style={{
               width: "100%", height: "100%", objectFit: "cover",
-              transform: `translateX(${arrastoX * 0.5}px) scale(${arrastando ? 1.02 : 1})`,
-              transition: arrastando ? "none" : "transform .4s cubic-bezier(.16,1,.3,1)",
+              transform: `translateX(${arrastoX * 0.4}px) scale(${arrastando ? 1.03 : 1.01})`,
+              transition: arrastando ? "none" : "transform .55s cubic-bezier(.16,1,.3,1)",
             }}
           />
         ) : (
@@ -74,9 +75,9 @@ export default function PhotoSlider({ fotos, indice, onIndiceChange, altura = 36
 
         {legendas?.[indice] && (
           <div style={{
-            position: "absolute", left: 0, right: 0, bottom: 0, padding: "48px 20px 20px",
-            background: "linear-gradient(180deg,transparent,rgba(0,0,0,.55))",
-            color: "#fff", fontSize: 15, fontWeight: 600,
+            position: "absolute", left: 0, right: 0, bottom: 0, padding: "72px 32px 28px",
+            background: "linear-gradient(180deg,transparent,rgba(0,0,0,.65))",
+            color: "#fff", fontFamily: "var(--display)", fontSize: "clamp(18px,2.2vw,26px)", fontWeight: 500, letterSpacing: "-0.01em",
           }}>
             {legendas[indice]}
           </div>
@@ -84,16 +85,17 @@ export default function PhotoSlider({ fotos, indice, onIndiceChange, altura = 36
 
         {fotos.length > 1 && (
           <>
-            <button type="button" onClick={() => ir(-1)} aria-label="Anterior" className="photo-slider-nav" style={{ left: 12 }}>‹</button>
-            <button type="button" onClick={() => ir(1)} aria-label="Próxima" className="photo-slider-nav" style={{ right: 12 }}>›</button>
-            <div style={{ position: "absolute", bottom: 14, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6, zIndex: 1 }}>
+            <span className="photo-slider-count">{indice + 1} / {fotos.length}</span>
+            <button type="button" onClick={() => ir(-1)} aria-label="Anterior" className="photo-slider-nav" style={{ left: 16 }}>‹</button>
+            <button type="button" onClick={() => ir(1)} aria-label="Próxima" className="photo-slider-nav" style={{ right: 16 }}>›</button>
+            <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6, zIndex: 1 }}>
               {fotos.map((_, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => onIndiceChange(i)}
                   aria-label={`Ver foto ${i + 1}`}
-                  style={{ width: 6, height: 6, borderRadius: "50%", border: "none", padding: 0, cursor: "pointer", background: i === indice ? "#fff" : "rgba(255,255,255,.5)" }}
+                  style={{ width: i === indice ? 22 : 6, height: 6, borderRadius: 100, border: "none", padding: 0, cursor: "pointer", background: i === indice ? "#fff" : "rgba(255,255,255,.5)", transition: "width .3s cubic-bezier(.16,1,.3,1),background .3s" }}
                 />
               ))}
             </div>

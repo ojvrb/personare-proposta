@@ -20,15 +20,11 @@ async function getProposta(slug) {
     proposta.buffet_id ? supabase.from("buffets").select("*").eq("id", proposta.buffet_id).single() : Promise.resolve({ data: null }),
     supabase.from("extras").select("*"),
     supabase.from("contratos").select("*, pagamentos(*)").eq("evento_id", proposta.evento_id).limit(1),
-    // depoimentos e fotos_espaco usam o cliente publico (anon), respeitando a
-    // politica de RLS "leitura publica de ativos" -- nao precisa service role.
     publicClient().from("depoimentos").select("*").eq("ativo", true).order("ordem"),
     publicClient().from("fotos_espaco").select("*").eq("ativo", true).order("ordem"),
   ]);
   const contratoAtual = contrato?.[0] || null;
 
-  // vitrine de buffet curada pelo atendente -- propostas antigas nao tem
-  // buffets_sugeridos preenchido, cai pro buffet unico de sempre.
   const idsVitrine = proposta.buffets_sugeridos?.length ? proposta.buffets_sugeridos : (proposta.buffet_id ? [proposta.buffet_id] : []);
   const { data: buffetsVitrine } = idsVitrine.length
     ? await supabase.from("buffets").select("*").in("id", idsVitrine)
@@ -61,14 +57,26 @@ export default async function PropostaPublicaPage({ params }) {
   const corValidade = expirada ? "var(--red)" : diasRestantes <= 3 ? "var(--amber)" : "var(--green)";
   const fotoCapa = fotosEspaco[0]?.url || pacote?.fotos?.[0] || null;
 
+  // capitulos numerados que EXISTEM neste caso -- pula secao se nao tem
+  // conteudo (ex: sem fotos_espaco, sem buffets curados). A numeracao 01/02/...
+  // refleite a narrativa real que o casal ve, nao slots vazios.
+  const capitulos = [
+    fotosEspaco.length > 0 && "espaco",
+    vitrineBuffets.length > 0 && "buffet",
+    pacote && "pacote",
+    "investimento",
+    depoimentos.length > 0 && "depoimentos",
+  ].filter(Boolean);
+  const num = (nome) => String(capitulos.indexOf(nome) + 1).padStart(2, "0");
+
   return (
     <div>
-      {/* HERO -- a tese da pagina: o nome do casal, nao o preco, e' a primeira
-          coisa que a pessoa ve. Assim que existe uma foto (do pacote, feita
-          de capa ate' ter foto de ambiente dedicada), ela vira o fundo cheio
-          do hero, com overlay escuro pro texto continuar legivel. Sem foto,
-          o impacto vem so' da escala tipografica e do glow ambiente. */}
-      <section className={`hero${fotoCapa ? " com-foto" : ""}`} style={{ padding: "88px 0 48px", textAlign: "center" }}>
+      {/* ============================================================
+          HERO -- o nome do casal, uma foto de fundo cheia. Se nao tem
+          foto de espaco, cai pro fundo com glow ambiente pra ainda ter
+          escala tipografica sem parecer vazio.
+          ============================================================ */}
+      <section className={`hero${fotoCapa ? " com-foto" : ""}`} style={{ padding: "clamp(100px,14vh,180px) 0 clamp(64px,10vh,120px)", textAlign: "center", minHeight: "80vh", display: "flex", alignItems: "center" }}>
         {fotoCapa ? (
           <>
             <div className="hero-cover" style={{ backgroundImage: `url(${fotoCapa})` }} />
@@ -78,7 +86,7 @@ export default async function PropostaPublicaPage({ params }) {
           <div className="hero-glow" />
         )}
         <div className="wrap" style={{ maxWidth: 920 }}>
-          <span className="eyebrow">Espaço Personare</span>
+          <span className="eyebrow">Espaço Personare · Ponta Grossa</span>
           <h1 className="hero-name">
             {cliente?.nome_conjuge ? (
               <>{cliente.nome} <em>&amp;</em> {cliente.nome_conjuge}</>
@@ -94,118 +102,148 @@ export default async function PropostaPublicaPage({ params }) {
         </div>
       </section>
 
-      {/* "Nosso espaco" -- antes do pacote/preco, de proposito: a galeria que
-          o atendente monta como historia (ver /painel/catalogo) pra pessoa
-          se imaginar no lugar antes de qualquer numero. */}
+      {/* CAPITULO 01 -- O LUGAR */}
       {fotosEspaco.length > 0 && (
-        <section>
-          <Reveal>
-            <EspacoStory fotos={fotosEspaco} />
-          </Reveal>
-        </section>
-      )}
-
-      {pacote && (
-        <section className="section-band">
-          <div className="wrap" style={{ maxWidth: 720 }}>
-            <div className="ornament"><span className="ornament-dot" /></div>
+        <section className="story">
+          <div className="story-wrap">
             <Reveal>
-              <div className="flat-card" style={{ padding: 20 }}>
-                <PacoteGallery pacote={pacote} />
+              <div className="story-kicker"><b>{num("espaco")}</b><span>O lugar</span></div>
+              <h2 className="story-title">
+                O lugar do seu {evento?.tipo === "casamento" ? "casamento" : "evento"} <em>é aqui.</em>
+              </h2>
+              <p className="story-lead">
+                A gente montou essa história pra você se ver caminhando por cada canto — a chegada, o salão, o jardim à noite. Deslize as fotos.
+              </p>
+            </Reveal>
+            <Reveal>
+              <div className="story-media">
+                <EspacoStory fotos={fotosEspaco} />
               </div>
             </Reveal>
           </div>
         </section>
       )}
 
+      {/* CAPITULO 02 -- A COMIDA */}
       {vitrineBuffets.length > 0 && (
-        <section className="section-band alt">
-          <div className="wrap" style={{ maxWidth: 720 }}>
+        <section className="story story--wash">
+          <div className="story-wrap">
             <Reveal>
-              <div className="flat-card" style={{ padding: 24 }}>
-                <h3 style={{ marginTop: 0 }}>Escolha seu buffet</h3>
-                <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 12 }}>Selecionamos essas opções pensando no seu evento.</p>
+              <div className="story-kicker"><b>{num("buffet")}</b><span>A mesa</span></div>
+              <h2 className="story-title">
+                E o que <em>eles vão comer.</em>
+              </h2>
+              <p className="story-lead">
+                Selecionamos {vitrineBuffets.length === 1 ? "essa opção" : `essas ${vitrineBuffets.length} opções`} de buffet pensando no perfil do seu evento. Arraste pra conhecer cada uma — o cardápio completo aparece embaixo da foto.
+              </p>
+            </Reveal>
+            <Reveal>
+              <div className="story-media" style={{ background: "var(--white)", padding: "clamp(20px,3vw,32px)" }}>
                 <BuffetSlider buffets={vitrineBuffets} recomendadoId={proposta.buffet_id} numConvidados={evento?.num_convidados} />
-                <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 14 }}>
-                  Valor calculado com o buffet recomendado. Quer trocar? É só falar com a gente.
-                </p>
               </div>
             </Reveal>
           </div>
         </section>
       )}
 
-      {extrasEscolhidos.length > 0 && (
-        <section className="section-band">
-          <div className="wrap" style={{ maxWidth: 720 }}>
+      {/* CAPITULO 03 -- O QUE ESTA INCLUSO (pacote + extras) */}
+      {pacote && (
+        <section className="story">
+          <div className="story-wrap">
             <Reveal>
-              <div className="flat-card" style={{ padding: 24 }}>
-                <h3 style={{ marginTop: 0 }}>Extras selecionados</h3>
-                {extrasEscolhidos.map((ex) => (
-                  <div key={ex.id} className="resumo-linha" style={{ alignItems: "center" }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      {ex.fotos?.[0] && (
-                        <img src={ex.fotos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
-                      )}
-                      {ex.nome}{ex.tipo_preco === "unidade" ? ` × ${ex.quantidade}` : ""}
-                    </span>
-                    <span>R$ {Number(ex.valor).toLocaleString("pt-BR")}</span>
-                  </div>
-                ))}
-              </div>
+              <div className="story-kicker"><b>{num("pacote")}</b><span>Antes do preço</span></div>
+              <h2 className="story-title">
+                O que <em>já está incluso.</em>
+              </h2>
+              <p className="story-lead">
+                Antes de você olhar o investimento, vale ver tudo que já vem no pacote {pacote.nome}. Isso é o que a gente entrega pronto — você não precisa se preocupar em contratar à parte.
+              </p>
             </Reveal>
-          </div>
-        </section>
-      )}
 
-      {/* Depoimentos logo antes do preco, de proposito -- o casal se ve no
-          espaco antes de olhar pro valor. */}
-      {depoimentos.length > 0 && (
-        <section className="section-band alt">
-          <div className="wrap" style={{ maxWidth: 720 }}>
-            <Reveal>
-              <div>
-                <h3 style={{ textAlign: "center" }}>O que dizem sobre a gente</h3>
-                <div style={{ display: "flex", gap: 14, overflowX: "auto", padding: "4px 4px 12px", scrollSnapType: "x mandatory" }}>
-                  {depoimentos.map((d) => (
-                    <div key={d.id} className="flat-card" style={{ minWidth: 240, maxWidth: 260, padding: 16, scrollSnapAlign: "start", flexShrink: 0 }}>
-                      {d.foto && <img src={d.foto} alt={d.autor_nome} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", marginBottom: 8 }} />}
-                      <p style={{ fontSize: 13, color: "var(--stone)", fontStyle: "italic" }}>&ldquo;{d.texto}&rdquo;</p>
-                      <p style={{ fontSize: 12, color: "var(--gold-dark)", fontWeight: 600, margin: 0 }}>{d.autor_nome}</p>
-                    </div>
-                  ))}
+            {pacote.fotos?.length > 0 && (
+              <Reveal>
+                <div className="story-media" style={{ marginBottom: 40 }}>
+                  <PacoteGallery pacote={pacote} />
                 </div>
-              </div>
-            </Reveal>
+              </Reveal>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: extrasEscolhidos.length > 0 ? "1fr 1fr" : "1fr", gap: "clamp(24px,3vw,48px)", maxWidth: 1000, margin: "40px auto 0" }}>
+              <Reveal>
+                <div>
+                  <h3 style={{ fontFamily: "var(--display)", fontSize: 24, fontWeight: 500, margin: "0 0 4px" }}>Está incluso</h3>
+                  <p style={{ fontSize: 13, color: "var(--granite)", margin: "0 0 12px" }}>{pacote.nome} — R$ {Number(pacote.preco).toLocaleString("pt-BR")}</p>
+                  <ul className="checklist">
+                    {(pacote.itens_inclusos || []).map((item, i) => <li key={i} className="stagger-item">{item}</li>)}
+                  </ul>
+                  {pacote.itens_nao_inclusos?.length > 0 && (
+                    <>
+                      <h4 style={{ fontFamily: "var(--display)", fontSize: 18, fontWeight: 500, marginTop: 28, marginBottom: 8, color: "var(--stone)" }}>Não inclui</h4>
+                      <ul className="checklist checklist--excl">
+                        {pacote.itens_nao_inclusos.map((item, i) => <li key={i}>{item}</li>)}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              </Reveal>
+
+              {extrasEscolhidos.length > 0 && (
+                <Reveal>
+                  <div>
+                    <h3 style={{ fontFamily: "var(--display)", fontSize: 24, fontWeight: 500, margin: "0 0 4px" }}>Você também escolheu</h3>
+                    <p style={{ fontSize: 13, color: "var(--granite)", margin: "0 0 12px" }}>Extras somados no total.</p>
+                    <ul className="checklist">
+                      {extrasEscolhidos.map((ex) => (
+                        <li key={ex.id} className="stagger-item" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                          {ex.fotos?.[0] && (
+                            <img src={ex.fotos[0]} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flexShrink: 0, marginLeft: -8 }} />
+                          )}
+                          <span style={{ flex: 1 }}>{ex.nome}{ex.tipo_preco === "unidade" ? ` × ${ex.quantidade}` : ""}</span>
+                          <span style={{ color: "var(--gold-dark)", fontWeight: 600 }}>R$ {Number(ex.valor).toLocaleString("pt-BR")}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Reveal>
+              )}
+            </div>
           </div>
         </section>
       )}
 
-      {/* Investimento total -- o segundo momento de maior peso visual da
-          pagina (depois do hero): numero grande em gradiente dourado, nao
-          so' uma linha em negrito a mais. */}
-      <section className="section-band">
-        <div className="wrap" style={{ maxWidth: 720 }}>
-          <div className="ornament"><span className="ornament-dot" /></div>
+      {/* CAPITULO 04 -- INVESTIMENTO */}
+      <section className="story story--wash">
+        <div className="story-narrow">
           <Reveal>
-            <div className="flat-card elevated" style={{ padding: "36px 32px" }}>
-              <div className="resumo-linha"><span>Subtotal</span><span>R$ {Number(proposta.subtotal).toLocaleString("pt-BR")}</span></div>
-              {Number(proposta.desconto) > 0 && (
-                <div className="resumo-linha"><span>Desconto</span><span>- R$ {Number(proposta.desconto).toLocaleString("pt-BR")}</span></div>
-              )}
-              <div style={{ textAlign: "center", paddingTop: 24 }}>
-                <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 12 }}>Investimento total</div>
+            <div className="story-kicker"><b>{num("investimento")}</b><span>Seu investimento</span></div>
+            <h2 className="story-title" style={{ textAlign: "center" }}>
+              Combinado, então <em>é isso.</em>
+            </h2>
+            <p className="story-lead" style={{ textAlign: "center", margin: "0 auto" }}>
+              Tudo que você viu até aqui, junto — sem taxa escondida, sem asterisco.
+            </p>
+          </Reveal>
+
+          <Reveal>
+            <div className="investimento-hero" style={{ marginTop: 40 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 420 }}>
+                <div className="resumo-linha"><span>Subtotal</span><span>R$ {Number(proposta.subtotal).toLocaleString("pt-BR")}</span></div>
+                {Number(proposta.desconto) > 0 && (
+                  <div className="resumo-linha" style={{ color: "var(--sage-dark)" }}><span>Desconto</span><span>- R$ {Number(proposta.desconto).toLocaleString("pt-BR")}</span></div>
+                )}
+              </div>
+              <div style={{ marginTop: 20 }}>
+                <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 16 }}>Investimento total</div>
                 <div className="valor-total">R$ {Number(proposta.total).toLocaleString("pt-BR")}</div>
               </div>
-
-              <div style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--stroke)" }}>
+              <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--stroke)", width: "100%" }}>
                 <AceitarProposta propostaId={proposta.id} statusInicial={proposta.status} aceitaEmInicial={proposta.aceita_em} motivoInicial={proposta.motivo_categoria} />
               </div>
             </div>
           </Reveal>
 
           {proposta.valida_ate && (
-            <Reveal style={{ marginTop: 16 }}>
+            <Reveal style={{ marginTop: 20 }}>
               <div className="flat-card" style={{ padding: "16px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: corValidade }} />
                 <div style={{ color: corValidade, fontWeight: 700, fontSize: 15 }}>
@@ -223,7 +261,7 @@ export default async function PropostaPublicaPage({ params }) {
           )}
 
           {contrato && contrato.status === "assinado" && (
-            <Reveal style={{ marginTop: 16 }}>
+            <Reveal style={{ marginTop: 20 }}>
               <div className="flat-card" style={{ padding: 24 }}>
                 <h3 style={{ marginTop: 0 }}>📋 Seu evento está confirmado</h3>
                 <p style={{ fontSize: 13, color: "var(--stone)" }}>
@@ -244,8 +282,31 @@ export default async function PropostaPublicaPage({ params }) {
         </div>
       </section>
 
-      <div className="wrap" style={{ maxWidth: 720 }}>
-        <p style={{ textAlign: "center", color: "var(--granite)", fontSize: 12, padding: "8px 0 56px" }}>
+      {/* CAPITULO 05 -- DEPOIMENTOS (fecha a narrativa: quem ja fez, o que achou) */}
+      {depoimentos.length > 0 && (
+        <section className="story">
+          <div className="story-wrap">
+            <Reveal>
+              <div className="story-kicker"><b>{num("depoimentos")}</b><span>Quem passou por aqui</span></div>
+              <h2 className="story-title">O que <em>eles guardam</em> do dia.</h2>
+            </Reveal>
+            <Reveal>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, marginTop: 32 }}>
+                {depoimentos.map((d) => (
+                  <div key={d.id} className="flat-card" style={{ padding: 24 }}>
+                    {d.foto && <img src={d.foto} alt={d.autor_nome} style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", marginBottom: 12 }} />}
+                    <p style={{ fontSize: 15, color: "var(--stone)", fontStyle: "italic", lineHeight: 1.5, margin: "0 0 12px" }}>&ldquo;{d.texto}&rdquo;</p>
+                    <p style={{ fontSize: 13, color: "var(--gold-dark)", fontWeight: 600, margin: 0 }}>{d.autor_nome}</p>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+          </div>
+        </section>
+      )}
+
+      <div className="wrap" style={{ maxWidth: 720, textAlign: "center", padding: "0 0 56px" }}>
+        <p style={{ color: "var(--granite)", fontSize: 13 }}>
           Fale com o Personare pra tirar dúvidas ou fechar sua data.
         </p>
       </div>

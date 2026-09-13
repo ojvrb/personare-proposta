@@ -303,8 +303,16 @@ function ModalFechamento({ cliente, onConfirmar, onCancelar }) {
 
 function Proposta({ proposta: p, onStatus, onAjustar }) {
   const [ajustando, setAjustando] = useState(false);
-  const [novoDesconto, setNovoDesconto] = useState(p.desconto);
+  // Desconto agora em % pra ser mais legivel pra staff que negocia. O
+  // subtotal e' fixo (o total muda quando desconto muda), entao pct inicial
+  // deriva do desconto absoluto salvo: (desconto / subtotal) * 100.
+  const subtotal = Number(p.subtotal || 0);
+  const pctInicial = subtotal > 0 ? (Number(p.desconto || 0) / subtotal) * 100 : 0;
+  const [novoDescontoPct, setNovoDescontoPct] = useState(pctInicial.toFixed(2).replace(/\.?0+$/, ""));
   const [motivoAjuste, setMotivoAjuste] = useState("");
+  const pctNum = Math.max(0, Math.min(100, Number(novoDescontoPct) || 0));
+  const descontoAbs = subtotal * pctNum / 100;
+  const totalPreview = Math.max(0, subtotal - descontoAbs);
   // status pendente aguardando confirmacao -- o select so' muda de verdade
   // depois que o vendedor preencher motivo (perdida) ou uma nota (demais
   // status) e clicar Salvar. Nunca commita direto no onChange.
@@ -417,10 +425,21 @@ function Proposta({ proposta: p, onStatus, onAjustar }) {
       )}
 
       {ajustando && (
-        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-          <input type="number" value={novoDesconto} onChange={(e) => setNovoDesconto(e.target.value)} style={{ width: 100 }} placeholder="Novo desconto" />
-          <input value={motivoAjuste} onChange={(e) => setMotivoAjuste(e.target.value)} placeholder="Motivo (ex: cliente pediu desconto)" style={{ flex: 1, minWidth: 160 }} />
-          <button className="btn primary" onClick={() => { onAjustar(p.id, Number(novoDesconto), motivoAjuste); setAjustando(false); }}>Salvar</button>
+        <div style={{ marginTop: 8, padding: 10, background: "var(--sage-wash)", border: "1px solid var(--stroke)", borderRadius: 8 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <input type="number" min="0" max="100" step="0.5" value={novoDescontoPct} onChange={(e) => setNovoDescontoPct(e.target.value)} style={{ width: 80, textAlign: "right" }} />
+              <span style={{ fontWeight: 600 }}>%</span>
+            </div>
+            <span style={{ fontSize: 12, color: "var(--granite)" }}>= R$ {descontoAbs.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} de desconto</span>
+            <span style={{ marginLeft: "auto", fontSize: 13 }}>
+              Novo total: <b style={{ color: "var(--gold-dark)", fontFamily: "var(--display)", fontSize: 16 }}>R$ {totalPreview.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</b>
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <input value={motivoAjuste} onChange={(e) => setMotivoAjuste(e.target.value)} placeholder="Motivo (ex: cliente pediu desconto)" style={{ flex: 1, minWidth: 160 }} />
+            <button className="btn primary" onClick={() => { onAjustar(p.id, Math.round(descontoAbs * 100) / 100, motivoAjuste); setAjustando(false); }}>Salvar</button>
+          </div>
         </div>
       )}
 

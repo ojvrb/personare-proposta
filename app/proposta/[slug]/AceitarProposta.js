@@ -38,15 +38,17 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
         <div className="badge" style={{ background: "var(--sage-wash)", color: "var(--sage-dark)", fontSize: 12, padding: "8px 16px" }}>
           ✓ Proposta aceita {aceitaEm ? `em ${new Date(aceitaEm).toLocaleDateString("pt-BR")}` : ""}
         </div>
-        <p style={{ fontSize: 12, color: "var(--granite)", marginTop: 8 }}>A gente já foi avisado — em breve entramos em contato pra enviar o contrato definitivo.</p>
+        <p style={{ fontSize: 13, color: "var(--stone)", marginTop: 10, lineHeight: 1.5 }}>
+          A gente já foi avisado. Em breve enviamos um novo link com o <b>contrato definitivo</b> pra assinar — com todos os detalhes de pagamento e cronograma.
+        </p>
         {feedbackVisivel && (
-          <div style={{ marginTop: 20 }}>
-            <p style={{ fontSize: 13, color: "var(--stone)", marginBottom: 10 }}>O que mais pesou na sua decisão?</p>
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--stroke)" }}>
+            <p style={{ fontSize: 14, color: "var(--ink)", marginBottom: 12, fontWeight: 500 }}>Antes de sair — o que mais pesou na sua decisão?</p>
+            <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 12 }}>Ajuda a gente a entender o que funciona.</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
               {Object.entries(CHIPS_FEEDBACK).map(([v, l]) => (
-                <button key={v} className="btn" style={{ fontSize: 13 }} onClick={() => enviarFeedback(v)}>{l}</button>
+                <button key={v} className="btn primary" style={{ fontSize: 13 }} onClick={() => enviarFeedback(v)}>{l}</button>
               ))}
-              <button className="btn" style={{ fontSize: 13, color: "var(--granite)" }} onClick={() => setFeedbackVisivel(false)}>Pular</button>
             </div>
           </div>
         )}
@@ -130,7 +132,7 @@ function ModalAceite({ propostaId, contexto, onFechar, onAceito }) {
       <div className="modal-caixa" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-cabecalho">
           <div>
-            <div className="eyebrow" style={{ animation: "none", opacity: 1 }}>Aceite eletrônico</div>
+            <div className="eyebrow" style={{ animation: "none", opacity: 1 }}>Reserva de proposta</div>
             <h3 style={{ margin: "8px 0 0", fontFamily: "var(--display)", fontWeight: 500 }}>Antes de confirmar, leia até o fim</h3>
           </div>
           <button className="btn" onClick={onFechar} aria-label="Fechar" style={{ padding: "6px 10px" }}>✕</button>

@@ -293,6 +293,37 @@ h1{font-size:26px;margin:0 0 4px}
 .depoimento-nav:hover{background:var(--sage-wash);border-color:var(--sage);transform:translateY(-1px)}
 .depoimento-nav:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
 
+/* Preview do contrato -- folha branca centralizada, tipografia mais leiturosa
+   (line-height maior, laterais folgadas). Print CSS remove header/menu do
+   painel e deixa so' a folha em preto no branco. */
+.contrato-folha{
+  background:var(--white);border:1px solid var(--stroke);border-radius:12px;
+  max-width:820px;margin:0 auto;padding:clamp(32px,6vw,64px) clamp(24px,5vw,80px);
+  box-shadow:var(--shadow-soft);
+}
+.contrato-intro{font-size:14px;line-height:1.7;color:var(--ink);margin:0 0 24px;text-align:justify}
+.contrato-clausulas{padding-left:20px;display:flex;flex-direction:column;gap:16px;counter-reset:cl}
+.contrato-clausulas > li{
+  list-style:none;position:relative;padding-left:8px;
+}
+.contrato-clausulas > li::before{
+  counter-increment:cl;content:counter(cl)".";position:absolute;left:-28px;top:0;
+  font-family:var(--display);font-weight:500;color:var(--gold-dark);width:24px;text-align:right;
+}
+.contrato-clausulas > li > b{display:block;font-family:var(--display);font-weight:500;font-size:15px;margin-bottom:4px;color:var(--ink)}
+.contrato-clausulas > li > p{font-size:13.5px;line-height:1.7;color:var(--stone);margin:0;text-align:justify}
+
+@media print{
+  body{background:var(--white)}
+  .painel-shell > aside,
+  .mobile-topbar,
+  .sidebar-backdrop,
+  .no-print{display:none !important}
+  .painel-main{padding:0 !important;margin:0 !important}
+  .contrato-folha{box-shadow:none !important;border:none !important;max-width:none !important;padding:16mm !important;border-radius:0 !important}
+  @page{margin:0}
+}
+
 /* Dashboard resumo mensal (topo do Board CRM) -- linha de 3 KPIs hero
    (Conversao / Ticket / Receita) num card estendido com gradient sutil,
    e embaixo 4 mini-cards contadores. Estetica inspirada no dashboard

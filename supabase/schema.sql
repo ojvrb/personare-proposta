@@ -338,6 +338,27 @@ alter table proposta_textos_tipo enable row level security;
 create policy "staff edita" on proposta_textos_tipo for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "leitura publica" on proposta_textos_tipo for select using (true);
 
+-- Template do contrato (sprint7) -- linha unica (id=1) com clausulas
+-- reutilizadas em todos os contratos. `clausulas` e' um array de
+-- {titulo, texto}; o admin edita em /painel/contratos/template. Placeholders
+-- {{nome}}, {{cpf}}, {{valor}}, {{evento_data}} sao substituidos por dados
+-- reais do contrato no momento da renderizacao.
+create table contrato_template (
+  id smallint primary key default 1,
+  intro text,
+  clausulas jsonb not null default '[]',
+  atualizado_em timestamptz not null default now(),
+  constraint contrato_template_singleton check (id = 1)
+);
+insert into contrato_template (id) values (1) on conflict do nothing;
+alter table contrato_template enable row level security;
+create policy "staff acesso total" on contrato_template for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- Clausulas extras por contrato -- casos especiais (desconto negociado, prazo
+-- diferente, exigencia do cliente etc). Array de {titulo, texto} igual ao do
+-- template, so' que salvo POR contrato.
+alter table contratos add column if not exists clausulas_extras jsonb not null default '[]';
+
 -- Momentos extras -- fotos-cheia entre capitulos, sem card, tipo o "photo
 -- moment" da Apple. O admin adiciona quantos quiser em /painel/proposta e
 -- escolhe em qual "gancho" (depois_de) o momento entra na narrativa.

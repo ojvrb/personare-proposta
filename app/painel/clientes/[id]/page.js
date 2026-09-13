@@ -463,7 +463,7 @@ function Contrato({ contrato, onAtualizar, onParcela, onPago }) {
 
   return (
     <div style={{ border: "1px solid var(--stroke)", borderRadius: 8, padding: 12, marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
         <div>
           Status:{" "}
           <select value={contrato.status} onChange={(e) => onAtualizar(contrato.id, { status: e.target.value })}>
@@ -472,14 +472,17 @@ function Contrato({ contrato, onAtualizar, onParcela, onPago }) {
             <option value="cancelado">Cancelado</option>
           </select>
         </div>
-        <div style={{ fontSize: 13 }}>
-          Valor: R$
-          <input
-            type="number"
-            defaultValue={contrato.valor_contratado}
-            onBlur={(e) => onAtualizar(contrato.id, { valor_contratado: Number(e.target.value) })}
-            style={{ width: 100, marginLeft: 6 }}
-          />
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <a href={`/painel/contratos/${contrato.id}`} className="btn" style={{ fontSize: 12, padding: "6px 12px" }}>Ver contrato completo</a>
+          <div style={{ fontSize: 13 }}>
+            Valor: R$
+            <input
+              type="number"
+              defaultValue={contrato.valor_contratado}
+              onBlur={(e) => onAtualizar(contrato.id, { valor_contratado: Number(e.target.value) })}
+              style={{ width: 100, marginLeft: 6 }}
+            />
+          </div>
         </div>
       </div>
 

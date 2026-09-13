@@ -42,9 +42,12 @@ export default function ContratosPage() {
 
   return (
     <div>
-      <h1>Contratos</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <h1>Contratos</h1>
+        <Link href="/painel/contratos/template" className="btn" style={{ marginTop: 6 }}>Editar template</Link>
+      </div>
       <p style={{ color: "var(--granite)", marginTop: -10, marginBottom: 20 }}>
-        Contratos criados a partir de propostas aceitas. Clique num pra abrir o cliente e ajustar valor/pagamentos.
+        Contratos criados a partir de propostas aceitas. Clique num pra ver o contrato completo, adicionar cláusulas específicas e imprimir.
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
@@ -73,7 +76,7 @@ export default function ContratosPage() {
             return (
               <Link
                 key={c.id}
-                href={cliente ? `/painel/clientes/${cliente.id}` : "/painel/contratos"}
+                href={`/painel/contratos/${c.id}`}
                 style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 16, alignItems: "center", padding: "14px 20px", borderBottom: "1px solid var(--stroke)", textDecoration: "none", color: "var(--ink)" }}
               >
                 <div>

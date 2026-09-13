@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Gauge from "./Gauge";
+import BarraRange from "./BarraRange";
+import WaveInsight from "./WaveInsight";
 
 // Dashboard cross-filter estilo Qlik: um estado central `filtros` que combina
 // todos os cortes ativos (periodo, origem, atendente, buffet, etapa). Cada
@@ -93,10 +95,56 @@ const FILTROS_INICIAIS = { preset: "30d", custom: { inicio: "", fim: "" }, compa
 function labelOrigem(o) { return o ? o.replace(/_/g, " ") : "sem origem"; }
 function diasAtras(dataStr, agora) { return (agora - new Date(dataStr)) / 86400000; }
 
+// Distribuicao de origens: retorna a origem top-1 com sua fatia %, mais os
+// numeros brutos que a BarraRange usa. Se so tiver uma origem, a "concentracao"
+// e' 100% (por definicao); se nenhum lead, retorna null.
+function concentracaoOrigem(sliceClientes) {
+  if (!sliceClientes || sliceClientes.length === 0) return null;
+  const cont = {};
+  sliceClientes.forEach((c) => { const o = c.origem || "sem_origem"; cont[o] = (cont[o] || 0) + 1; });
+  const total = sliceClientes.length;
+  const [origem, count] = Object.entries(cont).sort((a, b) => b[1] - a[1])[0];
+  const pct = (count / total) * 100;
+  return { origem, count, total, pct, nOrigens: Object.keys(cont).length };
+}
+
+// Momentum: serie temporal de conversao semana a semana (contratos assinados
+// / propostas enviadas) pros ultimos N=8 buckets. Usado pelo WaveInsight.
+function momentumConversao(slice, agora, nBuckets = 8) {
+  const bucketDias = 7;
+  const buckets = Array.from({ length: nBuckets }, (_, i) => {
+    const fim = new Date(agora.getTime() - i * bucketDias * 86400000);
+    const inicio = new Date(fim.getTime() - bucketDias * 86400000);
+    return { inicio, fim, propostas: 0, assinados: 0 };
+  }).reverse();
+  const idx = (dataStr) => {
+    const t = new Date(dataStr).getTime();
+    return buckets.findIndex((b) => t >= b.inicio.getTime() && t < b.fim.getTime());
+  };
+  slice.propostas.forEach((p) => { const i = idx(p.created_at); if (i >= 0) buckets[i].propostas += 1; });
+  slice.contratos.filter((c) => c.status === "assinado").forEach((c) => { const i = idx(c.created_at); if (i >= 0) buckets[i].assinados += 1; });
+  const serie = buckets.map((b) => b.propostas > 0 ? (b.assinados / b.propostas) * 100 : 0);
+  const pico = Math.max(...serie);
+  return { serie, pico, ultimo: serie[serie.length - 1] };
+}
+
 // Insight gerado pela plataforma pra ficar no rodape do Gauge de conversao.
 // Nao inventa nada: le so' os campos que ja calculamos e monta uma frase de
 // contexto (comparacao com periodo anterior, ou volume total quando nao ha
 // comparacao). Se nao tem propostas, avisa em vez de dizer "0% de conversao".
+function insightConcentracao(co) {
+  if (co.nOrigens === 1) return "Todo o volume vem de uma única origem — vale diversificar canais.";
+  if (co.pct >= 60) return "Concentração alta: depender de um só canal deixa o funil frágil.";
+  if (co.pct >= 40) return "Origem forte, mas o mix de canais está saudável.";
+  return "Volume bem distribuído entre origens.";
+}
+
+function insightMomentum(mo) {
+  if (mo.pico === 0) return "Ainda sem contratos assinados no recorte semanal.";
+  const dir = mo.ultimo >= mo.pico * 0.8 ? "próxima do pico" : mo.ultimo >= mo.pico * 0.5 ? "abaixo do pico" : "bem abaixo do pico";
+  return `Última semana ${dir} (${mo.pico.toFixed(0)}%) das últimas 8 semanas.`;
+}
+
 function insightConversao(dados, filtros) {
   if (dados.totalPropostas === 0) return "Sem propostas no período pra medir.";
   const base = `${dados.contratosAssinados} de ${dados.totalPropostas} propostas fecharam contrato`;
@@ -330,6 +378,33 @@ export default function AnalyticsPage() {
           <Stat label="Tempo médio" valor={dados.tempoMedioFechamentoDias != null ? `${dados.tempoMedioFechamentoDias.toFixed(0)}d` : "—"} />
         </div>
       </div>
+
+      {(() => {
+        const co = concentracaoOrigem(slice.clientes);
+        const mo = momentumConversao(slice, agora, 8);
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16, marginBottom: 20 }}>
+            {co && (
+              <BarraRange
+                valor={co.pct}
+                titulo={`${labelOrigem(co.origem)} traz ${co.count} de ${co.total} leads do período.`}
+                insight={insightConcentracao(co)}
+                tagEsq="Concentração da origem principal"
+                tagDir={`${co.nOrigens} origem${co.nOrigens === 1 ? "" : "s"}`}
+              />
+            )}
+            {mo.serie.some((v) => v > 0) && (
+              <WaveInsight
+                eyebrow="Momentum"
+                titulo="Conversão semana a semana"
+                valor={`${mo.ultimo.toFixed(0)}%`}
+                serie={mo.serie}
+                insight={insightMomentum(mo)}
+              />
+            )}
+          </div>
+        );
+      })()}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginBottom: 16 }}>
         {periodo && (

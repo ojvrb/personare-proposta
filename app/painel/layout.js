@@ -119,7 +119,7 @@ export default function PainelLayout({ children }) {
 
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
           <Link href="/painel/nova-proposta" className="sidebar-cta">
-            <Icone nome="plus" /> Nova proposta
+            <Icone nome="plus" /> Novo cliente
           </Link>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <button className="sidebar-link" onClick={sair} style={{ flex: 1 }}>

@@ -318,6 +318,26 @@ alter table proposta_textos enable row level security;
 create policy "staff edita" on proposta_textos for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "leitura publica" on proposta_textos for select using (true);
 
+-- Textos por tipo de evento (sprint7): a proposta_textos existente e' o
+-- fallback padrao (unica linha id=1); esta nova tabela guarda variacoes
+-- especificas por evento_tipo (casamento, 15_anos, corporativo, aniversario,
+-- outro). Quando renderiza a proposta publica, primeiro tenta a linha do
+-- tipo do evento; se nao houver, cai no padrao; se o padrao tambem estiver
+-- em branco, cai nos defaults do proprio codigo (TEXTOS_DEFAULT). Assim o
+-- admin monta uma storytelling por perfil sem ser obrigado a repetir tudo.
+create table proposta_textos_tipo (
+  evento_tipo text primary key,
+  espaco_eyebrow text, espaco_titulo text, espaco_lead text,
+  buffet_eyebrow text, buffet_titulo text, buffet_lead text,
+  pacote_eyebrow text, pacote_titulo text, pacote_lead text,
+  investimento_eyebrow text, investimento_titulo text, investimento_lead text,
+  depoimentos_eyebrow text, depoimentos_titulo text,
+  atualizado_em timestamptz not null default now()
+);
+alter table proposta_textos_tipo enable row level security;
+create policy "staff edita" on proposta_textos_tipo for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "leitura publica" on proposta_textos_tipo for select using (true);
+
 -- Momentos extras -- fotos-cheia entre capitulos, sem card, tipo o "photo
 -- moment" da Apple. O admin adiciona quantos quiser em /painel/proposta e
 -- escolhe em qual "gancho" (depois_de) o momento entra na narrativa.

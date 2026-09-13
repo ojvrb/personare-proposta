@@ -35,7 +35,7 @@ async function getProposta(slug) {
   // esses campos so' devem ser vistos pelo admin, via rota dedicada.
   const proposta = expurgar(propostaBruta);
 
-  const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }, { data: contrato }, { data: depoimentos }, { data: fotosEspaco }, { data: textosCustom }, { data: momentos }] = await Promise.all([
+  const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }, { data: contrato }, { data: depoimentos }, { data: fotosEspaco }, { data: textosCustom }, { data: momentos }, { data: textosPorTipo }] = await Promise.all([
     supabase.from("eventos").select("*, clientes(*)").eq("id", proposta.evento_id).single(),
     proposta.pacote_id ? supabase.from("pacotes").select("*").eq("id", proposta.pacote_id).single() : Promise.resolve({ data: null }),
     proposta.buffet_id ? supabase.from("buffets").select("*").eq("id", proposta.buffet_id).single() : Promise.resolve({ data: null }),
@@ -45,6 +45,7 @@ async function getProposta(slug) {
     publicClient().from("fotos_espaco").select("*").eq("ativo", true).order("ordem"),
     publicClient().from("proposta_textos").select("*").eq("id", 1).maybeSingle(),
     publicClient().from("proposta_momentos").select("*").eq("ativo", true).order("ordem"),
+    publicClient().from("proposta_textos_tipo").select("*"),
   ]);
   const contratoAtual = contrato?.[0] || null;
 
@@ -68,7 +69,11 @@ async function getProposta(slug) {
     })
     .filter(Boolean);
 
-  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, extrasTodos: extras || [], contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspaco || [], textosCustom: textosCustom || {}, momentos: momentos || [], atendente };
+  // Casa textos por tipo com o evento em questao. Se nao houver linha pra
+  // esse tipo, textoTipo fica {} e o fallback do render cai no padrao/defaults.
+  const textoTipo = (textosPorTipo || []).find((t) => t.evento_tipo === evento?.tipo) || {};
+
+  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, extrasTodos: extras || [], contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspaco || [], textosCustom: textosCustom || {}, textoTipo, momentos: momentos || [], atendente };
 }
 
 // Defaults dos textos -- se o admin nao editou o campo em /painel/proposta,
@@ -80,8 +85,10 @@ const TEXTOS_DEFAULT = {
   investimento: { eyebrow: "Seu investimento", titulo: "Combinado, então <em>é isso.</em>", lead: "Tudo que você viu até aqui, junto. Sem taxa escondida, sem asterisco." },
   depoimentos: { eyebrow: "Quem passou por aqui", titulo: "O que <em>eles guardam</em> do dia.", lead: null },
 };
-function texto(custom, chave, campo, tipoEvento, nBuffets = 0) {
-  const v = custom[`${chave}_${campo}`];
+// Cascata: (1) override por tipo de evento, (2) override padrao (singleton),
+// (3) TEXTOS_DEFAULT do proprio codigo. O primeiro nao-vazio vale.
+function texto(custom, porTipo, chave, campo, tipoEvento, nBuffets = 0) {
+  const v = porTipo?.[`${chave}_${campo}`] || custom?.[`${chave}_${campo}`];
   const padrao = TEXTOS_DEFAULT[chave][campo];
   return (v || padrao || "")
     .replace("<TIPO>", tipoEvento === "casamento" ? "casamento" : "evento")
@@ -94,8 +101,12 @@ export default async function PropostaPublicaPage({ params }) {
   const dados = await getProposta(slug);
   if (!dados) notFound();
 
-  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, extrasTodos, contrato, depoimentos, fotosEspaco, textosCustom, momentos, atendente } = dados;
-  const t = (chave, campo) => texto(textosCustom, chave, campo, evento?.tipo, vitrineBuffets.length);
+  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, extrasTodos, contrato, depoimentos, fotosEspaco, textosCustom, textoTipo, momentos, atendente } = dados;
+  const t = (chave, campo) => texto(textosCustom, textoTipo, chave, campo, evento?.tipo, vitrineBuffets.length);
+  // Depoimentos filtrados pelo tipo do evento: se um depoimento tem evento_tipo
+  // igual ao do evento OU e' "outro" (curinga), aparece. Sem evento_tipo tambem
+  // aparece (curinga historico). Assim o admin escolhe onde cada depoimento vale.
+  const depoimentosFiltrados = depoimentos.filter((d) => !d.evento_tipo || d.evento_tipo === "outro" || d.evento_tipo === evento?.tipo);
   const jaAceita = proposta.status === "aceita";
   const momentosDe = (gancho) => momentos.filter((m) => m.depois_de === gancho);
   const jaAssinado = contrato?.status === "assinado";
@@ -117,7 +128,7 @@ export default async function PropostaPublicaPage({ params }) {
     vitrineBuffets.length > 0 && "buffet",
     pacote && "pacote",
     "investimento",
-    depoimentos.length > 0 && "depoimentos",
+    depoimentosFiltrados.length > 0 && "depoimentos",
   ].filter(Boolean);
   const num = (nome) => String(capitulos.indexOf(nome) + 1).padStart(2, "0");
 
@@ -343,7 +354,7 @@ export default async function PropostaPublicaPage({ params }) {
       {momentosDe("investimento").map((m) => <Momento key={m.id} momento={m} />)}
 
       {/* CAPITULO 05 -- DEPOIMENTOS (fecha a narrativa: quem ja fez, o que achou) */}
-      {depoimentos.length > 0 && (
+      {depoimentosFiltrados.length > 0 && (
         <section className="story">
           <div className="story-wrap">
             <Reveal>
@@ -351,7 +362,7 @@ export default async function PropostaPublicaPage({ params }) {
               <h2 className="story-title">{tituloCustom(t("depoimentos", "titulo"))}</h2>
             </Reveal>
             <Reveal>
-              <DepoimentosCarrossel depoimentos={depoimentos} />
+              <DepoimentosCarrossel depoimentos={depoimentosFiltrados} />
             </Reveal>
           </div>
         </section>

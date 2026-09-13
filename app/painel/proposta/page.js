@@ -28,10 +28,12 @@ const GANCHOS = [
 export default function EditorProposta() {
   return (
     <div>
-      <h1>Proposta pública</h1>
-      <p style={{ color: "var(--granite)", marginTop: -10, marginBottom: 24 }}>
+      <h1 style={{ marginBottom: 12 }}>Proposta pública</h1>
+      <p style={{ color: "var(--granite)", marginTop: 0, marginBottom: 8, lineHeight: 1.6 }}>
         Edite o que cada casal lê em cada capítulo da proposta. Deixe em branco pra usar o texto padrão.
-        No <b>título</b>, o que você colocar entre <code style={{ background: "var(--sage-wash)", padding: "1px 6px", borderRadius: 4 }}>{"{chaves}"}</code> vira <em style={{ background: "linear-gradient(100deg,var(--sage-dark),var(--gold-dark))", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", fontStyle: "italic" }}>dourado em itálico</em>. Exemplo: <code>Combinado, então {"{é isso.}"}</code>
+      </p>
+      <p style={{ color: "var(--granite)", marginTop: 0, marginBottom: 28, lineHeight: 1.6 }}>
+        No <b>título</b>, o que você colocar entre <code style={{ background: "var(--sage-wash)", padding: "2px 8px", borderRadius: 4 }}>{"{chaves}"}</code> vira <em style={{ background: "linear-gradient(100deg,var(--sage-dark),var(--gold-dark))", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", fontStyle: "italic" }}>dourado em itálico</em>. Exemplo: <code style={{ background: "var(--creme-2)", padding: "2px 8px", borderRadius: 4 }}>Combinado, então {"{é isso.}"}</code>
       </p>
       <EditorTextos />
       <EditorMomentos />
@@ -39,31 +41,80 @@ export default function EditorProposta() {
   );
 }
 
+const TIPOS = [
+  { chave: null, label: "Padrão", desc: "Usado quando o tipo do evento não tem storytelling próprio." },
+  { chave: "casamento", label: "Casamento", desc: "Só aparece em propostas de casamento." },
+  { chave: "15_anos", label: "15 anos", desc: "Só aparece em propostas de 15 anos." },
+  { chave: "corporativo", label: "Corporativo", desc: "Só aparece em propostas corporativas." },
+  { chave: "aniversario", label: "Aniversário", desc: "Só aparece em propostas de aniversário." },
+  { chave: "outro", label: "Outro", desc: "Só aparece em propostas do tipo Outro." },
+];
+
 function EditorTextos() {
+  const [tipoAtivo, setTipoAtivo] = useState(null); // null = padrão (singleton)
   const [textos, setTextos] = useState(null);
+  const [porTipo, setPorTipo] = useState({}); // { casamento: {...}, "15_anos": {...} }
   const [salvando, setSalvando] = useState({});
   const [erro, setErro] = useState("");
 
   useEffect(() => {
     fetch("/api/proposta-textos").then((r) => r.json()).then((d) => setTextos(d.item || {}));
+    fetch("/api/proposta-textos-tipo").then((r) => r.json()).then((d) => {
+      const idx = {};
+      (d.items || []).forEach((t) => { idx[t.evento_tipo] = t; });
+      setPorTipo(idx);
+    });
   }, []);
 
+  const ativo = tipoAtivo === null ? textos : (porTipo[tipoAtivo] || {});
+
   async function salvar(chave, campo, valor) {
-    setSalvando((s) => ({ ...s, [`${chave}_${campo}`]: true }));
+    const marca = `${tipoAtivo || "padrao"}_${chave}_${campo}`;
+    setSalvando((s) => ({ ...s, [marca]: true }));
     setErro("");
     const patch = { [`${chave}_${campo}`]: valor || null };
-    const res = await fetch("/api/proposta-textos", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    const url = tipoAtivo === null ? "/api/proposta-textos" : "/api/proposta-textos-tipo";
+    const body = tipoAtivo === null ? patch : { evento_tipo: tipoAtivo, ...patch };
+    const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
-    setSalvando((s) => ({ ...s, [`${chave}_${campo}`]: false }));
+    setSalvando((s) => ({ ...s, [marca]: false }));
     if (!res.ok) return setErro(data.error || "erro ao salvar");
-    setTextos(data.item);
+    if (tipoAtivo === null) setTextos(data.item);
+    else setPorTipo((p) => ({ ...p, [tipoAtivo]: data.item }));
   }
 
   if (!textos) return <p style={{ color: "var(--granite)" }}>Carregando…</p>;
 
+  const tipoInfo = TIPOS.find((t) => t.chave === tipoAtivo);
+
   return (
     <div className="card" style={{ marginBottom: 20 }}>
-      <h3 style={{ marginTop: 0 }}>Textos dos capítulos</h3>
+      <h3 style={{ marginTop: 0, marginBottom: 8 }}>Textos por tipo de evento</h3>
+      <p style={{ color: "var(--granite)", fontSize: 13, margin: "0 0 16px", lineHeight: 1.5 }}>
+        Cada tipo pode ter seu próprio storytelling. Se um campo fica em branco num tipo específico, cai no <b>Padrão</b>. Se o Padrão também está em branco, cai no texto sugerido pelo sistema.
+      </p>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+        {TIPOS.map((t) => {
+          const temCustom = t.chave !== null && porTipo[t.chave];
+          return (
+            <button key={t.chave || "padrao"} onClick={() => setTipoAtivo(t.chave)}
+              style={{
+                padding: "8px 14px", fontSize: 13, borderRadius: 100,
+                border: `1px solid ${tipoAtivo === t.chave ? "var(--sage)" : "var(--stroke)"}`,
+                background: tipoAtivo === t.chave ? "var(--sage-wash)" : "transparent",
+                color: tipoAtivo === t.chave ? "var(--sage-dark)" : "var(--stone)",
+                cursor: "pointer", fontWeight: 500, fontFamily: "var(--font)",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}>
+              {t.label}
+              {temCustom && <span style={{ width: 6, height: 6, borderRadius: 100, background: "var(--gold)" }} aria-label="tem personalização" />}
+            </button>
+          );
+        })}
+      </div>
+      <p style={{ color: "var(--granite)", fontSize: 12, margin: "0 0 20px" }}>{tipoInfo.desc}</p>
+
       {erro && <div className="alert err">{erro}</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         {CAPITULOS.map((c) => (
@@ -72,16 +123,25 @@ function EditorTextos() {
               <b style={{ fontFamily: "var(--display)", fontSize: 18 }}>{c.label}</b>
               <span style={{ fontSize: 11, color: "var(--granite)", fontFamily: "var(--mono)" }}>{c.chave}</span>
             </div>
-            <CampoInput chave={c.chave} campo="eyebrow" label="Rótulo do capítulo" valor={textos[`${c.chave}_eyebrow`] || ""} placeholder={c.padrao.eyebrow} salvando={salvando[`${c.chave}_eyebrow`]} onSalvar={(v) => salvar(c.chave, "eyebrow", v)} />
-            <CampoInput chave={c.chave} campo="titulo" label={<>Título grande <span style={{ color: "var(--granite)", fontFamily: "var(--font)", textTransform: "none", fontSize: 11, letterSpacing: 0 }}>(use {"{chaves}"} pra pintar em dourado)</span></>} valor={textos[`${c.chave}_titulo`] || ""} placeholder={c.padrao.titulo} salvando={salvando[`${c.chave}_titulo`]} onSalvar={(v) => salvar(c.chave, "titulo", v)} />
+            <CampoInput chave={`${tipoAtivo || "padrao"}_${c.chave}`} campo="eyebrow" label="Rótulo do capítulo" valor={ativo[`${c.chave}_eyebrow`] || ""} placeholder={placeholderCascata(tipoAtivo, textos, porTipo, c, "eyebrow")} salvando={salvando[`${tipoAtivo || "padrao"}_${c.chave}_eyebrow`]} onSalvar={(v) => salvar(c.chave, "eyebrow", v)} />
+            <CampoInput chave={`${tipoAtivo || "padrao"}_${c.chave}_titulo`} campo="titulo" label={<>Título grande <span style={{ color: "var(--granite)", fontFamily: "var(--font)", textTransform: "none", fontSize: 11, letterSpacing: 0 }}>(use {"{chaves}"} pra pintar em dourado)</span></>} valor={ativo[`${c.chave}_titulo`] || ""} placeholder={placeholderCascata(tipoAtivo, textos, porTipo, c, "titulo")} salvando={salvando[`${tipoAtivo || "padrao"}_${c.chave}_titulo`]} onSalvar={(v) => salvar(c.chave, "titulo", v)} />
             {c.padrao.lead !== null && (
-              <CampoTextarea chave={c.chave} campo="lead" label="Frase de apoio (2-3 linhas embaixo do título)" valor={textos[`${c.chave}_lead`] || ""} placeholder={c.padrao.lead} salvando={salvando[`${c.chave}_lead`]} onSalvar={(v) => salvar(c.chave, "lead", v)} />
+              <CampoTextarea chave={`${tipoAtivo || "padrao"}_${c.chave}_lead`} campo="lead" label="Frase de apoio (2-3 linhas embaixo do título)" valor={ativo[`${c.chave}_lead`] || ""} placeholder={placeholderCascata(tipoAtivo, textos, porTipo, c, "lead")} salvando={salvando[`${tipoAtivo || "padrao"}_${c.chave}_lead`]} onSalvar={(v) => salvar(c.chave, "lead", v)} />
             )}
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+// Placeholder mostra o "proximo nivel" da cascata: num tipo especifico, o
+// placeholder e' o texto do padrao (pra ver o que vai valer se deixar em branco);
+// no padrao, e' o texto sugerido pelo sistema. Ajuda o admin a ver de onde vem
+// o texto que aparece na proposta.
+function placeholderCascata(tipoAtivo, padrao, porTipo, c, campo) {
+  if (tipoAtivo !== null) return padrao[`${c.chave}_${campo}`] || c.padrao[campo] || "";
+  return c.padrao[campo] || "";
 }
 
 function CampoInput({ label, valor, placeholder, salvando, onSalvar }) {

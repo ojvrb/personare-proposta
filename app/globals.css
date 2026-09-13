@@ -420,6 +420,17 @@ h1{font-size:26px;margin:0 0 4px}
 .wave-grafico svg{width:100%;height:100%;display:block}
 .wave-insight{font-size:13px;color:var(--stone);line-height:1.5;margin:0}
 
+/* Faixa "gauge + stats" no topo do Analytics. Desktop (>=1080px): gauge a
+   esquerda 1fr, stats grid 1.6fr -- o gauge nunca fica <340px. Abaixo disso,
+   empilha vertical -- resolve o caso do report (gauge apertado num terço,
+   texto quebrando em 4 linhas). */
+.analytics-hero-grid{
+  display:grid;grid-template-columns:minmax(340px,1fr) minmax(0,1.6fr);gap:16px;
+}
+@media (max-width:1079px){
+  .analytics-hero-grid{grid-template-columns:1fr;gap:12px}
+}
+
 /* Gauge circular -- barras verticais em arco semicircular, KPI grande no
    centro, insight legivel embaixo. Inspirado no gauge "Manual tracking 61%"
    do Behance Lendora. Cor varia por faixa (baixo/medio/alto) via prop cor. */
@@ -437,10 +448,10 @@ h1{font-size:26px;margin:0 0 4px}
 .gauge-label{font-size:12px;color:var(--granite);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em}
 .gauge-insight{
   font-size:14px;color:var(--stone);line-height:1.5;text-align:center;max-width:32ch;margin:8px auto 0;
-  display:flex;align-items:center;gap:10px;
 }
 .gauge-insight::before{
-  content:"";width:12px;height:12px;background:currentColor;border-radius:3px;flex-shrink:0;opacity:.8;
+  content:"";display:inline-block;width:10px;height:10px;background:currentColor;border-radius:3px;
+  opacity:.85;margin-right:8px;vertical-align:middle;
 }
 
 /* Modal de aceite eletronico -- overlay escuro, caixa central com tres regioes:

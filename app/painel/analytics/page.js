@@ -362,7 +362,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,2fr)", gap: 16, marginBottom: 20, alignItems: "stretch" }}>
+      <div className="analytics-hero-grid" style={{ marginBottom: 20, alignItems: "stretch" }}>
         <Gauge
           label="Taxa de conversão"
           valor={dados.conversao}

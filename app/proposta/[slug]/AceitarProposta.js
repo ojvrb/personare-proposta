@@ -64,9 +64,6 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
       <button ref={botaoAbrirRef} className="btn primary" onClick={() => setModalAberto(true)} style={{ fontSize: 16, padding: "14px 36px" }}>
         Aceitar proposta
       </button>
-      <p style={{ fontSize: 11, color: "var(--granite)", marginTop: 10 }}>
-        Ao clicar, você lê e aceita os termos. Registramos IP, data/hora e sua identificação: assinatura eletrônica válida sob a Lei 14.063/2020.
-      </p>
       {modalAberto && (
         <ModalAceite
           propostaId={propostaId}

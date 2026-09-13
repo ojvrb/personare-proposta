@@ -46,7 +46,10 @@ export async function POST(req, { params }) {
   if (!nome_completo || String(nome_completo).trim().split(/\s+/).length < 2) {
     return NextResponse.json({ error: "informe seu nome completo (nome e sobrenome)" }, { status: 400 });
   }
-  if (!termos_versao) {
+  // Aceita so' semver curto (ex: "1.1.0"). Sem isso, o cliente poderia mandar
+  // "concordo" ou lixo qualquer e a evidencia gravada nao permitiria reconstituir
+  // qual texto foi lido, invalidando o valor probatorio do aceite.
+  if (!termos_versao || !/^\d+\.\d+\.\d+$/.test(String(termos_versao))) {
     return NextResponse.json({ error: "voce precisa concordar com os termos" }, { status: 400 });
   }
 
@@ -58,6 +61,10 @@ export async function POST(req, { params }) {
     || "").trim() || null;
   const userAgent = req.headers.get("user-agent") || null;
 
+  // Guarda contra dois requests simultaneos aceitando a mesma proposta --
+  // o update so' pega se o status ainda NAO for "aceita". Se pegou zero linhas,
+  // e' porque outro request ja aceitou; devolve o estado atual sem sobrescrever
+  // o CPF/nome de quem chegou primeiro (a evidencia daquele aceite fica valida).
   const { data: atualizada, error } = await supabase
     .from("propostas")
     .update({
@@ -69,8 +76,12 @@ export async function POST(req, { params }) {
       aceite_nome_completo: String(nome_completo).trim(),
       aceite_termos_versao: String(termos_versao),
     })
-    .eq("id", id).select().single();
+    .eq("id", id).neq("status", "aceita").select().maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!atualizada) {
+    const { data: jaAceita } = await supabase.from("propostas").select("*").eq("id", id).single();
+    return NextResponse.json({ proposta: expurgar(jaAceita) });
+  }
 
   const clienteId = proposta.eventos?.cliente_id;
   if (clienteId) {

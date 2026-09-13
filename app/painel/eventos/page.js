@@ -13,7 +13,7 @@ export default function AgendaEventosPage() {
   const [modo, setModo] = useState("lista"); // lista | calendario
 
   useEffect(() => {
-    fetch("/api/propostas")
+    fetch("/api/propostas?leve=1")
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
       .then(({ ok, d }) => (ok ? setClientes((d.clientes || []).filter((c) => c.status === "negocio_fechado")) : setErr(d.error || "erro ao carregar")))
       .finally(() => setLoading(false));

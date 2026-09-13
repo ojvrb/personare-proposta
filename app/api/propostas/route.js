@@ -8,26 +8,37 @@ import { COLUNAS_PROPOSTA_PUBLICA } from "@/lib/proposta";
 // GET: lista clientes + eventos + propostas pro painel (CRM + configurador).
 // Visibilidade por papel: atendente ve so os proprios leads (+ os sem dono, caso
 // legado); admin/financeiro veem tudo -- e' o admin quem compara desempenho entre vendedores.
-export async function GET() {
+// `?leve=1` -- so' o que o board CRM precisa (sem catalogo, colunas enxutas). O
+// configurador de nova proposta usa a versao completa (sem `leve`).
+export async function GET(req) {
   const supabase = await createClient();
   const perfil = await getPerfil(supabase);
   if (!perfil) return NextResponse.json({ error: "nao autorizado" }, { status: 401 });
 
+  const leve = new URL(req.url).searchParams.get("leve") === "1";
+
+  const colsCliente = leve ? "id, nome, nome_conjuge, telefone, cidade, status, origem, atendente_id, created_at" : "*";
+  const colsEvento = leve ? "id, tipo, data_evento, num_convidados" : "*";
+  const colsProposta = leve ? "id, slug, total, versao, status" : COLUNAS_PROPOSTA_PUBLICA;
+
   let query = supabase
     .from("clientes")
-    .select(`*, eventos(*, propostas(${COLUNAS_PROPOSTA_PUBLICA}))`)
+    .select(`${colsCliente}, eventos(${colsEvento}, propostas(${colsProposta}))`)
     .order("created_at", { ascending: false });
 
   if (perfil.role === "atendente") {
     query = query.or(`atendente_id.eq.${perfil.user.id},atendente_id.is.null`);
   }
 
-  const [clientesRes, pacotesRes, buffetsRes, extrasRes] = await Promise.all([
-    query,
-    supabase.from("pacotes").select("*").eq("ativo", true).order("ordem"),
-    supabase.from("buffets").select("*").eq("ativo", true).order("ordem"),
-    supabase.from("extras").select("*").eq("ativo", true).order("ordem"),
-  ]);
+  const promessas = [query];
+  if (!leve) {
+    promessas.push(
+      supabase.from("pacotes").select("*").eq("ativo", true).order("ordem"),
+      supabase.from("buffets").select("*").eq("ativo", true).order("ordem"),
+      supabase.from("extras").select("*").eq("ativo", true).order("ordem"),
+    );
+  }
+  const [clientesRes, pacotesRes, buffetsRes, extrasRes] = await Promise.all(promessas);
 
   if (clientesRes.error) return NextResponse.json({ error: clientesRes.error.message }, { status: 500 });
 
@@ -40,9 +51,9 @@ export async function GET() {
 
   return NextResponse.json({
     clientes,
-    pacotes: pacotesRes.data || [],
-    buffets: buffetsRes.data || [],
-    extras: extrasRes.data || [],
+    pacotes: pacotesRes?.data || [],
+    buffets: buffetsRes?.data || [],
+    extras: extrasRes?.data || [],
   });
 }
 

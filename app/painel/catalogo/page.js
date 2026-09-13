@@ -34,15 +34,6 @@ export default function CatalogoPage() {
         resumo={(e) => `R$ ${Number(e.valor).toLocaleString("pt-BR")} (${e.tipo_preco})`}
       />
 
-      <Secao
-        titulo="Depoimentos"
-        endpoint="/api/depoimentos"
-        campoInicial={{ autor_nome: "", texto: "", foto: "", evento_tipo: null, ativo: true }}
-        renderCampos={DepoimentoCampos}
-        resumo={(d) => d.evento_tipo ? rotuloTipo(d.evento_tipo) : "Todos os tipos"}
-        campoNome="autor_nome"
-      />
-
       <GaleriaEspaco />
     </div>
   );
@@ -477,29 +468,3 @@ function ExtraCampos(campos, set) {
   );
 }
 
-const ROTULO_TIPO = { casamento: "Casamento", "15_anos": "15 anos", corporativo: "Corporativo", aniversario: "Aniversário", outro: "Outro" };
-function rotuloTipo(t) { return ROTULO_TIPO[t] || t; }
-
-function DepoimentoCampos(campos, set) {
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <input placeholder="Nome do autor" value={campos.autor_nome} onChange={(e) => set({ ...campos, autor_nome: e.target.value })} />
-      <textarea placeholder="Depoimento" rows={3} value={campos.texto || ""} onChange={(e) => set({ ...campos, texto: e.target.value })} />
-      <input placeholder="URL da foto (opcional)" value={campos.foto || ""} onChange={(e) => set({ ...campos, foto: e.target.value })} />
-      <UploadFoto onUpload={(url) => set({ ...campos, foto: url })} />
-      <label style={{ fontSize: 12, color: "var(--granite)" }}>
-        Aparece em propostas de:
-        <select value={campos.evento_tipo === null || campos.evento_tipo === undefined ? "" : campos.evento_tipo}
-          onChange={(e) => set({ ...campos, evento_tipo: e.target.value || null })}
-          style={{ marginLeft: 8 }}>
-          <option value="">Todos os tipos</option>
-          <option value="casamento">Casamento</option>
-          <option value="15_anos">15 anos</option>
-          <option value="corporativo">Corporativo</option>
-          <option value="aniversario">Aniversário</option>
-          <option value="outro">Outro (curinga)</option>
-        </select>
-      </label>
-    </div>
-  );
-}

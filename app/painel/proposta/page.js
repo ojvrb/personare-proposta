@@ -25,6 +25,15 @@ const GANCHOS = [
   { chave: "investimento", label: "depois do investimento" },
 ];
 
+const TIPOS_EVENTO = [
+  { chave: "", label: "Todos os tipos" },
+  { chave: "casamento", label: "Só casamentos" },
+  { chave: "15_anos", label: "Só 15 anos" },
+  { chave: "corporativo", label: "Só corporativos" },
+  { chave: "aniversario", label: "Só aniversários" },
+  { chave: "outro", label: "Só tipo Outro" },
+];
+
 export default function EditorProposta() {
   return (
     <div>
@@ -36,6 +45,7 @@ export default function EditorProposta() {
         No <b>título</b>, o que você colocar entre <code style={{ background: "var(--sage-wash)", padding: "2px 8px", borderRadius: 4 }}>{"{chaves}"}</code> vira <em style={{ background: "linear-gradient(100deg,var(--sage-dark),var(--gold-dark))", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", fontStyle: "italic" }}>dourado em itálico</em>. Exemplo: <code style={{ background: "var(--creme-2)", padding: "2px 8px", borderRadius: 4 }}>Combinado, então {"{é isso.}"}</code>
       </p>
       <EditorTextos />
+      <EditorDepoimentos />
       <EditorMomentos />
     </div>
   );
@@ -241,6 +251,116 @@ function EditorMomentos() {
             <select value={gancho} onChange={(e) => setGancho(e.target.value)} style={{ padding: "8px 12px" }}>
               {GANCHOS.map((g) => <option key={g.chave} value={g.chave}>Entra {g.label}</option>)}
             </select>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Editor de depoimentos -- separado dos textos e dos momentos, mesmo padrao
+// visual dos "Momentos extras" (lista com thumb + campos inline). Depoimento
+// pode ser curinga ("Todos os tipos", evento_tipo=null) ou restrito a um
+// tipo -- casa com o filtro que a proposta publica ja aplica.
+function EditorDepoimentos() {
+  const [itens, setItens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [tipoNovo, setTipoNovo] = useState("");
+  const [erro, setErro] = useState("");
+
+  async function carregar() {
+    setLoading(true);
+    const res = await fetch("/api/depoimentos");
+    const data = await res.json();
+    if (res.ok) setItens((data.items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
+    setLoading(false);
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  async function criar() {
+    setEnviando(true); setErro("");
+    const novaOrdem = itens.length ? Math.max(...itens.map((d) => d.ordem || 0)) + 1 : 0;
+    const res = await fetch("/api/depoimentos", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ autor_nome: "", texto: "", foto: "", evento_tipo: tipoNovo || null, ativo: true, ordem: novaOrdem }),
+    });
+    const data = await res.json();
+    setEnviando(false);
+    if (!res.ok) return setErro(data.error || "erro ao criar");
+    carregar();
+  }
+
+  async function enviarFoto(e, id) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const fd = new FormData(); fd.append("file", file);
+    const upRes = await fetch("/api/midia", { method: "POST", body: fd });
+    const upData = await upRes.json();
+    if (!upRes.ok) return setErro(upData.error || "erro ao enviar foto");
+    await atualizar(id, { foto: upData.url });
+  }
+
+  async function atualizar(id, patch) {
+    await fetch(`/api/depoimentos/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    carregar();
+  }
+  async function remover(id) {
+    await fetch(`/api/depoimentos/${id}`, { method: "DELETE" });
+    carregar();
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 20 }}>
+      <h3 style={{ marginTop: 0 }}>Depoimentos <span style={{ fontSize: 12, fontWeight: 400, color: "var(--granite)" }}>(aparecem no último capítulo)</span></h3>
+      <p style={{ color: "var(--granite)", fontSize: 13, marginTop: -8, marginBottom: 16, lineHeight: 1.5 }}>
+        Escolha se cada depoimento aparece em <b>todos</b> os tipos de evento ou só num tipo específico. O padrão do sistema já filtra os que casam com o evento da proposta.
+      </p>
+      {erro && <div className="alert err">{erro}</div>}
+      {loading ? (
+        <p style={{ color: "var(--granite)" }}>Carregando…</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {itens.map((d) => (
+            <div key={d.id} style={{ display: "flex", gap: 12, alignItems: "flex-start", border: "1px solid var(--stroke)", borderRadius: 10, padding: 10, opacity: d.ativo ? 1 : 0.5 }}>
+              {d.foto ? (
+                <img src={d.foto} alt="" style={{ width: 72, height: 72, borderRadius: 100, objectFit: "cover", flexShrink: 0 }} />
+              ) : (
+                <label style={{ width: 72, height: 72, borderRadius: 100, border: "1px dashed var(--stroke)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--granite)", fontSize: 11, flexShrink: 0 }}>
+                  + foto
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => enviarFoto(e, d.id)} style={{ display: "none" }} />
+                </label>
+              )}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                <input placeholder="Nome de quem escreveu" defaultValue={d.autor_nome || ""} onBlur={(e) => e.target.value !== (d.autor_nome || "") && atualizar(d.id, { autor_nome: e.target.value })} />
+                <textarea rows={2} placeholder="O que a pessoa disse" defaultValue={d.texto || ""} onBlur={(e) => e.target.value !== (d.texto || "") && atualizar(d.id, { texto: e.target.value })} />
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <select
+                    value={d.evento_tipo || ""}
+                    onChange={(e) => atualizar(d.id, { evento_tipo: e.target.value || null })}
+                    style={{ padding: "6px 10px", fontSize: 13 }}
+                  >
+                    {TIPOS_EVENTO.map((t) => <option key={t.chave || "todos"} value={t.chave}>{t.label}</option>)}
+                  </select>
+                  {d.foto && (
+                    <label className="btn" style={{ cursor: "pointer", padding: "6px 10px", fontSize: 12 }}>
+                      Trocar foto
+                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => enviarFoto(e, d.id)} style={{ display: "none" }} />
+                    </label>
+                  )}
+                  <button className="btn" style={{ padding: "6px 10px" }} onClick={() => atualizar(d.id, { ativo: !d.ativo })}>{d.ativo ? "Desativar" : "Ativar"}</button>
+                  <button className="btn" style={{ padding: "6px 10px" }} onClick={() => remover(d.id)}>Excluir</button>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, padding: 12, border: "1px dashed var(--stroke)", borderRadius: 10 }}>
+            <select value={tipoNovo} onChange={(e) => setTipoNovo(e.target.value)} style={{ padding: "8px 12px" }}>
+              {TIPOS_EVENTO.map((t) => <option key={t.chave || "todos"} value={t.chave}>{t.label}</option>)}
+            </select>
+            <button className="btn primary" onClick={criar} disabled={enviando}>{enviando ? "Criando…" : "+ Novo depoimento"}</button>
           </div>
         </div>
       )}

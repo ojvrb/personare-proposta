@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Gauge from "./Gauge";
 
 // Dashboard cross-filter estilo Qlik: um estado central `filtros` que combina
 // todos os cortes ativos (periodo, origem, atendente, buffet, etapa). Cada
@@ -91,6 +92,20 @@ const FILTROS_INICIAIS = { preset: "30d", custom: { inicio: "", fim: "" }, compa
 
 function labelOrigem(o) { return o ? o.replace(/_/g, " ") : "sem origem"; }
 function diasAtras(dataStr, agora) { return (agora - new Date(dataStr)) / 86400000; }
+
+// Insight gerado pela plataforma pra ficar no rodape do Gauge de conversao.
+// Nao inventa nada: le so' os campos que ja calculamos e monta uma frase de
+// contexto (comparacao com periodo anterior, ou volume total quando nao ha
+// comparacao). Se nao tem propostas, avisa em vez de dizer "0% de conversao".
+function insightConversao(dados, filtros) {
+  if (dados.totalPropostas === 0) return "Sem propostas no período pra medir.";
+  const base = `${dados.contratosAssinados} de ${dados.totalPropostas} propostas fecharam contrato`;
+  const delta = dados.comparacao?.conversao;
+  if (delta === undefined || delta === null || Math.abs(delta) < 0.05) return `${base}.`;
+  const direcao = delta > 0 ? "subiu" : "caiu";
+  const vs = filtros.comparacao === "ano-anterior" ? "vs mesmo período do ano anterior" : "vs período anterior";
+  return `${base}. ${direcao.charAt(0).toUpperCase()}${direcao.slice(1)} ${Math.abs(delta).toFixed(1)} pts ${vs}.`;
+}
 
 // Aplica os filtros ativos EXCETO `exceto` (o proprio chart nao se filtra
 // pra si -- caso contrario a barra clicada zeraria as outras). Retorna
@@ -299,15 +314,21 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
-        <Stat label="Leads" valor={dados.totalLeads} delta={dados.comparacao?.totalLeads} />
-        <Stat label="Propostas" valor={dados.totalPropostas} delta={dados.comparacao?.totalPropostas} />
-        <Stat label="Contratos" valor={dados.contratosAssinados} delta={dados.comparacao?.contratosAssinados} />
-        <Stat label="Conversão" valor={`${dados.conversao.toFixed(1)}%`} delta={dados.comparacao?.conversao} pontos />
-        <Stat label="Receita fechada" valor={`R$ ${dados.receitaFechada.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} delta={dados.comparacao?.receitaFechada} />
-        <Stat label="Ticket médio" valor={`R$ ${dados.ticketMedio.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} delta={dados.comparacao?.ticketMedio} />
-        <Stat label="Desconto médio" valor={`R$ ${dados.descontoMedio.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
-        <Stat label="Tempo médio" valor={dados.tempoMedioFechamentoDias != null ? `${dados.tempoMedioFechamentoDias.toFixed(0)}d` : "—"} />
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,2fr)", gap: 16, marginBottom: 20, alignItems: "stretch" }}>
+        <Gauge
+          label="Taxa de conversão"
+          valor={dados.conversao}
+          insight={insightConversao(dados, filtros)}
+        />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+          <Stat label="Leads" valor={dados.totalLeads} delta={dados.comparacao?.totalLeads} />
+          <Stat label="Propostas" valor={dados.totalPropostas} delta={dados.comparacao?.totalPropostas} />
+          <Stat label="Contratos" valor={dados.contratosAssinados} delta={dados.comparacao?.contratosAssinados} />
+          <Stat label="Receita fechada" valor={`R$ ${dados.receitaFechada.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} delta={dados.comparacao?.receitaFechada} />
+          <Stat label="Ticket médio" valor={`R$ ${dados.ticketMedio.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} delta={dados.comparacao?.ticketMedio} />
+          <Stat label="Desconto médio" valor={`R$ ${dados.descontoMedio.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+          <Stat label="Tempo médio" valor={dados.tempoMedioFechamentoDias != null ? `${dados.tempoMedioFechamentoDias.toFixed(0)}d` : "—"} />
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginBottom: 16 }}>

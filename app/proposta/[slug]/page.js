@@ -10,6 +10,7 @@ import AceitarProposta from "./AceitarProposta";
 import Momento from "./Momento";
 import { EscolhaBuffetProvider } from "./EscolhaBuffetContext";
 import InvestimentoBloco from "./InvestimentoBloco";
+import DepoimentosCarrossel from "./DepoimentosCarrossel";
 
 // Renderiza um titulo customizado. Aceita duas sintaxes de destaque:
 //   1) `{palavras}` -- forma amigavel do editor admin
@@ -350,15 +351,7 @@ export default async function PropostaPublicaPage({ params }) {
               <h2 className="story-title">{tituloCustom(t("depoimentos", "titulo"))}</h2>
             </Reveal>
             <Reveal>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, marginTop: 32 }}>
-                {depoimentos.map((d) => (
-                  <div key={d.id} className="flat-card" style={{ padding: 24 }}>
-                    {d.foto && <img src={d.foto} alt={d.autor_nome} style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", marginBottom: 12 }} />}
-                    <p style={{ fontSize: 15, color: "var(--stone)", fontStyle: "italic", lineHeight: 1.5, margin: "0 0 12px" }}>&ldquo;{d.texto}&rdquo;</p>
-                    <p style={{ fontSize: 13, color: "var(--gold-dark)", fontWeight: 600, margin: 0 }}>{d.autor_nome}</p>
-                  </div>
-                ))}
-              </div>
+              <DepoimentosCarrossel depoimentos={depoimentos} />
             </Reveal>
           </div>
         </section>

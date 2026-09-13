@@ -259,6 +259,63 @@ h1{font-size:26px;margin:0 0 4px}
 }
 .checklist--excl li{color:var(--stone)}
 
+/* Depoimento (proposta publica) -- card com gradient suave, aspas SVG grandes
+   no canto e foto do autor com "selo" no rodape. Inspirado no card lilás/dourado
+   do Behance Lendora, adaptado pra paleta sage/gold da marca. */
+.depoimento-card{
+  position:relative;padding:clamp(32px,4vw,48px) clamp(28px,4vw,44px);
+  border-radius:24px;overflow:hidden;
+  background:linear-gradient(135deg,var(--sage-wash) 0%,var(--creme) 45%,#F0DAB5 100%);
+  box-shadow:0 20px 60px rgba(43,43,38,.06);
+  min-height:280px;display:flex;flex-direction:column;justify-content:space-between;gap:24px;
+}
+.depoimento-aspas{position:absolute;top:20px;right:20px;width:64px;height:auto;color:var(--gold);pointer-events:none}
+.depoimento-texto{
+  font-family:var(--display);font-weight:500;font-size:clamp(22px,3vw,32px);line-height:1.3;
+  color:var(--ink);letter-spacing:-0.01em;margin:0;position:relative;z-index:1;
+}
+.depoimento-autor{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
+.depoimento-autor b{display:block;font-family:var(--display);font-size:17px;font-weight:500;color:var(--ink);letter-spacing:-0.01em}
+.depoimento-cargo{font-size:12px;color:var(--stone);margin-top:2px;font-family:var(--mono);letter-spacing:.02em}
+.depoimento-foto{
+  width:52px;height:52px;border-radius:100px;object-fit:cover;flex-shrink:0;
+  border:2px solid var(--white);box-shadow:0 4px 12px rgba(0,0,0,.08);
+}
+.depoimento-foto--placeholder{
+  display:inline-flex;align-items:center;justify-content:center;background:var(--sage);color:var(--white);
+  font-family:var(--display);font-weight:500;font-size:20px;
+}
+.depoimento-nav{
+  width:40px;height:40px;border-radius:100px;border:1px solid var(--stroke);background:var(--white);
+  color:var(--ink);font-size:20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  transition:background .15s,border-color .15s,transform .15s;
+}
+.depoimento-nav:hover{background:var(--sage-wash);border-color:var(--sage);transform:translateY(-1px)}
+.depoimento-nav:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+
+/* Gauge circular -- barras verticais em arco semicircular, KPI grande no
+   centro, insight legivel embaixo. Inspirado no gauge "Manual tracking 61%"
+   do Behance Lendora. Cor varia por faixa (baixo/medio/alto) via prop cor. */
+.gauge{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:clamp(24px,3vw,36px);border-radius:20px;background:var(--white);
+  border:1px solid var(--stroke);
+}
+.gauge-inner{position:relative;width:100%;max-width:320px;aspect-ratio:2/1.1}
+.gauge-inner svg{width:100%;height:100%;display:block}
+.gauge-valor{
+  position:absolute;left:0;right:0;bottom:12%;text-align:center;
+  font-family:var(--display);font-weight:500;font-size:clamp(36px,5vw,52px);color:var(--ink);letter-spacing:-0.02em;line-height:1;
+}
+.gauge-label{font-size:12px;color:var(--granite);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em}
+.gauge-insight{
+  font-size:14px;color:var(--stone);line-height:1.5;text-align:center;max-width:32ch;margin:8px auto 0;
+  display:flex;align-items:center;gap:10px;
+}
+.gauge-insight::before{
+  content:"";width:12px;height:12px;background:currentColor;border-radius:3px;flex-shrink:0;opacity:.8;
+}
+
 /* Modal de aceite eletronico -- overlay escuro, caixa central com tres regioes:
    cabecalho fixo, corpo com scroll (termos legiveis) e rodape com checkbox +
    inputs + botao confirmar. O aceite so' libera apos scroll ate o fim. */

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { getPerfil } from "@/lib/perfil";
 import { calcularProposta, gerarSlug } from "@/lib/pricing";
+import { COLUNAS_PROPOSTA_PUBLICA } from "@/lib/proposta";
 
 // GET: lista clientes + eventos + propostas pro painel (CRM + configurador).
 // Visibilidade por papel: atendente ve so os proprios leads (+ os sem dono, caso
@@ -14,7 +15,7 @@ export async function GET() {
 
   let query = supabase
     .from("clientes")
-    .select("*, eventos(*, propostas(*))")
+    .select(`*, eventos(*, propostas(${COLUNAS_PROPOSTA_PUBLICA}))`)
     .order("created_at", { ascending: false });
 
   if (perfil.role === "atendente") {

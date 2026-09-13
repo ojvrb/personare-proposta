@@ -355,6 +355,10 @@ function Proposta({ proposta: p, onStatus, onAjustar }) {
         </div>
       )}
 
+      {p.status === "aceita" && p.aceite_nome_completo && (
+        <ComprovanteAceite proposta={p} />
+      )}
+
       {p.status === "aceita" && p.motivo_categoria && (
         <div style={{ fontSize: 12, color: "var(--sage-dark)", marginBottom: 8 }}>
           O cliente disse que o que mais pesou foi: {MOTIVO_FECHAMENTO[p.motivo_categoria] || p.motivo_categoria}
@@ -487,4 +491,60 @@ function Contrato({ contrato, onAtualizar, onParcela, onPago }) {
       </form>
     </div>
   );
+}
+
+// Comprovante do aceite eletronico -- mostra nome mascarado + data por padrao.
+// "Ver dados completos" faz um GET na rota admin-only que traz CPF/IP/UA e
+// LOGA o acesso na timeline do cliente. E' o botao que so' aparece pra admins.
+function ComprovanteAceite({ proposta }) {
+  const [aberto, setAberto] = useState(false);
+  const [detalhes, setDetalhes] = useState(null);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function verComprovante() {
+    if (detalhes) { setAberto(true); return; }
+    setCarregando(true); setErro("");
+    const res = await fetch(`/api/propostas/${proposta.id}/aceite`);
+    const data = await res.json();
+    setCarregando(false);
+    if (!res.ok) return setErro(data.error === "acesso restrito ao papel: admin" ? "Só admins podem ver o CPF." : (data.error || "erro"));
+    setDetalhes(data); setAberto(true);
+  }
+
+  return (
+    <div style={{ background: "var(--sage-wash)", border: "1px solid var(--stroke)", borderRadius: 8, padding: 10, fontSize: 12, marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span>
+          <b style={{ color: "var(--sage-dark)" }}>✓ Aceito por {mascararNome(proposta.aceite_nome_completo)}</b>
+          {proposta.aceita_em ? ` · ${new Date(proposta.aceita_em).toLocaleString("pt-BR")}` : ""}
+        </span>
+        <button className="btn" style={{ fontSize: 11, padding: "4px 10px" }} onClick={verComprovante} disabled={carregando}>
+          {carregando ? "…" : aberto ? "Esconder" : "Ver comprovante"}
+        </button>
+      </div>
+      {erro && <div style={{ color: "var(--bad)", marginTop: 6 }}>{erro}</div>}
+      {aberto && detalhes && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--stroke)", display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", fontFamily: "var(--mono)", fontSize: 11, color: "var(--stone)" }}>
+          <span style={{ color: "var(--granite)" }}>Nome:</span><span>{detalhes.nome_completo}</span>
+          <span style={{ color: "var(--granite)" }}>CPF:</span><span>{formatarCPF(detalhes.cpf)}</span>
+          <span style={{ color: "var(--granite)" }}>IP:</span><span>{detalhes.ip || "—"}</span>
+          <span style={{ color: "var(--granite)" }}>Data/hora:</span><span>{new Date(detalhes.aceita_em).toLocaleString("pt-BR")}</span>
+          <span style={{ color: "var(--granite)" }}>Termos:</span><span>v{detalhes.termos_versao}</span>
+          <span style={{ color: "var(--granite)" }}>Navegador:</span><span style={{ wordBreak: "break-all" }}>{detalhes.user_agent || "—"}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function mascararNome(nome) {
+  const s = String(nome || "").trim();
+  const p = s.split(/\s+/);
+  if (p.length < 2) return s;
+  return `${p[0]} ${p[p.length - 1][0]}.`;
+}
+function formatarCPF(cpf) {
+  const s = String(cpf || "").replace(/\D/g, "");
+  return s.length === 11 ? `${s.slice(0, 3)}.${s.slice(3, 6)}.${s.slice(6, 9)}-${s.slice(9)}` : "—";
 }

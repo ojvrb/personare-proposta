@@ -9,7 +9,10 @@ import { createContext, useContext, useState } from "react";
 const Ctx = createContext(null);
 
 export function EscolhaBuffetProvider({ recomendadoId, children }) {
-  const [escolhidoId, setEscolhidoId] = useState(recomendadoId || null);
+  // Comeca null -- o cliente ainda nao escolheu nada. O calculo usa o
+  // recomendado como fallback (o cliente vai ver o total do recomendado),
+  // mas nenhum botao aparece como "ja escolhido" ate ele confirmar de fato.
+  const [escolhidoId, setEscolhidoId] = useState(null);
   return <Ctx.Provider value={{ escolhidoId, setEscolhidoId, recomendadoId }}>{children}</Ctx.Provider>;
 }
 

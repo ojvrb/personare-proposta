@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { adminClient } from "@/lib/supabase/admin";
 import { publicClient } from "@/lib/supabase/public";
+import { expurgar } from "@/lib/proposta";
 import BuffetSlider from "./BuffetSlider";
 import PacoteGallery from "./PacoteGallery";
 import EspacoStory from "./EspacoStory";
@@ -27,8 +28,11 @@ export const dynamic = "force-dynamic";
 
 async function getProposta(slug) {
   const supabase = adminClient();
-  const { data: proposta } = await supabase.from("propostas").select("*").eq("slug", slug).single();
-  if (!proposta) return null;
+  const { data: propostaBruta } = await supabase.from("propostas").select("*").eq("slug", slug).single();
+  if (!propostaBruta) return null;
+  // Expurga CPF/IP/UA antes de qualquer prop chegar em componente client --
+  // esses campos so' devem ser vistos pelo admin, via rota dedicada.
+  const proposta = expurgar(propostaBruta);
 
   const [{ data: evento }, { data: pacote }, { data: buffet }, { data: extras }, { data: contrato }, { data: depoimentos }, { data: fotosEspaco }, { data: textosCustom }, { data: momentos }] = await Promise.all([
     supabase.from("eventos").select("*, clientes(*)").eq("id", proposta.evento_id).single(),

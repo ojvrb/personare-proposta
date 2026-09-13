@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { expurgar } from "@/lib/proposta";
 
 const STATUS_FINAIS = ["aceita", "perdida"];
 
@@ -25,5 +26,5 @@ export async function PATCH(req, { params }) {
   const { data, error } = await supabase.from("propostas").update(campos).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ proposta: data });
+  return NextResponse.json({ proposta: expurgar(data) });
 }

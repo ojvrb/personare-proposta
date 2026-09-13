@@ -70,7 +70,7 @@ export default function BuffetSlider({ buffets, recomendadoId, numConvidados }) 
             style={{ width: "100%", padding: "14px 24px", fontSize: 15, fontWeight: 600 }}
             disabled={escolhido}
           >
-            {escolhido ? "✓ Buffet escolhido — atualizou o total lá embaixo" : "Escolher este buffet"}
+            {escolhido ? "✓ Buffet escolhido" : "Escolher este buffet"}
           </button>
         )}
       </div>

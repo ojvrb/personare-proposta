@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { expurgar, mascararCPF } from "@/lib/proposta";
 
 // POST publico -- aceite da proposta pelo cliente. Sob a lei brasileira, uma
 // "assinatura eletronica simples" (aceite por clique) so' vale como prova se
@@ -28,9 +29,9 @@ export async function POST(req, { params }) {
       const { data: comFeedback, error: fbErr } = await supabase
         .from("propostas").update({ motivo_categoria }).eq("id", id).select().single();
       if (fbErr) return NextResponse.json({ error: fbErr.message }, { status: 500 });
-      return NextResponse.json({ proposta: comFeedback });
+      return NextResponse.json({ proposta: expurgar(comFeedback) });
     }
-    return NextResponse.json({ proposta });
+    return NextResponse.json({ proposta: expurgar(proposta) });
   }
   if (proposta.status === "perdida") {
     return NextResponse.json({ error: "proposta ja foi marcada como perdida" }, { status: 400 });
@@ -84,7 +85,7 @@ export async function POST(req, { params }) {
     }
   }
 
-  return NextResponse.json({ proposta: atualizada });
+  return NextResponse.json({ proposta: expurgar(atualizada) });
 }
 
 // Validacao de CPF (algoritmo do modulo 11) -- rejeita sequencias repetidas
@@ -102,6 +103,3 @@ function validarCPF(cpf) {
   return true;
 }
 
-function mascararCPF(cpf) {
-  return cpf.length === 11 ? `${cpf.slice(0, 3)}.***.***-${cpf.slice(9)}` : "***";
-}

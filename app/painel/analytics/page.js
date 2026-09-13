@@ -21,21 +21,87 @@ const FUNIL = [
   { status: "perdido", label: "Perdido" },
 ];
 const RAMPA_OURO = ["#f0d9b2", "#dfc59e", "#ceb08a", "#bd9c76", "#ad8762", "#9c734e", "#8b5e3a", "#7a4a26"];
-const RANGES = [{ dias: 7, label: "7d" }, { dias: 30, label: "30d" }, { dias: 90, label: "90d" }, { dias: null, label: "Tudo" }];
 
-const FILTROS_INICIAIS = { rangeDias: 30, origem: null, atendenteId: null, buffetId: null, etapaFunil: null };
+// Presets de periodo. Cada preset produz um {inicio, fim} concreto na
+// hora do calculo -- eles nao guardam datas fixas (sensivel a "hoje").
+// "custom" pega inicio/fim que o usuario digitou (guardados em filtros.periodo).
+const PRESETS = [
+  { chave: "7d",         label: "Últimos 7 dias" },
+  { chave: "30d",        label: "Últimos 30 dias" },
+  { chave: "3m",         label: "Últimos 3 meses" },
+  { chave: "este-mes",   label: "Este mês" },
+  { chave: "mes-passado",label: "Mês passado" },
+  { chave: "trimestre",  label: "Este trimestre" },
+  { chave: "ano",        label: "Este ano" },
+  { chave: "tudo",       label: "Tudo" },
+  { chave: "custom",     label: "Personalizado" },
+];
 
-function diasAtras(dataStr, agora) { return (agora - new Date(dataStr)) / 86400000; }
+function inicioDoMes(d) { const x = new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x; }
+
+// Resolve um preset em {inicio, fim} concreto, relativo a `agora`.
+// Retorna null pra "tudo" (sem limite). Formato ISO YYYY-MM-DD pros inputs.
+function periodoDoPreset(preset, agora, custom) {
+  const fim = new Date(agora);
+  if (preset === "tudo") return null;
+  if (preset === "custom") {
+    return custom?.inicio && custom?.fim
+      ? { inicio: new Date(`${custom.inicio}T00:00:00`), fim: new Date(`${custom.fim}T23:59:59`) }
+      : null;
+  }
+  if (preset === "7d") return { inicio: new Date(agora - 7 * 86400000), fim };
+  if (preset === "30d") return { inicio: new Date(agora - 30 * 86400000), fim };
+  if (preset === "3m") { const i = new Date(agora); i.setMonth(i.getMonth() - 3); return { inicio: i, fim }; }
+  if (preset === "este-mes") return { inicio: inicioDoMes(agora), fim };
+  if (preset === "mes-passado") {
+    const i = inicioDoMes(agora); const antes = new Date(i); antes.setMonth(antes.getMonth() - 1);
+    return { inicio: antes, fim: new Date(i.getTime() - 1) };
+  }
+  if (preset === "trimestre") {
+    const mesAtual = agora.getMonth(); const inicioTri = mesAtual - (mesAtual % 3);
+    const i = new Date(agora.getFullYear(), inicioTri, 1); return { inicio: i, fim };
+  }
+  if (preset === "ano") return { inicio: new Date(agora.getFullYear(), 0, 1), fim };
+  return null;
+}
+
+// Periodo de comparacao: "anterior" (mesma duracao antes) ou "ano-anterior"
+// (mesmo periodo -365 dias). Retorna null se nao tem comparacao ou periodo base.
+function periodoComparacao(base, modo) {
+  if (!base || !modo) return null;
+  if (modo === "anterior") {
+    const dur = base.fim - base.inicio;
+    return { inicio: new Date(base.inicio.getTime() - dur - 1000), fim: new Date(base.inicio.getTime() - 1000) };
+  }
+  if (modo === "ano-anterior") {
+    const i = new Date(base.inicio); i.setFullYear(i.getFullYear() - 1);
+    const f = new Date(base.fim); f.setFullYear(f.getFullYear() - 1);
+    return { inicio: i, fim: f };
+  }
+  return null;
+}
+
+function formatarPeriodo(p) {
+  if (!p) return "todo o período";
+  const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  return `${fmt(p.inicio)} → ${fmt(p.fim)}`;
+}
+
+const FILTROS_INICIAIS = { preset: "30d", custom: { inicio: "", fim: "" }, comparacao: null, origem: null, atendenteId: null, buffetId: null, etapaFunil: null };
+
 function labelOrigem(o) { return o ? o.replace(/_/g, " ") : "sem origem"; }
+function diasAtras(dataStr, agora) { return (agora - new Date(dataStr)) / 86400000; }
 
 // Aplica os filtros ativos EXCETO `exceto` (o proprio chart nao se filtra
 // pra si -- caso contrario a barra clicada zeraria as outras). Retorna
 // clientes/propostas/contratos filtrados que casam com todos os cortes ativos.
-function aplicarFiltros(bruto, filtros, agora, exceto = null) {
+// Aplica filtros com um PERIODO especifico -- usado tanto pro slice principal
+// quanto pro slice de comparacao (com periodo anterior/ano-anterior).
+function aplicarFiltros(bruto, filtros, periodo, exceto = null) {
   const activo = (nome) => filtros[nome] !== null && filtros[nome] !== undefined && nome !== exceto;
-  const rangeAtivo = activo("rangeDias");
-  const eventosDoCliente = {};
-  bruto.eventos.forEach((e) => { (eventosDoCliente[e.cliente_id] = eventosDoCliente[e.cliente_id] || []).push(e); });
+  const dentroPeriodo = periodo
+    ? (dataStr) => { const t = new Date(dataStr); return t >= periodo.inicio && t <= periodo.fim; }
+    : () => true;
   const clientePorEvento = {};
   bruto.eventos.forEach((e) => { clientePorEvento[e.id] = e.cliente_id; });
 
@@ -52,7 +118,7 @@ function aplicarFiltros(bruto, filtros, agora, exceto = null) {
   }
 
   const clientes = bruto.clientes.filter((c) => {
-    if (rangeAtivo && diasAtras(c.created_at, agora) > filtros.rangeDias) return false;
+    if (!dentroPeriodo(c.created_at)) return false;
     if (activo("origem") && (c.origem || "sem_origem") !== filtros.origem) return false;
     if (activo("atendenteId") && c.atendente_id !== filtros.atendenteId) return false;
     if (activo("etapaFunil") && c.status !== filtros.etapaFunil) return false;
@@ -64,14 +130,14 @@ function aplicarFiltros(bruto, filtros, agora, exceto = null) {
 
   const propostas = bruto.propostas.filter((p) => {
     if (!eventoIds.has(p.evento_id)) return false;
-    if (rangeAtivo && diasAtras(p.created_at, agora) > filtros.rangeDias) return false;
+    if (!dentroPeriodo(p.created_at)) return false;
     if (activo("buffetId") && p.buffet_id !== filtros.buffetId && !(p.buffets_sugeridos || []).includes(filtros.buffetId)) return false;
     if (activo("atendenteId") && p.atendente_id !== filtros.atendenteId) return false;
     return true;
   });
   const contratos = bruto.contratos.filter((c) => {
     if (!eventoIds.has(c.evento_id)) return false;
-    if (rangeAtivo && diasAtras(c.created_at, agora) > filtros.rangeDias) return false;
+    if (!dentroPeriodo(c.created_at)) return false;
     return true;
   });
   return { clientes, propostas, contratos };
@@ -160,18 +226,38 @@ export default function AnalyticsPage() {
     setFiltros((f) => ({ ...f, [nome]: f[nome] === valor ? null : valor }));
   }
 
+  const periodo = useMemo(() => periodoDoPreset(filtros.preset, agora, filtros.custom), [filtros.preset, filtros.custom, agora]);
+  const periodoComp = useMemo(() => periodoComparacao(periodo, filtros.comparacao), [periodo, filtros.comparacao]);
+
   const dadosGlobal = useMemo(() => {
     if (!bruto) return null;
-    const slice = aplicarFiltros(bruto, filtros, agora);
-    return { slice, ...agregar(slice.clientes, slice.propostas, slice.contratos, bruto.eventos, bruto.buffets, bruto.extras) };
-  }, [bruto, filtros, agora]);
+    const slice = aplicarFiltros(bruto, filtros, periodo);
+    const agr = agregar(slice.clientes, slice.propostas, slice.contratos, bruto.eventos, bruto.buffets, bruto.extras);
+    let comparacao = null;
+    if (periodoComp) {
+      const sliceComp = aplicarFiltros(bruto, filtros, periodoComp);
+      const agrComp = agregar(sliceComp.clientes, sliceComp.propostas, sliceComp.contratos, bruto.eventos, bruto.buffets, bruto.extras);
+      // delta % pra numeros; pra taxa (conversao) delta em pontos absolutos
+      const pct = (a, b) => (b > 0 ? ((a - b) / b) * 100 : a > 0 ? 100 : 0);
+      comparacao = {
+        totalLeads: pct(agr.totalLeads, agrComp.totalLeads),
+        totalPropostas: pct(agr.totalPropostas, agrComp.totalPropostas),
+        contratosAssinados: pct(agr.contratosAssinados, agrComp.contratosAssinados),
+        conversao: agr.conversao - agrComp.conversao,
+        receitaFechada: pct(agr.receitaFechada, agrComp.receitaFechada),
+        ticketMedio: pct(agr.ticketMedio, agrComp.ticketMedio),
+        sliceComp,
+      };
+    }
+    return { slice, ...agr, comparacao };
+  }, [bruto, filtros, periodo, periodoComp]);
 
   // slice ignorando UM filtro pra cada chart poder mostrar seu contexto proprio
-  // (uma barra selecionada + as outras opacas, em vez de zerar tudo). Ver aplicarFiltros.
-  const sliceSemOrigem = useMemo(() => bruto ? aplicarFiltros(bruto, filtros, agora, "origem") : null, [bruto, filtros, agora]);
-  const sliceSemAtendente = useMemo(() => bruto ? aplicarFiltros(bruto, filtros, agora, "atendenteId") : null, [bruto, filtros, agora]);
-  const sliceSemBuffet = useMemo(() => bruto ? aplicarFiltros(bruto, filtros, agora, "buffetId") : null, [bruto, filtros, agora]);
-  const sliceSemEtapa = useMemo(() => bruto ? aplicarFiltros(bruto, filtros, agora, "etapaFunil") : null, [bruto, filtros, agora]);
+  // (uma barra selecionada + as outras opacas, em vez de zerar tudo).
+  const sliceSemOrigem = useMemo(() => bruto ? aplicarFiltros(bruto, filtros, periodo, "origem") : null, [bruto, filtros, periodo]);
+  const sliceSemAtendente = useMemo(() => bruto ? aplicarFiltros(bruto, filtros, periodo, "atendenteId") : null, [bruto, filtros, periodo]);
+  const sliceSemBuffet = useMemo(() => bruto ? aplicarFiltros(bruto, filtros, periodo, "buffetId") : null, [bruto, filtros, periodo]);
+  const sliceSemEtapa = useMemo(() => bruto ? aplicarFiltros(bruto, filtros, periodo, "etapaFunil") : null, [bruto, filtros, periodo]);
 
   const alertas = useMemo(() => bruto ? calcularAlertas(bruto, agora) : null, [bruto, agora]);
 
@@ -188,13 +274,12 @@ export default function AnalyticsPage() {
           <h1 style={{ marginBottom: 4 }}>Analytics</h1>
           <div className="selo" style={{ margin: 0 }}>Clique nos gráficos pra cruzar filtros.</div>
         </div>
-        <div className="segmented">
-          {RANGES.map((r) => (
-            <button key={r.label} className={filtros.rangeDias === r.dias ? "active" : ""} onClick={() => setFiltros((f) => ({ ...f, rangeDias: r.dias }))}>
-              {r.label}
-            </button>
-          ))}
-        </div>
+        <SeletorPeriodo
+          preset={filtros.preset} custom={filtros.custom} comparacao={filtros.comparacao} periodo={periodo}
+          onPreset={(p) => setFiltros((f) => ({ ...f, preset: p }))}
+          onCustom={(c) => setFiltros((f) => ({ ...f, custom: c, preset: "custom" }))}
+          onComparacao={(c) => setFiltros((f) => ({ ...f, comparacao: f.comparacao === c ? null : c }))}
+        />
       </div>
 
       <ChipsFiltros filtros={filtros} bruto={bruto} onLimpar={(k) => setFiltros((f) => ({ ...f, [k]: null }))} onLimparTudo={() => setFiltros(FILTROS_INICIAIS)} n={nAtivos} />
@@ -215,22 +300,31 @@ export default function AnalyticsPage() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
-        <Stat label="Leads" valor={dados.totalLeads} />
-        <Stat label="Propostas" valor={dados.totalPropostas} />
-        <Stat label="Contratos" valor={dados.contratosAssinados} />
-        <Stat label="Conversão" valor={`${dados.conversao.toFixed(1)}%`} />
-        <Stat label="Receita fechada" valor={`R$ ${dados.receitaFechada.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
-        <Stat label="Ticket médio" valor={`R$ ${dados.ticketMedio.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+        <Stat label="Leads" valor={dados.totalLeads} delta={dados.comparacao?.totalLeads} />
+        <Stat label="Propostas" valor={dados.totalPropostas} delta={dados.comparacao?.totalPropostas} />
+        <Stat label="Contratos" valor={dados.contratosAssinados} delta={dados.comparacao?.contratosAssinados} />
+        <Stat label="Conversão" valor={`${dados.conversao.toFixed(1)}%`} delta={dados.comparacao?.conversao} pontos />
+        <Stat label="Receita fechada" valor={`R$ ${dados.receitaFechada.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} delta={dados.comparacao?.receitaFechada} />
+        <Stat label="Ticket médio" valor={`R$ ${dados.ticketMedio.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} delta={dados.comparacao?.ticketMedio} />
         <Stat label="Desconto médio" valor={`R$ ${dados.descontoMedio.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
         <Stat label="Tempo médio" valor={dados.tempoMedioFechamentoDias != null ? `${dados.tempoMedioFechamentoDias.toFixed(0)}d` : "—"} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginBottom: 16 }}>
-        {filtros.rangeDias && (
+        {periodo && (
           <div className="card">
             <h3 style={{ marginTop: 0 }}>Movimento</h3>
-            <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 14 }}>Leads que chegaram e contratos assinados no período.</p>
-            <SerieTemporal clientes={slice.clientes} contratosAssinados={slice.contratos.filter((c) => c.status === "assinado")} rangeDias={filtros.rangeDias} agora={agora} />
+            <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 14 }}>
+              Leads e contratos ao longo do período {formatarPeriodo(periodo)}{periodoComp ? ` — versus ${formatarPeriodo(periodoComp)}` : ""}.
+            </p>
+            <SerieTemporal
+              clientes={slice.clientes}
+              contratosAssinados={slice.contratos.filter((c) => c.status === "assinado")}
+              periodo={periodo}
+              clientesComp={dados.comparacao?.sliceComp?.clientes}
+              contratosCompAssinados={dados.comparacao?.sliceComp?.contratos.filter((c) => c.status === "assinado")}
+              periodoComp={periodoComp}
+            />
           </div>
         )}
 
@@ -303,35 +397,55 @@ function ChipsFiltros({ filtros, bruto, onLimpar, onLimparTudo, n }) {
 }
 
 // Gráfico temporal SVG: barras por dia (<=30d) ou semana; hover destaca.
-function SerieTemporal({ clientes, contratosAssinados, rangeDias, agora }) {
+function SerieTemporal({ clientes, contratosAssinados, periodo, clientesComp, contratosCompAssinados, periodoComp }) {
   const [foco, setFoco] = useState(null);
-  const bucketDias = rangeDias <= 30 ? 1 : 7;
-  const nBuckets = Math.ceil(rangeDias / bucketDias);
+  // bucket: 1 dia se ≤ 30d, 1 semana se ≤ 4 meses, 1 mes acima
+  const duracao = (periodo.fim - periodo.inicio) / 86400000;
+  const bucketDias = duracao <= 31 ? 1 : duracao <= 130 ? 7 : 30;
+  const nBuckets = Math.max(1, Math.ceil(duracao / bucketDias));
   const buckets = Array.from({ length: nBuckets }, (_, i) => {
-    const fim = new Date(agora.getTime() - i * bucketDias * 86400000);
-    const inicio = new Date(fim.getTime() - bucketDias * 86400000);
-    return { inicio, fim, leads: 0, contratos: 0 };
-  }).reverse();
-  const dentro = (data, b) => { const t = new Date(data).getTime(); return t >= b.inicio.getTime() && t < b.fim.getTime(); };
-  clientes.forEach((c) => { const b = buckets.find((x) => dentro(c.created_at, x)); if (b) b.leads += 1; });
-  contratosAssinados.forEach((c) => { const b = buckets.find((x) => dentro(c.created_at, x)); if (b) b.contratos += 1; });
+    const inicio = new Date(periodo.inicio.getTime() + i * bucketDias * 86400000);
+    const fim = new Date(inicio.getTime() + bucketDias * 86400000);
+    return { inicio, fim, leads: 0, contratos: 0, leadsComp: 0, contratosComp: 0 };
+  });
+  const idx = (data) => {
+    const off = (new Date(data).getTime() - periodo.inicio.getTime()) / 86400000;
+    const i = Math.floor(off / bucketDias);
+    return i >= 0 && i < nBuckets ? i : -1;
+  };
+  const idxComp = (data) => {
+    if (!periodoComp) return -1;
+    const off = (new Date(data).getTime() - periodoComp.inicio.getTime()) / 86400000;
+    const i = Math.floor(off / bucketDias);
+    return i >= 0 && i < nBuckets ? i : -1;
+  };
+  clientes.forEach((c) => { const i = idx(c.created_at); if (i >= 0) buckets[i].leads += 1; });
+  contratosAssinados.forEach((c) => { const i = idx(c.created_at); if (i >= 0) buckets[i].contratos += 1; });
+  (clientesComp || []).forEach((c) => { const i = idxComp(c.created_at); if (i >= 0) buckets[i].leadsComp += 1; });
+  (contratosCompAssinados || []).forEach((c) => { const i = idxComp(c.created_at); if (i >= 0) buckets[i].contratosComp += 1; });
 
-  const max = Math.max(1, ...buckets.map((b) => b.leads + b.contratos));
+  const max = Math.max(1, ...buckets.map((b) => Math.max(b.leads + b.contratos, b.leadsComp + b.contratosComp)));
   const W = 100, H = 40, gap = 1.2, larg = (W - gap * (nBuckets - 1)) / nBuckets;
   const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 140, display: "block" }} onPointerLeave={() => setFoco(null)}>
         {buckets.map((b, i) => {
-          const alturaTotal = ((b.leads + b.contratos) / max) * H;
           const alturaLeads = (b.leads / max) * H;
           const alturaContratos = (b.contratos / max) * H;
+          const alturaCompTotal = ((b.leadsComp + b.contratosComp) / max) * H;
           const x = i * (larg + gap);
+          const largBar = periodoComp ? larg * 0.55 : larg;
+          const xComp = x + largBar + 1;
+          const largComp = larg - largBar - 1;
           return (
             <g key={i} onPointerEnter={() => setFoco(i)} style={{ cursor: "pointer" }}>
               <rect x={x} y={0} width={larg} height={H} fill="transparent" />
-              <rect x={x} y={H - alturaLeads} width={larg} height={alturaLeads} fill="var(--sage)" opacity={foco === i ? 1 : 0.75} />
-              <rect x={x} y={H - alturaTotal} width={larg} height={alturaContratos} fill="var(--gold)" opacity={foco === i ? 1 : 0.9} />
+              <rect x={x} y={H - alturaLeads} width={largBar} height={alturaLeads} fill="var(--sage)" opacity={foco === i ? 1 : 0.85} />
+              <rect x={x} y={H - alturaLeads - alturaContratos} width={largBar} height={alturaContratos} fill="var(--gold)" opacity={foco === i ? 1 : 0.9} />
+              {periodoComp && (
+                <rect x={xComp} y={H - alturaCompTotal} width={Math.max(0.5, largComp)} height={alturaCompTotal} fill="var(--granite)" opacity={foco === i ? 0.65 : 0.35} />
+              )}
             </g>
           );
         })}
@@ -343,9 +457,11 @@ function SerieTemporal({ clientes, contratosAssinados, rangeDias, agora }) {
       <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--stone)", marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "var(--sage)", borderRadius: 2 }} />Leads</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "var(--gold)", borderRadius: 2 }} />Contratos</span>
+        {periodoComp && <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "var(--granite)", borderRadius: 2, opacity: 0.5 }} />Período comparado</span>}
         {foco !== null && (
           <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--ink)" }}>
-            <b>{fmt(buckets[foco].inicio)}–{fmt(buckets[foco].fim)}:</b> {buckets[foco].leads} lead{buckets[foco].leads !== 1 ? "s" : ""} · {buckets[foco].contratos} contrato{buckets[foco].contratos !== 1 ? "s" : ""}
+            <b>{fmt(buckets[foco].inicio)}–{fmt(buckets[foco].fim)}:</b> {buckets[foco].leads}L · {buckets[foco].contratos}C
+            {periodoComp ? ` · comp ${buckets[foco].leadsComp}L·${buckets[foco].contratosComp}C` : ""}
           </span>
         )}
       </div>
@@ -486,11 +602,79 @@ function AlertaCard({ titulo, itens, aberto, onToggle, render }) {
   );
 }
 
-function Stat({ label, valor }) {
+function Stat({ label, valor, delta, pontos }) {
+  const temDelta = delta !== undefined && delta !== null && !Number.isNaN(delta) && Math.abs(delta) > 0.05;
   return (
     <div className="stat">
       <div className="k">{label}</div>
-      <div className="v" style={{ margin: "6px 0 0" }}>{valor}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+        <div className="v" style={{ margin: 0 }}>{valor}</div>
+        {temDelta && (
+          <span className={`delta-badge ${delta > 0 ? "up" : "down"}`}>
+            {delta > 0 ? "↑" : "↓"} {Math.abs(delta).toFixed(1)}{pontos ? " pts" : "%"}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Seletor de periodo: dropdown de presets + inputs de data quando "custom",
+// + chips "comparar com" (periodo anterior / mesmo periodo ano anterior). Fica
+// aberto num popover; fecha ao clicar fora ou trocar de preset.
+function SeletorPeriodo({ preset, custom, comparacao, periodo, onPreset, onCustom, onComparacao }) {
+  const [aberto, setAberto] = useState(false);
+  const labelPreset = PRESETS.find((p) => p.chave === preset)?.label || "Período";
+  useEffect(() => {
+    if (!aberto) return;
+    const off = (e) => { const el = document.getElementById("seletor-periodo-pop"); if (el && !el.contains(e.target)) setAberto(false); };
+    document.addEventListener("mousedown", off);
+    return () => document.removeEventListener("mousedown", off);
+  }, [aberto]);
+  return (
+    <div style={{ position: "relative" }} id="seletor-periodo-pop">
+      <button className="btn" onClick={() => setAberto((a) => !a)} style={{ display: "inline-flex", gap: 8, alignItems: "center", padding: "8px 14px" }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+        <span style={{ fontWeight: 500 }}>{labelPreset}</span>
+        <span style={{ color: "var(--granite)", fontSize: 12 }}>{formatarPeriodo(periodo)}</span>
+        {comparacao && <span className="badge" style={{ padding: "2px 8px" }}>vs {comparacao === "anterior" ? "anterior" : "ano anterior"}</span>}
+      </button>
+      {aberto && (
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, minWidth: 320, background: "var(--white)", border: "1px solid var(--stroke)", borderRadius: 14, boxShadow: "var(--shadow-soft)", padding: 12, zIndex: 20 }}>
+          <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--granite)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Período</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 12 }}>
+            {PRESETS.map((p) => (
+              <button key={p.chave} onClick={() => onPreset(p.chave)}
+                style={{ padding: "8px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--stroke)", background: preset === p.chave ? "var(--sage-wash)" : "transparent", color: preset === p.chave ? "var(--sage-dark)" : "var(--stone)", cursor: "pointer", textAlign: "left", fontFamily: "var(--font)", fontWeight: 500 }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {preset === "custom" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12, paddingTop: 12, borderTop: "1px solid var(--stroke)" }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label>De</label>
+                <input type="date" value={custom.inicio} onChange={(e) => onCustom({ ...custom, inicio: e.target.value })} />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Até</label>
+                <input type="date" value={custom.fim} onChange={(e) => onCustom({ ...custom, fim: e.target.value })} />
+              </div>
+            </div>
+          )}
+          <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--granite)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8, paddingTop: 4, borderTop: "1px solid var(--stroke)" }}>Comparar com</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button onClick={() => onComparacao("anterior")}
+              style={{ padding: "6px 12px", fontSize: 12, borderRadius: 100, border: `1px solid ${comparacao === "anterior" ? "var(--sage)" : "var(--stroke)"}`, background: comparacao === "anterior" ? "var(--sage-wash)" : "transparent", color: comparacao === "anterior" ? "var(--sage-dark)" : "var(--stone)", cursor: "pointer", fontWeight: 500 }}>
+              Período anterior
+            </button>
+            <button onClick={() => onComparacao("ano-anterior")}
+              style={{ padding: "6px 12px", fontSize: 12, borderRadius: 100, border: `1px solid ${comparacao === "ano-anterior" ? "var(--sage)" : "var(--stroke)"}`, background: comparacao === "ano-anterior" ? "var(--sage-wash)" : "transparent", color: comparacao === "ano-anterior" ? "var(--sage-dark)" : "var(--stone)", cursor: "pointer", fontWeight: 500 }}>
+              Mesmo período do ano anterior
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

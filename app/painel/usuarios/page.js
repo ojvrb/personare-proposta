@@ -108,7 +108,7 @@ export default function UsuariosPage() {
         <h3 style={{ marginTop: 0 }}>Equipe</h3>
         {erro && <div className="alert err">{erro}</div>}
         <p style={{ fontSize: 13, color: "var(--granite)", marginTop: -6, marginBottom: 14 }}>
-          Nome e WhatsApp aparecem no rodapé de cada proposta pública feita por essa pessoa — o casal clica no telefone e cai direto no WhatsApp dela.
+          Nome e WhatsApp aparecem no rodapé de cada proposta pública feita por essa pessoa. O casal clica no telefone e cai direto no WhatsApp dela.
         </p>
         {dados.usuarios.map((u) => (
           <div key={u.user_id} style={{ padding: "12px 0", borderBottom: "1px solid var(--stroke)" }}>

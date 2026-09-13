@@ -142,7 +142,7 @@ function CalendarioEventos({ eventos }) {
 
       {semData > 0 && (
         <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -6, marginBottom: 12 }}>
-          {semData} evento{semData === 1 ? "" : "s"} sem data definida — veja na visualização em lista.
+          {semData} evento{semData === 1 ? "" : "s"} sem data definida (veja na visualização em lista).
         </p>
       )}
 

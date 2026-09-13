@@ -130,7 +130,7 @@ function GaleriaEspaco() {
     <div className="card" style={{ marginBottom: 20 }}>
       <h3 style={{ marginTop: 0 }}>Nosso espaço</h3>
       <p style={{ color: "var(--granite)", fontSize: 13, marginTop: -8, marginBottom: 16 }}>
-        Galeria de fotos do ambiente que aparece na proposta pública, antes do preço — monte a ordem como uma história (ex: fachada → salão → decoração à noite).
+        Galeria de fotos do ambiente que aparece na proposta pública, antes do preço. Monte a ordem como uma história (ex: fachada → salão → decoração à noite).
       </p>
       {erro && <div className="alert err">{erro}</div>}
       {loading ? (

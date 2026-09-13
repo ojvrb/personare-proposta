@@ -73,10 +73,10 @@ async function getProposta(slug) {
 // Defaults dos textos -- se o admin nao editou o campo em /painel/proposta,
 // cai pra esses. Sempre "algo" vem, nunca vazio.
 const TEXTOS_DEFAULT = {
-  espaco: { eyebrow: "O lugar", titulo: "O lugar do seu <TIPO> <em>é aqui.</em>", lead: "A gente montou essa história pra você se ver caminhando por cada canto — a chegada, o salão, o jardim à noite. Deslize as fotos." },
+  espaco: { eyebrow: "O lugar", titulo: "O lugar do seu <TIPO> <em>é aqui.</em>", lead: "A gente montou essa história pra você se ver caminhando por cada canto: a chegada, o salão, o jardim à noite. Deslize as fotos." },
   buffet: { eyebrow: "A mesa", titulo: "E o que <em>eles vão comer.</em>", lead: "Selecionamos <OPCOES> de buffet pensando no perfil do seu evento.<ARRASTE> O cardápio completo aparece embaixo da foto." },
-  pacote: { eyebrow: "Antes do preço", titulo: "O que <em>já está incluso.</em>", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto — você não precisa se preocupar em contratar à parte." },
-  investimento: { eyebrow: "Seu investimento", titulo: "Combinado, então <em>é isso.</em>", lead: "Tudo que você viu até aqui, junto — sem taxa escondida, sem asterisco." },
+  pacote: { eyebrow: "Antes do preço", titulo: "O que <em>já está incluso.</em>", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto, sem você precisar contratar à parte." },
+  investimento: { eyebrow: "Seu investimento", titulo: "Combinado, então <em>é isso.</em>", lead: "Tudo que você viu até aqui, junto. Sem taxa escondida, sem asterisco." },
   depoimentos: { eyebrow: "Quem passou por aqui", titulo: "O que <em>eles guardam</em> do dia.", lead: null },
 };
 function texto(custom, chave, campo, tipoEvento, nBuffets = 0) {
@@ -85,7 +85,7 @@ function texto(custom, chave, campo, tipoEvento, nBuffets = 0) {
   return (v || padrao || "")
     .replace("<TIPO>", tipoEvento === "casamento" ? "casamento" : "evento")
     .replace("<OPCOES>", nBuffets === 1 ? "essa opção" : `essas ${nBuffets} opções`)
-    .replace("<ARRASTE>", nBuffets > 1 ? " Arraste pra conhecer cada uma —" : "");
+    .replace("<ARRASTE>", nBuffets > 1 ? " Arraste pra conhecer cada uma." : "");
 }
 
 export default async function PropostaPublicaPage({ params }) {
@@ -278,7 +278,7 @@ export default async function PropostaPublicaPage({ params }) {
             </h2>
             <p className="story-lead" style={{ textAlign: "center", margin: "0 auto" }}>
               {jaAssinado
-                ? "O contrato já foi assinado — a gente segue com você até o dia."
+                ? "O contrato já foi assinado. A gente segue com você até o dia."
                 : t("investimento", "lead")}
             </p>
           </Reveal>
@@ -308,7 +308,7 @@ export default async function PropostaPublicaPage({ params }) {
                 </div>
                 <p style={{ fontSize: 12, color: "var(--granite)", margin: "4px 0 0" }}>
                   {expirada
-                    ? "Preços de buffet mudam rápido — fale com a gente pra atualizar sua proposta."
+                    ? "Preços de buffet mudam rápido. Fale com a gente pra atualizar sua proposta."
                     : "Preço de buffet muda rápido: depois dessa data os valores podem ser reajustados."}
                 </p>
               </div>

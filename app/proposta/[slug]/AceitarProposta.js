@@ -39,11 +39,11 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
           ✓ Proposta aceita {aceitaEm ? `em ${new Date(aceitaEm).toLocaleDateString("pt-BR")}` : ""}
         </div>
         <p style={{ fontSize: 13, color: "var(--stone)", marginTop: 10, lineHeight: 1.5 }}>
-          A gente já foi avisado. Em breve enviamos um novo link com o <b>contrato definitivo</b> pra assinar — com todos os detalhes de pagamento e cronograma.
+          A gente já foi avisado. Em breve enviamos um novo link com o <b>contrato definitivo</b> pra assinar, já com todos os detalhes de pagamento e cronograma.
         </p>
         {feedbackVisivel && (
           <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--stroke)" }}>
-            <p style={{ fontSize: 14, color: "var(--ink)", marginBottom: 12, fontWeight: 500 }}>Antes de sair — o que mais pesou na sua decisão?</p>
+            <p style={{ fontSize: 14, color: "var(--ink)", marginBottom: 12, fontWeight: 500 }}>Antes de sair: o que mais pesou na sua decisão?</p>
             <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 12 }}>Ajuda a gente a entender o que funciona.</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
               {Object.entries(CHIPS_FEEDBACK).map(([v, l]) => (
@@ -64,7 +64,7 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
         Aceitar proposta
       </button>
       <p style={{ fontSize: 11, color: "var(--granite)", marginTop: 10 }}>
-        Ao clicar, você lê e aceita os termos. Registramos IP, data/hora e sua identificação — assinatura eletrônica válida sob a Lei 14.063/2020.
+        Ao clicar, você lê e aceita os termos. Registramos IP, data/hora e sua identificação: assinatura eletrônica válida sob a Lei 14.063/2020.
       </p>
       {modalAberto && (
         <ModalAceite
@@ -145,7 +145,7 @@ function ModalAceite({ propostaId, contexto, onFechar, onAceito }) {
               <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--stone)", margin: 0 }}>{s.corpo}</p>
             </div>
           ))}
-          <p style={{ fontSize: 11, color: "var(--granite)", textAlign: "center", marginTop: 24 }}>Termos versão {TERMOS_VERSAO} — fim do documento.</p>
+          <p style={{ fontSize: 11, color: "var(--granite)", textAlign: "center", marginTop: 24 }}>Termos versão {TERMOS_VERSAO}. Fim do documento.</p>
         </div>
 
         <div className="modal-rodape">

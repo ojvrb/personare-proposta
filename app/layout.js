@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
+import ToastHost from "./components/Toast";
 
 export const metadata = {
   title: "Personare Proposta",
@@ -15,7 +16,7 @@ const fraunces = Fraunces({ subsets: ["latin"], weight: ["500", "600"], style: [
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable}`}>
-      <body>{children}</body>
+      <body>{children}<ToastHost /></body>
     </html>
   );
 }

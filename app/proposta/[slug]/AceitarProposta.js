@@ -22,6 +22,7 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
   const [motivo, setMotivo] = useState(motivoInicial);
   const [feedbackVisivel, setFeedbackVisivel] = useState(!motivoInicial);
   const [modalAberto, setModalAberto] = useState(false);
+  const botaoAbrirRef = useRef(null);
 
   async function enviarFeedback(chave) {
     setMotivo(chave);
@@ -60,7 +61,7 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
 
   return (
     <div style={{ textAlign: "center", padding: "8px 0" }}>
-      <button className="btn primary" onClick={() => setModalAberto(true)} style={{ fontSize: 16, padding: "14px 36px" }}>
+      <button ref={botaoAbrirRef} className="btn primary" onClick={() => setModalAberto(true)} style={{ fontSize: 16, padding: "14px 36px" }}>
         Aceitar proposta
       </button>
       <p style={{ fontSize: 11, color: "var(--granite)", marginTop: 10 }}>
@@ -70,7 +71,7 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
         <ModalAceite
           propostaId={propostaId}
           contexto={contexto}
-          onFechar={() => setModalAberto(false)}
+          onFechar={() => { setModalAberto(false); botaoAbrirRef.current?.focus(); }}
           onAceito={(p) => { setStatus(p.status); setAceitaEm(p.aceita_em); setModalAberto(false); }}
         />
       )}
@@ -86,6 +87,8 @@ function ModalAceite({ propostaId, contexto, onFechar, onAceito }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const conteudoRef = useRef(null);
+  const caixaRef = useRef(null);
+  const fecharRef = useRef(null);
 
   const termos = textoTermos(contexto || {});
   const nomeSobrenome = nome.trim().split(/\s+/).length >= 2;
@@ -104,6 +107,25 @@ function ModalAceite({ propostaId, contexto, onFechar, onAceito }) {
     el.addEventListener("scroll", ver);
     return () => el.removeEventListener("scroll", ver);
   }, []);
+
+  // a11y do modal: ESC fecha, foco vai pro botao fechar ao abrir, tab
+  // circula so' entre os elementos focaveis do modal (nao vaza pro body).
+  useEffect(() => {
+    fecharRef.current?.focus();
+    const anteriorOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function tecla(e) {
+      if (e.key === "Escape") { e.preventDefault(); onFechar(); return; }
+      if (e.key !== "Tab") return;
+      const focaveis = caixaRef.current?.querySelectorAll('button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])');
+      if (!focaveis || !focaveis.length) return;
+      const primeiro = focaveis[0], ultimo = focaveis[focaveis.length - 1];
+      if (e.shiftKey && document.activeElement === primeiro) { e.preventDefault(); ultimo.focus(); }
+      else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primeiro.focus(); }
+    }
+    document.addEventListener("keydown", tecla);
+    return () => { document.removeEventListener("keydown", tecla); document.body.style.overflow = anteriorOverflow; };
+  }, [onFechar]);
 
   async function confirmar() {
     setEnviando(true); setErro("");
@@ -129,13 +151,13 @@ function ModalAceite({ propostaId, contexto, onFechar, onAceito }) {
 
   return (
     <div className="modal-backdrop" onClick={onFechar}>
-      <div className="modal-caixa" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div ref={caixaRef} className="modal-caixa" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="modal-aceite-titulo">
         <div className="modal-cabecalho">
           <div>
             <div className="eyebrow" style={{ animation: "none", opacity: 1 }}>Reserva de proposta</div>
-            <h3 style={{ margin: "8px 0 0", fontFamily: "var(--display)", fontWeight: 500 }}>Antes de confirmar, leia até o fim</h3>
+            <h3 id="modal-aceite-titulo" style={{ margin: "8px 0 0", fontFamily: "var(--display)", fontWeight: 500 }}>Antes de confirmar, leia até o fim</h3>
           </div>
-          <button className="btn" onClick={onFechar} aria-label="Fechar" style={{ padding: "6px 10px" }}>✕</button>
+          <button ref={fecharRef} className="btn" onClick={onFechar} aria-label="Fechar" style={{ padding: "6px 10px" }}>✕</button>
         </div>
 
         <div ref={conteudoRef} className="modal-conteudo">
@@ -159,16 +181,16 @@ function ModalAceite({ propostaId, contexto, onFechar, onAceito }) {
               </label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 10 }}>
                 <div className="field" style={{ margin: 0 }}>
-                  <label>Seu nome completo</label>
-                  <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Juliana Alves" />
+                  <label htmlFor="aceite-nome">Seu nome completo</label>
+                  <input id="aceite-nome" autoComplete="name" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Juliana Alves" />
                 </div>
                 <div className="field" style={{ margin: 0 }}>
-                  <label>CPF</label>
-                  <input value={cpf} onChange={(e) => setCpf(mascararCPFInput(e.target.value))} inputMode="numeric" placeholder="000.000.000-00" />
+                  <label htmlFor="aceite-cpf">CPF</label>
+                  <input id="aceite-cpf" value={cpf} onChange={(e) => setCpf(mascararCPFInput(e.target.value))} inputMode="numeric" placeholder="000.000.000-00" aria-invalid={cpf && !cpfValido ? "true" : undefined} aria-describedby={cpf && !cpfValido ? "aceite-cpf-erro" : undefined} />
                 </div>
               </div>
               {nome && !nomeSobrenome && <p style={{ fontSize: 11, color: "var(--bad)", margin: "6px 0 0" }}>Informe nome e sobrenome.</p>}
-              {cpf && !cpfValido && <p style={{ fontSize: 11, color: "var(--bad)", margin: "6px 0 0" }}>CPF inválido.</p>}
+              {cpf && !cpfValido && <p id="aceite-cpf-erro" style={{ fontSize: 11, color: "var(--bad)", margin: "6px 0 0" }}>CPF inválido.</p>}
               <button className="btn primary" onClick={confirmar} disabled={!podeConfirmar} style={{ width: "100%", padding: "14px 24px", fontSize: 15, marginTop: 16, fontWeight: 600 }}>
                 {enviando ? "Confirmando…" : "Confirmar aceite"}
               </button>

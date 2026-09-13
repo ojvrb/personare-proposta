@@ -168,6 +168,7 @@ h1{font-size:26px;margin:0 0 4px}
 }
 @keyframes draw-line{from{width:0}to{width:64px}}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @media (prefers-reduced-motion: reduce){
   .hero-name-underline{animation:none;width:64px}
   .eyebrow,.hero-name,.hero-meta{animation:none;opacity:1}
@@ -406,7 +407,7 @@ h1{font-size:26px;margin:0 0 4px}
     display:flex;align-self:flex-end;background:none;border:1px solid var(--line);border-radius:10px;
     width:32px;height:32px;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);margin-bottom:-8px;
   }
-  .sidebar-backdrop{position:fixed;inset:0;background:rgba(43,43,38,.4);z-index:99}
+  .sidebar-backdrop{position:fixed;inset:0;background:rgba(43,43,38,.4);z-index:99;border:none;padding:0;cursor:pointer}
   .sidebar-bell-desktop{display:none}
 }
 

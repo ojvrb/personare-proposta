@@ -46,6 +46,14 @@ export default function PainelLayout({ children }) {
     setMenuAberto(false);
   }, [pathname]);
 
+  // ESC fecha a gaveta -- padrao esperado de qualquer overlay/dialogo.
+  useEffect(() => {
+    if (!menuAberto) return;
+    function tecla(e) { if (e.key === "Escape") setMenuAberto(false); }
+    document.addEventListener("keydown", tecla);
+    return () => document.removeEventListener("keydown", tecla);
+  }, [menuAberto]);
+
   async function sair() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -80,7 +88,7 @@ export default function PainelLayout({ children }) {
         </div>
       </div>
 
-      {menuAberto && <div className="sidebar-backdrop" onClick={() => setMenuAberto(false)} />}
+      {menuAberto && <button type="button" className="sidebar-backdrop" onClick={() => setMenuAberto(false)} aria-label="Fechar menu" />}
 
       <aside className={`sidebar${menuAberto ? " aberta" : ""}`}>
         <button className="sidebar-close" onClick={() => setMenuAberto(false)} aria-label="Fechar menu">

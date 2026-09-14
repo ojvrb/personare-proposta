@@ -16,7 +16,7 @@ const CHIPS_FEEDBACK = {
 // o fim -- checkbox desabilitado ate o scroll chegar embaixo, (3) preenche
 // nome completo e CPF (validado), (4) confirma. O backend registra IP +
 // User-Agent + timestamp + versao dos termos automaticamente.
-export default function AceitarProposta({ propostaId, statusInicial, aceitaEmInicial, motivoInicial, contexto }) {
+export default function AceitarProposta({ propostaId, statusInicial, aceitaEmInicial, motivoInicial, jaAssinado, contexto }) {
   const [status, setStatus] = useState(statusInicial);
   const [aceitaEm, setAceitaEm] = useState(aceitaEmInicial);
   const [motivo, setMotivo] = useState(motivoInicial);
@@ -34,17 +34,27 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
   }
 
   if (status === "aceita") {
+    // Apos assinar o contrato, o "Proposta aceita" e a mensagem sobre contrato
+    // definitivo perdem sentido -- a essa altura o cronograma de pagamento ja
+    // esta na tela. So' a pergunta do motivo continua util (segunda chance
+    // pra quem pulou na primeira vez).
     return (
       <div style={{ textAlign: "center", padding: "8px 0" }}>
-        <div className="badge" style={{ background: "var(--sage-wash)", color: "var(--sage-dark)", fontSize: 12, padding: "8px 16px" }}>
-          ✓ Proposta aceita {aceitaEm ? `em ${new Date(aceitaEm).toLocaleDateString("pt-BR")}` : ""}
-        </div>
-        <p style={{ fontSize: 13, color: "var(--stone)", marginTop: 10, lineHeight: 1.5 }}>
-          A gente já foi avisado. Em breve enviamos um novo link com o <b>contrato definitivo</b> pra assinar, já com todos os detalhes de pagamento e cronograma.
-        </p>
+        {!jaAssinado && (
+          <>
+            <div className="badge" style={{ background: "var(--sage-wash)", color: "var(--sage-dark)", fontSize: 12, padding: "8px 16px" }}>
+              ✓ Proposta aceita {aceitaEm ? `em ${new Date(aceitaEm).toLocaleDateString("pt-BR")}` : ""}
+            </div>
+            <p style={{ fontSize: 13, color: "var(--stone)", marginTop: 10, lineHeight: 1.5 }}>
+              A gente já foi avisado. Em breve enviamos um novo link com o <b>contrato definitivo</b> pra assinar, já com todos os detalhes de pagamento e cronograma.
+            </p>
+          </>
+        )}
         {feedbackVisivel && (
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--stroke)" }}>
-            <p style={{ fontSize: 14, color: "var(--ink)", marginBottom: 12, fontWeight: 500 }}>Antes de sair: o que mais pesou na sua decisão?</p>
+          <div style={{ marginTop: jaAssinado ? 0 : 24, paddingTop: jaAssinado ? 0 : 20, borderTop: jaAssinado ? "none" : "1px solid var(--stroke)" }}>
+            <p style={{ fontSize: 14, color: "var(--ink)", marginBottom: 12, fontWeight: 500 }}>
+              {jaAssinado ? "Contrato assinado! Antes de tudo — o que mais pesou na sua decisão?" : "Antes de sair: o que mais pesou na sua decisão?"}
+            </p>
             <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8, marginBottom: 12 }}>Ajuda a gente a entender o que funciona.</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
               {Object.entries(CHIPS_FEEDBACK).map(([v, l]) => (

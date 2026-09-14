@@ -183,7 +183,8 @@ create table depoimentos (
   autor_nome text not null,
   texto text not null,
   foto text,
-  evento_tipo text, -- casamento | 15_anos | corporativo | outro
+  evento_tipo text, -- deprecated (2026-09): substituido por evento_tipos abaixo
+  evento_tipos text[] not null default '{}', -- array vazio = curinga (todos os tipos)
   ativo boolean not null default true,
   ordem int not null default 0,
   created_at timestamptz not null default now()

@@ -6,7 +6,7 @@ import { useState } from "react";
 // um card por vez, gradient de creme→gold→sage-wash suave, aspas grandes,
 // foto+nome no rodape com um "selo" de aspas. Setas laterais no lugar de
 // numeros 1/2/3 -- pra fluir sem parar em cada indice.
-export default function DepoimentosCarrossel({ depoimentos }) {
+export default function DepoimentosCarrossel({ depoimentos, tipoEvento }) {
   const [i, setI] = useState(0);
   const d = depoimentos[i];
   const ir = (delta) => setI((atual) => (atual + delta + depoimentos.length) % depoimentos.length);
@@ -30,8 +30,8 @@ export default function DepoimentosCarrossel({ depoimentos }) {
           )}
           <div>
             <b>{d.autor_nome}</b>
-            {d.evento_tipo && d.evento_tipo !== "outro" && (
-              <div className="depoimento-cargo">{rotuloEvento(d.evento_tipo)}</div>
+            {mostraCargo(d, tipoEvento) && (
+              <div className="depoimento-cargo">{rotuloEvento(tipoEvento)}</div>
             )}
           </div>
         </div>
@@ -51,5 +51,15 @@ export default function DepoimentosCarrossel({ depoimentos }) {
 }
 
 function rotuloEvento(t) {
-  return { casamento: "Casamento", "15_anos": "15 anos", corporativo: "Corporativo" }[t] || t;
+  return { casamento: "Casamento", "15_anos": "15 anos", corporativo: "Corporativo", aniversario: "Aniversário" }[t] || t;
+}
+
+// Cargo (rotulo tipo do evento embaixo do nome) so' aparece quando o depoimento
+// e' dedicado ao tipo atual (unico ou entre varios explicitos). Curinga (array
+// vazio) nao mostra rotulo -- e' generico.
+function mostraCargo(d, tipoEvento) {
+  const tipos = d.evento_tipos || [];
+  if (tipos.length === 0) return false;
+  if (!tipoEvento || tipoEvento === "outro") return false;
+  return tipos.includes(tipoEvento);
 }

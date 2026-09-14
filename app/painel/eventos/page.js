@@ -10,7 +10,7 @@ export default function AgendaEventosPage() {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [modo, setModo] = useState("lista"); // lista | calendario
+  const [modo, setModo] = useState("calendario"); // calendario (default) | lista
 
   useEffect(() => {
     fetch("/api/propostas?leve=1")

@@ -13,12 +13,15 @@ export default function Reveal({ children, delay = 0, style, ...rest }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // No mobile a viewport e' menor: threshold 0.15 exige rolar quase toda a
+     // secao pra dentro antes de disparar, o que fica "chiquento" durante o
+     // scroll. rootMargin negativo em baixo dispara um pouco antes.
     const obs = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         setVisivel(true);
         obs.disconnect();
       }
-    }, { threshold: 0.15 });
+    }, { threshold: 0.05, rootMargin: "0px 0px -10% 0px" });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);

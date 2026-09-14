@@ -42,11 +42,11 @@ export default function ContratosPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
-        <h1>Contratos</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+        <h1 style={{ margin: 0 }}>Contratos</h1>
         <Link href="/painel/contratos/template" className="btn" style={{ marginTop: 6 }}>Editar template</Link>
       </div>
-      <p style={{ color: "var(--granite)", marginTop: -10, marginBottom: 20 }}>
+      <p style={{ color: "var(--granite)", marginTop: 0, marginBottom: 20 }}>
         Contratos criados a partir de propostas aceitas. Clique num pra ver o contrato completo, adicionar cláusulas específicas e imprimir.
       </p>
 

@@ -103,10 +103,14 @@ export default async function PropostaPublicaPage({ params }) {
 
   const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, extrasTodos, contrato, depoimentos, fotosEspaco, textosCustom, textoTipo, momentos, atendente } = dados;
   const t = (chave, campo) => texto(textosCustom, textoTipo, chave, campo, evento?.tipo, vitrineBuffets.length);
-  // Depoimentos filtrados pelo tipo do evento: se um depoimento tem evento_tipo
-  // igual ao do evento OU e' "outro" (curinga), aparece. Sem evento_tipo tambem
-  // aparece (curinga historico). Assim o admin escolhe onde cada depoimento vale.
-  const depoimentosFiltrados = depoimentos.filter((d) => !d.evento_tipo || d.evento_tipo === "outro" || d.evento_tipo === evento?.tipo);
+  // Depoimentos filtrados pelo tipo do evento. evento_tipos e' um array:
+  // vazio = curinga (aparece em todos); com itens = so' aparece se o tipo do
+  // evento atual estiver na lista. Assim um mesmo depoimento pode servir pra
+  // varios tipos sem duplicar cadastro.
+  const depoimentosFiltrados = depoimentos.filter((d) => {
+    const tipos = d.evento_tipos || [];
+    return tipos.length === 0 || tipos.includes(evento?.tipo);
+  });
   const jaAceita = proposta.status === "aceita";
   const momentosDe = (gancho) => momentos.filter((m) => m.depois_de === gancho);
   const jaAssinado = contrato?.status === "assinado";
@@ -362,7 +366,7 @@ export default async function PropostaPublicaPage({ params }) {
               <h2 className="story-title">{tituloCustom(t("depoimentos", "titulo"))}</h2>
             </Reveal>
             <Reveal>
-              <DepoimentosCarrossel depoimentos={depoimentosFiltrados} />
+              <DepoimentosCarrossel depoimentos={depoimentosFiltrados} tipoEvento={evento?.tipo} />
             </Reveal>
           </div>
         </section>

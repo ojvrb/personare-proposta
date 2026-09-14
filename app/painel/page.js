@@ -115,6 +115,7 @@ export default function PainelPage() {
                         arrastando={arrastando === c.id}
                         onDragStart={() => setArrastando(c.id)}
                         onDragEnd={() => setArrastando(null)}
+                        onMover={(paraStatus) => moverStatus(c, paraStatus)}
                       />
                     ))
                   )}
@@ -130,7 +131,7 @@ export default function PainelPage() {
   );
 }
 
-function ClienteCard({ cliente, arrastando, onDragStart, onDragEnd }) {
+function ClienteCard({ cliente, arrastando, onDragStart, onDragEnd, onMover }) {
   const evento = cliente.eventos?.[0];
   const proposta = evento?.propostas?.[evento?.propostas?.length - 1];
   const iniciais = cliente.atendente_email ? cliente.atendente_email.slice(0, 2).toUpperCase() : null;
@@ -174,6 +175,19 @@ function ClienteCard({ cliente, arrastando, onDragStart, onDragEnd }) {
           </a>
         </div>
       )}
+      {/* Fallback pra mobile: HTML5 drag nao funciona em touchscreen. Um select
+          com as outras etapas resolve sem lib de drag pra touch. */}
+      <select
+        value=""
+        onChange={(e) => { if (e.target.value) onMover(e.target.value); e.target.value = ""; }}
+        onClick={(e) => e.stopPropagation()}
+        style={{ marginTop: 8, width: "100%", fontSize: 11, padding: "4px 8px", color: "var(--stone)" }}
+      >
+        <option value="">Mover pra…</option>
+        {STATUS.filter((s) => s.id !== cliente.status).map((s) => (
+          <option key={s.id} value={s.id}>{s.label}</option>
+        ))}
+      </select>
     </div>
   );
 }

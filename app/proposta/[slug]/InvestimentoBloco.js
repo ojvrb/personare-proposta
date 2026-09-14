@@ -79,13 +79,14 @@ export default function InvestimentoBloco({
         <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 16 }}>{jaAssinado ? "Valor contratado" : "Investimento total"}</div>
         <div className="valor-total">R$ {(jaAssinado ? Number(valorContratado) : total).toLocaleString("pt-BR")}</div>
       </div>
-      {!jaAssinado && (
+      {(!jaAssinado || !proposta.motivo_categoria) && (
         <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--stroke)", width: "100%" }}>
           <AceitarProposta
             propostaId={proposta.id}
             statusInicial={proposta.status}
             aceitaEmInicial={proposta.aceita_em}
             motivoInicial={proposta.motivo_categoria}
+            jaAssinado={jaAssinado}
             contexto={{
               valorTotal: total,
               dataEvento: evento?.data_evento,

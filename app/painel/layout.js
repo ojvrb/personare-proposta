@@ -69,7 +69,7 @@ export default function PainelLayout({ children }) {
     { href: "/painel/contratos", label: "Contratos", icone: "contrato", mostrar: podeVerAnalytics },
     { href: "/painel/eventos", label: "Agenda de eventos", icone: "calendar", mostrar: true },
     { href: "/painel/catalogo", label: "Catálogo", icone: "grid", mostrar: admin },
-    { href: "/painel/proposta", label: "Proposta pública", icone: "livro", mostrar: admin },
+    { href: "/painel/proposta", label: "Personalize a Proposta", icone: "livro", mostrar: admin },
     { href: "/painel/usuarios", label: "Usuários", icone: "users", mostrar: admin },
   ];
 

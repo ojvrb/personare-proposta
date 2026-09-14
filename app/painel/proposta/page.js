@@ -14,7 +14,6 @@ const CAPITULOS = [
   { chave: "buffet", label: "02. A mesa", padrao: { eyebrow: "A mesa", titulo: "E o que {eles vão comer.}", lead: "Selecionamos essas opções de buffet pensando no perfil do seu evento." } },
   { chave: "pacote", label: "03. Antes do preço", padrao: { eyebrow: "Antes do preço", titulo: "O que {já está incluso.}", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto." } },
   { chave: "investimento", label: "04. Seu investimento", padrao: { eyebrow: "Seu investimento", titulo: "Combinado, então {é isso.}", lead: "Tudo que você viu até aqui, junto. Sem taxa escondida, sem asterisco." } },
-  { chave: "depoimentos", label: "05. Depoimentos", padrao: { eyebrow: "Quem passou por aqui", titulo: "O que {eles guardam} do dia.", lead: null } },
 ];
 
 const GANCHOS = [
@@ -26,18 +25,17 @@ const GANCHOS = [
 ];
 
 const TIPOS_EVENTO = [
-  { chave: "", label: "Todos os tipos" },
-  { chave: "casamento", label: "Só casamentos" },
-  { chave: "15_anos", label: "Só 15 anos" },
-  { chave: "corporativo", label: "Só corporativos" },
-  { chave: "aniversario", label: "Só aniversários" },
-  { chave: "outro", label: "Só tipo Outro" },
+  { chave: "casamento", label: "Casamento" },
+  { chave: "15_anos", label: "15 anos" },
+  { chave: "corporativo", label: "Corporativo" },
+  { chave: "aniversario", label: "Aniversário" },
+  { chave: "outro", label: "Outro" },
 ];
 
 export default function EditorProposta() {
   return (
     <div>
-      <h1 style={{ marginBottom: 12 }}>Proposta pública</h1>
+      <h1 style={{ marginBottom: 12 }}>Personalize a Proposta</h1>
       <p style={{ color: "var(--granite)", marginTop: 0, marginBottom: 8, lineHeight: 1.6 }}>
         Edite o que cada casal lê em cada capítulo da proposta. Deixe em branco pra usar o texto padrão.
       </p>
@@ -259,14 +257,48 @@ function EditorMomentos() {
 }
 
 // Editor de depoimentos -- separado dos textos e dos momentos, mesmo padrao
-// visual dos "Momentos extras" (lista com thumb + campos inline). Depoimento
-// pode ser curinga ("Todos os tipos", evento_tipo=null) ou restrito a um
-// tipo -- casa com o filtro que a proposta publica ja aplica.
+// visual dos "Momentos extras" (lista com thumb + campos inline). Cada
+// depoimento tem evento_tipos (array): vazio = curinga (aparece em todos),
+// com itens = so' aparece nesses tipos. Casa com o filtro da proposta publica.
+// Checkboxes de tipo de evento pra 1 depoimento. Nenhum marcado = curinga
+// (aparece em todos). Salva a cada toggle, sem botao "salvar".
+function TiposCheckboxes({ valor, onSalvar }) {
+  const marcados = new Set(valor);
+  function alternar(chave) {
+    const nova = new Set(marcados);
+    if (nova.has(chave)) nova.delete(chave); else nova.add(chave);
+    onSalvar([...nova]);
+  }
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: "var(--granite)", fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 4 }}>
+        Aparece em: {marcados.size === 0 ? "todos os tipos" : `${marcados.size} tipo${marcados.size > 1 ? "s" : ""}`}
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {TIPOS_EVENTO.map((t) => {
+          const on = marcados.has(t.chave);
+          return (
+            <label key={t.chave} style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px",
+              borderRadius: 100, fontSize: 12, cursor: "pointer",
+              border: `1px solid ${on ? "var(--sage)" : "var(--stroke)"}`,
+              background: on ? "var(--sage-wash)" : "transparent",
+              color: on ? "var(--sage-dark)" : "var(--stone)",
+            }}>
+              <input type="checkbox" checked={on} onChange={() => alternar(t.chave)} style={{ margin: 0 }} />
+              {t.label}
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function EditorDepoimentos() {
   const [itens, setItens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
-  const [tipoNovo, setTipoNovo] = useState("");
   const [erro, setErro] = useState("");
 
   async function carregar() {
@@ -284,7 +316,7 @@ function EditorDepoimentos() {
     const novaOrdem = itens.length ? Math.max(...itens.map((d) => d.ordem || 0)) + 1 : 0;
     const res = await fetch("/api/depoimentos", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ autor_nome: "", texto: "", foto: "", evento_tipo: tipoNovo || null, ativo: true, ordem: novaOrdem }),
+      body: JSON.stringify({ autor_nome: "", texto: "", foto: "", evento_tipos: [], ativo: true, ordem: novaOrdem }),
     });
     const data = await res.json();
     setEnviando(false);
@@ -336,14 +368,11 @@ function EditorDepoimentos() {
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
                 <input placeholder="Nome de quem escreveu" defaultValue={d.autor_nome || ""} onBlur={(e) => e.target.value !== (d.autor_nome || "") && atualizar(d.id, { autor_nome: e.target.value })} />
                 <textarea rows={2} placeholder="O que a pessoa disse" defaultValue={d.texto || ""} onBlur={(e) => e.target.value !== (d.texto || "") && atualizar(d.id, { texto: e.target.value })} />
+                <TiposCheckboxes
+                  valor={d.evento_tipos || []}
+                  onSalvar={(tipos) => atualizar(d.id, { evento_tipos: tipos })}
+                />
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <select
-                    value={d.evento_tipo || ""}
-                    onChange={(e) => atualizar(d.id, { evento_tipo: e.target.value || null })}
-                    style={{ padding: "6px 10px", fontSize: 13 }}
-                  >
-                    {TIPOS_EVENTO.map((t) => <option key={t.chave || "todos"} value={t.chave}>{t.label}</option>)}
-                  </select>
                   {d.foto && (
                     <label className="btn" style={{ cursor: "pointer", padding: "6px 10px", fontSize: 12 }}>
                       Trocar foto
@@ -357,10 +386,8 @@ function EditorDepoimentos() {
             </div>
           ))}
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, padding: 12, border: "1px dashed var(--stroke)", borderRadius: 10 }}>
-            <select value={tipoNovo} onChange={(e) => setTipoNovo(e.target.value)} style={{ padding: "8px 12px" }}>
-              {TIPOS_EVENTO.map((t) => <option key={t.chave || "todos"} value={t.chave}>{t.label}</option>)}
-            </select>
             <button className="btn primary" onClick={criar} disabled={enviando}>{enviando ? "Criando…" : "+ Novo depoimento"}</button>
+            <span style={{ fontSize: 12, color: "var(--granite)" }}>Aparece em todos os tipos até você marcar algum específico.</span>
           </div>
         </div>
       )}

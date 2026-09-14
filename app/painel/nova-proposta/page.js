@@ -124,10 +124,10 @@ export default function NovaPropostaPage() {
       <h1>Nova proposta</h1>
       {erro && <div className="alert err">{erro}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
+      <div className="nova-proposta-grid">
         <form onSubmit={enviar} className="card">
           <h3 style={{ marginTop: 0 }}>Cliente e evento</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div className="cliente-evento-grid">
             <div className="field">
               <label>Nome</label>
               <input required value={nome} onChange={(e) => setNome(e.target.value)} />
@@ -246,7 +246,7 @@ export default function NovaPropostaPage() {
           </button>
         </form>
 
-        <div className="card" style={{ position: "sticky", top: 20 }}>
+        <div className="card resumo-lateral">
           <h3 style={{ marginTop: 0 }}>Resumo</h3>
           {preview && (
             <>

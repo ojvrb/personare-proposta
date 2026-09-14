@@ -50,11 +50,11 @@ export default function BuffetSlider({ buffets, recomendadoId, numConvidados }) 
         </div>
       )}
 
-      <div style={{ padding: "16px 4px 4px" }}>
+      <div className="buffet-bloco" style={{ padding: "16px 4px 4px" }}>
         {recomendado && <div className="badge" style={{ marginBottom: 10 }}>★ Recomendado pra você</div>}
-        <h4 style={{ fontFamily: "var(--display)", fontSize: 28, fontWeight: 500, margin: "0 0 6px", letterSpacing: "-0.01em" }}>{atual.nome}</h4>
-        <p style={{ fontSize: 15, color: "var(--stone)", margin: "0 0 12px", lineHeight: 1.5 }}>{atual.descricao}</p>
-        <div style={{ color: "var(--gold-dark)", fontWeight: 600, marginBottom: 20, fontFamily: "var(--display)", fontSize: 20 }}>
+        <h4 className="buffet-titulo" style={{ fontFamily: "var(--display)", fontWeight: 500, margin: "0 0 6px", letterSpacing: "-0.01em" }}>{atual.nome}</h4>
+        <p className="buffet-desc" style={{ color: "var(--stone)", margin: "0 0 12px", lineHeight: 1.5 }}>{atual.descricao}</p>
+        <div className="buffet-preco" style={{ color: "var(--gold-dark)", fontWeight: 600, marginBottom: 20, fontFamily: "var(--display)" }}>
           R$ {Number(atual.preco_pessoa).toLocaleString("pt-BR")}/pessoa × {numConvidados} convidados
         </div>
         {atual.itens?.length > 0 && (

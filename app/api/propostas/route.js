@@ -30,7 +30,13 @@ export async function GET(req) {
     query = query.or(`atendente_id.eq.${perfil.user.id},atendente_id.is.null`);
   }
 
-  const promessas = [query];
+  // listUsers em paralelo com as outras queries -- antes era sequencial,
+  // esperando o Promise.all das queries pra so ai buscar emails de atendente.
+  const promessaEmails = perfil.role === "admin"
+    ? adminClient().auth.admin.listUsers().then(({ data }) => Object.fromEntries((data?.users || []).map((u) => [u.id, u.email])))
+    : Promise.resolve(null);
+
+  const promessas = [query, promessaEmails];
   if (!leve) {
     promessas.push(
       supabase.from("pacotes").select("*").eq("ativo", true).order("ordem"),
@@ -38,14 +44,12 @@ export async function GET(req) {
       supabase.from("extras").select("*").eq("ativo", true).order("ordem"),
     );
   }
-  const [clientesRes, pacotesRes, buffetsRes, extrasRes] = await Promise.all(promessas);
+  const [clientesRes, emailPorId, pacotesRes, buffetsRes, extrasRes] = await Promise.all(promessas);
 
   if (clientesRes.error) return NextResponse.json({ error: clientesRes.error.message }, { status: 500 });
 
   let clientes = clientesRes.data;
-  if (perfil.role === "admin") {
-    const { data: authList } = await adminClient().auth.admin.listUsers();
-    const emailPorId = Object.fromEntries(authList.users.map((u) => [u.id, u.email]));
+  if (emailPorId) {
     clientes = clientes.map((c) => ({ ...c, atendente_email: c.atendente_id ? emailPorId[c.atendente_id] : null }));
   }
 

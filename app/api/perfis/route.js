@@ -39,19 +39,25 @@ export async function GET() {
 
 const PAPEIS_VALIDOS = ["admin", "atendente", "financeiro"];
 
-// POST (admin-only): convida um novo usuario por email (link magico do
-// proprio Supabase Auth, sem senha pra distribuir manualmente) e ja cria o
-// perfil com o cargo escolhido.
+// POST (admin-only): cria um usuario direto com email + senha temporaria
+// (o admin passa a senha, ja pode entregar pra pessoa). Antes usava
+// inviteUserByEmail (link magico), mas o admin costuma criar contas na
+// hora e quer entregar a senha na mesma conversa -- sem depender do email.
 export async function POST(req) {
   const supabase = await createClient();
   const negado = await requireRole(supabase, ["admin"]);
   if (negado) return negado;
 
-  const { email, role = "atendente" } = await req.json();
+  const { email, role = "atendente", senha } = await req.json();
   if (!email?.trim()) return NextResponse.json({ error: "email e obrigatorio" }, { status: 400 });
   if (!PAPEIS_VALIDOS.includes(role)) return NextResponse.json({ error: "cargo invalido" }, { status: 400 });
+  if (!senha || String(senha).length < 8) return NextResponse.json({ error: "senha precisa ter pelo menos 8 caracteres" }, { status: 400 });
 
-  const { data, error } = await adminClient().auth.admin.inviteUserByEmail(email.trim());
+  const { data, error } = await adminClient().auth.admin.createUser({
+    email: email.trim(),
+    password: String(senha),
+    email_confirm: true,
+  });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await supabase.from("perfis").upsert({ user_id: data.user.id, role }, { onConflict: "user_id" });

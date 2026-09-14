@@ -121,6 +121,9 @@ export default function PainelLayout({ children }) {
           <Link href="/painel/nova-proposta" className="sidebar-cta">
             <Icone nome="plus" /> Novo cliente
           </Link>
+          <Link href="/painel/conta" className={`sidebar-link${pathname === "/painel/conta" ? " active" : ""}`} style={{ fontSize: 12 }}>
+            Minha conta · trocar senha
+          </Link>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <button className="sidebar-link" onClick={sair} style={{ flex: 1 }}>
               <Icone nome="logout" /> Sair

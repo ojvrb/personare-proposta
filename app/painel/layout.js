@@ -17,6 +17,7 @@ const ICONES = {
   users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 9a3 3 0 1 0 0-6M21.5 20a5.5 5.5 0 0 0-6-5.4" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>,
+  ajuda: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .8-1 1.7" /><path d="M12 17.2v.1" /></>,
   menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
   x: <path d="M18 6 6 18M6 6l12 12" />,
 };
@@ -74,6 +75,7 @@ export default function PainelLayout({ children }) {
     { href: "/painel/catalogo", label: "Catálogo", icone: "grid", mostrar: admin },
     { href: "/painel/proposta", label: "Personalize a Proposta", icone: "livro", mostrar: admin },
     { href: "/painel/usuarios", label: "Usuários", icone: "users", mostrar: admin },
+    { href: "/painel/como-funciona", label: "Como funciona", icone: "ajuda", mostrar: true },
   ];
 
   return (

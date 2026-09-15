@@ -67,6 +67,14 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   `InvestimentoBloco` (public), `nova-proposta` (configurador), `POST /propostas`
   e `POST /aceitar`. Ao adicionar um novo caminho que grave `extras_selecionados`,
   aplicar a mesma checagem — senão o total salvo diverge do exibido.
+- **Cardápio do buffet é separado por categoria**: `buffets.itens_entrada`,
+  `itens_prato`, `itens_sobremesa` (arrays de texto), não uma coluna `itens`
+  flat. Padrão pra adicionar categoria nova (ex: bebida): migration `alter
+  table buffets add column itens_<categoria> text[] default '{}'` +
+  allowlist em `app/api/buffets/route.js` e `[id]/route.js` + textarea em
+  `BuffetCampos` (`app/painel/catalogo/page.js`) + um
+  `<CategoriaCardapio titulo="..." itens={atual.itens_<categoria>} />` em
+  `BuffetSlider.js`.
 - **Fotos de galeria** (`fotos_espaco`) têm coluna `categoria` (`espaco` |
   `decoracao`). Mesma tabela, mesma UI de upload — só o filtro muda. O capítulo
   "Decoração" na proposta pública aparece só se houver foto ativa com

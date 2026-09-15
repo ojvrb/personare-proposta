@@ -39,8 +39,9 @@ npm run deploy    # npm run build + wrangler deploy pro Cloudflare Workers
 - **Versionamento de proposta**: cria v2/v3 quando buffet ou número de
   convidados muda antes do aceite — a versão anterior fica congelada
 - Configurador de nova proposta (cliente + evento + pacote + buffet + extras)
-- Catálogo editável: pacotes, buffets, extras (com flag `substitui_buffet`),
-  galeria de fotos do espaço, galeria de fotos de decoração
+- Catálogo editável: pacotes, buffets (cardápio separado em entrada/prato/
+  sobremesa), extras (com flag `substitui_buffet`), galeria de fotos do
+  espaço, galeria de fotos de decoração
 - Editor "Personalize a Proposta": textos padrão + variações por tipo de
   evento (casamento, 15 anos, corporativo, aniversário, outro), depoimentos
   multi-tipo, "momentos" (fotos full-bleed entre capítulos)
@@ -54,7 +55,8 @@ npm run deploy    # npm run build + wrangler deploy pro Cloudflare Workers
 1. Capa (nome do casal, foto de fundo)
 2. **O lugar** — galeria do espaço
 3. **A decoração** — galeria de decorações
-4. **A mesa** — vitrine de buffets (cliente pode trocar; total recalcula)
+4. **A mesa** — vitrine de buffets (cliente pode trocar; total recalcula),
+   cardápio agrupado em entrada/prato principal/sobremesa
 5. **Antes do preço** — checklist do pacote + extras já selecionados +
    vitrine de extras opcionais que o cliente pode adicionar
 6. **Depoimentos** — filtrados pelo tipo de evento (antes do preço de propósito)

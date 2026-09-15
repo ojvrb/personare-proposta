@@ -3,9 +3,26 @@
 Diário curto do que já está pronto e o que vem em seguida. Atualizar antes
 de fechar sessão ou trocar de feature.
 
+## 2026-09-15 — Cardápio do buffet separado por categoria
+
+Commitado (`c945505`, `59a84a6`), pushed pro `origin/main` e deployado
+(versões `dd2c332e` → `3ea83992`).
+
+Feito:
+- **Migrações** `2026_09_15_buffet_entrada_prato.sql` e
+  `2026_09_15_buffet_sobremesa.sql` já rodadas em prod (confirmado via
+  PostgREST): renomeiam a antiga coluna flat `itens` pra `itens_prato` (sem
+  perda de dado) e adicionam `itens_entrada` + `itens_sobremesa`.
+- **Editor do catálogo** (`BuffetCampos`) ganhou um textarea por categoria.
+- **Proposta pública** (`BuffetSlider.js`) renderiza um bloco por categoria
+  (`CategoriaCardapio`, pula se vazia) em vez de uma lista única.
+- **Padrão documentado** pra próxima categoria (ex: bebida): coluna
+  `itens_<categoria>` + allowlist das duas rotas de buffet + textarea no
+  editor + `<CategoriaCardapio>` no slider. Ver [CLAUDE.md](./CLAUDE.md).
+
 ## 2026-09-14 — Tracking, versionamento, hardening de segurança
 
-**Ainda não commitado nem deployado.** Migração já rodada em prod.
+Commitado (`c945505`) e deployado.
 
 Feito:
 - **Migração** `2026_09_14_tracking_e_versionamento.sql` rodada em prod: cria

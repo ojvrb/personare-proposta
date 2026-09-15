@@ -11,14 +11,16 @@ import { useEffect, useState } from "react";
 // e' mantido no render (backward-compat), mas nunca sugerido na UI.
 const CAPITULOS = [
   { chave: "espaco", label: "01. O lugar", padrao: { eyebrow: "O lugar", titulo: "O lugar do seu casamento {é aqui.}", lead: "A gente montou essa história pra você se ver caminhando por cada canto: a chegada, o salão, o jardim à noite. Deslize as fotos." } },
-  { chave: "buffet", label: "02. A mesa", padrao: { eyebrow: "A mesa", titulo: "E o que {eles vão comer.}", lead: "Selecionamos essas opções de buffet pensando no perfil do seu evento." } },
-  { chave: "pacote", label: "03. Antes do preço", padrao: { eyebrow: "Antes do preço", titulo: "O que {já está incluso.}", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto." } },
-  { chave: "investimento", label: "04. Seu investimento", padrao: { eyebrow: "Seu investimento", titulo: "Combinado, então {é isso.}", lead: "Tudo que você viu até aqui, junto. Sem taxa escondida, sem asterisco." } },
+  { chave: "decoracao", label: "02. A decoração", padrao: { eyebrow: "A decoração", titulo: "E como ele {vai se transformar.}", lead: "A decoração é o que muda o ambiente de espaço pra experiência. Deslize pra ver o que já criamos aqui." } },
+  { chave: "buffet", label: "03. A mesa", padrao: { eyebrow: "A mesa", titulo: "E o que {eles vão comer.}", lead: "Selecionamos essas opções de buffet pensando no perfil do seu evento." } },
+  { chave: "pacote", label: "04. Antes do preço", padrao: { eyebrow: "Antes do preço", titulo: "O que {já está incluso.}", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto." } },
+  { chave: "investimento", label: "05. Seu investimento", padrao: { eyebrow: "Seu investimento", titulo: "Combinado, então {é isso.}", lead: "Tudo que você viu até aqui, junto. Sem taxa escondida, sem asterisco." } },
 ];
 
 const GANCHOS = [
   { chave: "hero", label: "logo depois da capa" },
   { chave: "espaco", label: "depois do lugar" },
+  { chave: "decoracao", label: "depois da decoração" },
   { chave: "buffet", label: "depois da mesa" },
   { chave: "pacote", label: "depois do que está incluso" },
   { chave: "investimento", label: "depois do investimento" },

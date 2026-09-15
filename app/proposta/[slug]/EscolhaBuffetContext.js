@@ -1,19 +1,37 @@
 "use client";
 
-// Segura a escolha do buffet no client-side pra que a interatividade entre
-// o slider (capitulo 02) e o bloco de investimento (capitulo 04) funcione,
-// mesmo com secoes server-rendered entre eles. O ID inicial vem do buffet
-// recomendado pelo staff -- se o cliente escolher outro, o subtotal recalcula.
-import { createContext, useContext, useState } from "react";
+// Segura escolhas do cliente no client-side (buffet + extras que ele adiciona
+// na hora) pra que a interatividade entre secoes server-rendered funcione.
+// O buffet inicial vem do recomendado pelo staff; os extras do cliente comecam
+// vazios -- so' entram no total quando ele clica "adicionar".
+import { createContext, useCallback, useContext, useState } from "react";
 
 const Ctx = createContext(null);
 
 export function EscolhaBuffetProvider({ recomendadoId, children }) {
-  // Comeca null -- o cliente ainda nao escolheu nada. O calculo usa o
-  // recomendado como fallback (o cliente vai ver o total do recomendado),
-  // mas nenhum botao aparece como "ja escolhido" ate ele confirmar de fato.
   const [escolhidoId, setEscolhidoId] = useState(null);
-  return <Ctx.Provider value={{ escolhidoId, setEscolhidoId, recomendadoId }}>{children}</Ctx.Provider>;
+  // Extras que o proprio cliente adiciona na proposta publica.
+  // Shape: [{extra_id, quantidade}] -- mesmo do banco. Vao pro total ja no
+  // client, e sao gravados no aceite via POST /aceitar (server recalcula).
+  const [extrasCliente, setExtrasCliente] = useState([]);
+
+  const adicionarExtra = useCallback((extra_id) => {
+    setExtrasCliente((atual) => atual.some((e) => e.extra_id === extra_id)
+      ? atual
+      : [...atual, { extra_id, quantidade: 1 }]);
+  }, []);
+  const removerExtra = useCallback((extra_id) => {
+    setExtrasCliente((atual) => atual.filter((e) => e.extra_id !== extra_id));
+  }, []);
+  const setQuantidadeExtra = useCallback((extra_id, quantidade) => {
+    setExtrasCliente((atual) => atual.map((e) => e.extra_id === extra_id ? { ...e, quantidade: Math.max(1, Number(quantidade) || 1) } : e));
+  }, []);
+
+  return (
+    <Ctx.Provider value={{ escolhidoId, setEscolhidoId, recomendadoId, extrasCliente, adicionarExtra, removerExtra, setQuantidadeExtra }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export function useEscolhaBuffet() {

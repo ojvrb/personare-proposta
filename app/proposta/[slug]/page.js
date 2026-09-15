@@ -10,6 +10,7 @@ import AceitarProposta from "./AceitarProposta";
 import Momento from "./Momento";
 import { EscolhaBuffetProvider } from "./EscolhaBuffetContext";
 import InvestimentoBloco from "./InvestimentoBloco";
+import ExtrasCliente from "./ExtrasCliente";
 import DepoimentosCarrossel from "./DepoimentosCarrossel";
 
 // Renderiza um titulo customizado. Aceita duas sintaxes de destaque:
@@ -42,7 +43,7 @@ async function getProposta(slug) {
     supabase.from("extras").select("*"),
     supabase.from("contratos").select("*, pagamentos(*)").eq("evento_id", proposta.evento_id).limit(1),
     publicClient().from("depoimentos").select("*").eq("ativo", true).order("ordem"),
-    publicClient().from("fotos_espaco").select("*").eq("ativo", true).order("ordem"),
+    publicClient().from("fotos_espaco").select("*").eq("ativo", true).order("ordem"), // inclui categoria (espaco|decoracao)
     publicClient().from("proposta_textos").select("*").eq("id", 1).maybeSingle(),
     publicClient().from("proposta_momentos").select("*").eq("ativo", true).order("ordem"),
     publicClient().from("proposta_textos_tipo").select("*"),
@@ -73,13 +74,17 @@ async function getProposta(slug) {
   // esse tipo, textoTipo fica {} e o fallback do render cai no padrao/defaults.
   const textoTipo = (textosPorTipo || []).find((t) => t.evento_tipo === evento?.tipo) || {};
 
-  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, extrasTodos: extras || [], contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspaco || [], textosCustom: textosCustom || {}, textoTipo, momentos: momentos || [], atendente };
+  const todasFotos = fotosEspaco || [];
+  const fotosEspacoSo = todasFotos.filter((f) => (f.categoria || "espaco") === "espaco");
+  const fotosDecoracao = todasFotos.filter((f) => f.categoria === "decoracao");
+  return { proposta, evento, cliente: evento?.clientes, pacote, buffet, vitrineBuffets, extrasEscolhidos, extrasTodos: extras || [], contrato: contratoAtual, depoimentos: depoimentos || [], fotosEspaco: fotosEspacoSo, fotosDecoracao, textosCustom: textosCustom || {}, textoTipo, momentos: momentos || [], atendente };
 }
 
 // Defaults dos textos -- se o admin nao editou o campo em /painel/proposta,
 // cai pra esses. Sempre "algo" vem, nunca vazio.
 const TEXTOS_DEFAULT = {
   espaco: { eyebrow: "O lugar", titulo: "O lugar do seu <TIPO> <em>é aqui.</em>", lead: "A gente montou essa história pra você se ver caminhando por cada canto: a chegada, o salão, o jardim à noite. Deslize as fotos." },
+  decoracao: { eyebrow: "A decoração", titulo: "E como ele <em>vai se transformar.</em>", lead: "A decoração é o que muda o ambiente de espaço pra experiência. Deslize pra ver o que já criamos aqui." },
   buffet: { eyebrow: "A mesa", titulo: "E o que <em>eles vão comer.</em>", lead: "Selecionamos <OPCOES> de buffet pensando no perfil do seu evento.<ARRASTE> O cardápio completo aparece embaixo da foto." },
   pacote: { eyebrow: "Antes do preço", titulo: "O que <em>já está incluso.</em>", lead: "Antes de você olhar o investimento, vale ver tudo que já vem no pacote. Isso é o que a gente entrega pronto, sem você precisar contratar à parte." },
   investimento: { eyebrow: "Seu investimento", titulo: "Combinado, então <em>é isso.</em>", lead: "Tudo que você viu até aqui, junto. Sem taxa escondida, sem asterisco." },
@@ -101,7 +106,7 @@ export default async function PropostaPublicaPage({ params }) {
   const dados = await getProposta(slug);
   if (!dados) notFound();
 
-  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, extrasTodos, contrato, depoimentos, fotosEspaco, textosCustom, textoTipo, momentos, atendente } = dados;
+  const { proposta, evento, cliente, pacote, vitrineBuffets, extrasEscolhidos, extrasTodos, contrato, depoimentos, fotosEspaco, fotosDecoracao, textosCustom, textoTipo, momentos, atendente } = dados;
   const t = (chave, campo) => texto(textosCustom, textoTipo, chave, campo, evento?.tipo, vitrineBuffets.length);
   // Depoimentos filtrados pelo tipo do evento. evento_tipos e' um array:
   // vazio = curinga (aparece em todos); com itens = so' aparece se o tipo do
@@ -129,6 +134,7 @@ export default async function PropostaPublicaPage({ params }) {
   // refleite a narrativa real que o casal ve, nao slots vazios.
   const capitulos = [
     fotosEspaco.length > 0 && "espaco",
+    fotosDecoracao.length > 0 && "decoracao",
     vitrineBuffets.length > 0 && "buffet",
     pacote && "pacote",
     "investimento",
@@ -191,7 +197,28 @@ export default async function PropostaPublicaPage({ params }) {
 
       {momentosDe("espaco").map((m) => <Momento key={m.id} momento={m} />)}
 
-      {/* Do capitulo 02 ate o 04, tudo dentro do Provider da escolha de buffet
+      {/* CAPITULO 02 -- DECORACAO. Storytelling only: galeria + textos editaveis.
+          Reusa EspacoStory (mesmo componente, so muda a lista de fotos). */}
+      {fotosDecoracao.length > 0 && (
+        <section className="story">
+          <div className="story-wrap">
+            <Reveal>
+              <div className="story-kicker"><b>{num("decoracao")}</b><span>{t("decoracao", "eyebrow")}</span></div>
+              <h2 className="story-title">{tituloCustom(t("decoracao", "titulo"))}</h2>
+              <p className="story-lead">{t("decoracao", "lead")}</p>
+            </Reveal>
+            <Reveal>
+              <div className="story-media">
+                <EspacoStory fotos={fotosDecoracao} />
+              </div>
+            </Reveal>
+          </div>
+        </section>
+      )}
+
+      {momentosDe("decoracao").map((m) => <Momento key={m.id} momento={m} />)}
+
+      {/* Do capitulo do buffet ate o investimento, tudo dentro do Provider da escolha de buffet
           -- assim o slider (client) e o bloco de investimento (client) leem
           o mesmo estado. As secoes SERVER entre eles (checklist do pacote)
           continuam server-rendered normalmente, sao apenas children do provider. */}
@@ -273,6 +300,15 @@ export default async function PropostaPublicaPage({ params }) {
                 </Reveal>
               )}
             </div>
+
+            <Reveal>
+              <ExtrasCliente
+                extrasTodos={extrasTodos}
+                extrasSelecionadosVendedor={proposta.extras_selecionados || []}
+                numConvidados={evento?.num_convidados || 0}
+                bloqueado={jaAceita || jaAssinado}
+              />
+            </Reveal>
           </div>
         </section>
       )}

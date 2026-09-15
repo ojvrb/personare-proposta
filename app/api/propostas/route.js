@@ -108,9 +108,17 @@ export async function POST(req) {
     supabase.from("extras").select("*"),
   ]);
 
+  // Se qualquer extra selecionado tem substitui_buffet=true (taxa de cozinha
+  // pra buffet externo, etc), o buffet interno sai da proposta -- forca
+  // buffet_id=null e ignora o buffet no calculo, mesmo que o vendedor tenha
+  // enviado um id.
+  const substituiBuffet = (extras_selecionados || []).some((sel) => (extrasRes.data || []).find((e) => e.id === sel.extra_id)?.substitui_buffet);
+  const buffetFinal = substituiBuffet ? null : buffetRes.data;
+  const buffetIdFinal = substituiBuffet ? null : (buffet_id || null);
+
   const { subtotal, total } = calcularProposta({
     pacote: pacoteRes.data,
-    buffet: buffetRes.data,
+    buffet: buffetFinal,
     numConvidados: eventoRow.num_convidados,
     extras: extrasRes.data || [],
     extrasSelecionados: extras_selecionados,
@@ -125,8 +133,8 @@ export async function POST(req) {
     .insert({
       evento_id: eventoRow.id,
       pacote_id: pacote_id || null,
-      buffet_id: buffet_id || null,
-      buffets_sugeridos,
+      buffet_id: buffetIdFinal,
+      buffets_sugeridos: substituiBuffet ? [] : buffets_sugeridos,
       extras_selecionados,
       desconto,
       subtotal,

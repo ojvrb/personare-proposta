@@ -29,20 +29,22 @@ export default function CatalogoPage() {
       <Secao
         titulo="Extras"
         endpoint="/api/extras"
-        campoInicial={{ nome: "", tipo_preco: "fixo", valor: 0, ativo: true }}
+        campoInicial={{ nome: "", tipo_preco: "fixo", valor: 0, ativo: true, substitui_buffet: false }}
         renderCampos={ExtraCampos}
         resumo={(e) => `R$ ${Number(e.valor).toLocaleString("pt-BR")} (${e.tipo_preco})`}
       />
 
-      <GaleriaEspaco />
+      <GaleriaEspaco categoria="espaco" titulo="Nosso espaço" descricao="Galeria de fotos do ambiente que aparece na proposta pública, antes do preço. Monte a ordem como uma história (ex: fachada → salão → decoração à noite)." />
+      <GaleriaEspaco categoria="decoracao" titulo="Decoração" descricao="Fotos de decoração que já fizemos. Aparecem na proposta pública, logo depois do capítulo do espaço." />
     </div>
   );
 }
 
-// "Nosso espaco" -- galeria de fotos de ambiente pra proposta publica (secao
-// antes do preco, tipo historia). Ordem controla a sequencia; setas trocam
-// posicao com o vizinho, mais simples que drag-and-drop pra reordenar poucas fotos.
-function GaleriaEspaco() {
+// Galeria de fotos por categoria (`espaco` ou `decoracao`). Reusa a mesma
+// tabela `fotos_espaco` -- shape identico, so a coluna `categoria` separa.
+// Ordem controla a sequencia; setas trocam posicao com o vizinho, mais simples
+// que drag-and-drop pra poucas fotos.
+function GaleriaEspaco({ categoria = "espaco", titulo = "Nosso espaço", descricao }) {
   const [fotos, setFotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
@@ -52,7 +54,7 @@ function GaleriaEspaco() {
     setLoading(true);
     const res = await fetch("/api/fotos-espaco");
     const data = await res.json();
-    if (res.ok) setFotos((data.items || []).sort((a, b) => a.ordem - b.ordem));
+    if (res.ok) setFotos((data.items || []).filter((f) => (f.categoria || "espaco") === categoria).sort((a, b) => a.ordem - b.ordem));
     setLoading(false);
   }
 
@@ -74,7 +76,7 @@ function GaleriaEspaco() {
     await fetch("/api/fotos-espaco", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: data.url, ordem: novaOrdem }),
+      body: JSON.stringify({ url: data.url, ordem: novaOrdem, categoria }),
     });
     setEnviando(false);
     carregar();
@@ -119,10 +121,10 @@ function GaleriaEspaco() {
 
   return (
     <div className="card" style={{ marginBottom: 20 }}>
-      <h3 style={{ marginTop: 0 }}>Nosso espaço</h3>
-      <p style={{ color: "var(--granite)", fontSize: 13, marginTop: -8, marginBottom: 16 }}>
-        Galeria de fotos do ambiente que aparece na proposta pública, antes do preço. Monte a ordem como uma história (ex: fachada → salão → decoração à noite).
-      </p>
+      <h3 style={{ marginTop: 0 }}>{titulo}</h3>
+      {descricao && (
+        <p style={{ color: "var(--granite)", fontSize: 13, marginTop: -8, marginBottom: 16 }}>{descricao}</p>
+      )}
       {erro && <div className="alert err">{erro}</div>}
       {loading ? (
         <p style={{ color: "var(--granite)" }}>Carregando…</p>
@@ -183,13 +185,15 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
 
   function iniciarEdicao(item) {
     setEditando(item.id);
-    setRascunho({
-      ...item,
-      itens_inclusos: arrayParaTexto(item.itens_inclusos),
-      itens_nao_inclusos: arrayParaTexto(item.itens_nao_inclusos),
-      fotos: arrayParaTexto(item.fotos),
-      itens: arrayParaTexto(item.itens),
-    });
+    // So converte pra texto os campos-array que essa tabela realmente tem --
+    // extras nao tem itens_inclusos, buffets nao tem itens_nao_inclusos, etc.
+    // Setar chave que nao existe faz o PATCH mandar coluna inexistente e o
+    // PostgREST rejeita a request inteira.
+    const draft = { ...item };
+    for (const k of ["itens_inclusos", "itens_nao_inclusos", "fotos", "itens"]) {
+      if (k in item) draft[k] = arrayParaTexto(item[k]);
+    }
+    setRascunho(draft);
   }
 
   async function salvar(id) {
@@ -464,6 +468,10 @@ function ExtraCampos(campos, set) {
         <option value="unidade">Por unidade</option>
       </select>
       <input type="number" placeholder="Valor" value={campos.valor} onChange={(e) => set({ ...campos, valor: e.target.value })} />
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--stone)" }}>
+        <input type="checkbox" checked={!!campos.substitui_buffet} onChange={(e) => set({ ...campos, substitui_buffet: e.target.checked })} />
+        Este extra substitui o buffet (ex: taxa de uso da cozinha para buffet externo). Quando marcado na proposta, o buffet interno sai do cálculo.
+      </label>
     </div>
   );
 }

@@ -1,0 +1,51 @@
+# Assets pesados que a IA nunca precisa ler
+public/**
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.webp
+**/*.gif
+**/*.svg
+**/*.ico
+**/*.pdf
+**/*.mp4
+**/*.mov
+**/*.zip
+**/*.tar.gz
+
+# Build / cache
+.next/**
+.open-next/**
+.wrangler/**
+dist/**
+build/**
+node_modules/**
+
+# Dumps de banco e mocks grandes
+**/*.sql.gz
+**/*.dump
+**/*.csv
+**/seed-*.json
+**/fixtures/**
+
+# Logs
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Secrets locais (por seguranca ja fica fora do repo, mas explicito)
+.env
+.env.local
+.env.production
+.dev.vars
+
+# Scratchpad e temporarios
+scratchpad/**
+tmp/**
+.tmp/**
+
+# Lockfiles e cache de tooling (grandes, IA nao precisa ler)
+package-lock.json
+.turbo/**
+coverage/**
+*.tsbuildinfo

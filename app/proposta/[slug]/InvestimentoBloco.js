@@ -12,18 +12,30 @@ export default function InvestimentoBloco({
   proposta, pacote, buffets, extras, extrasEscolhidos, numConvidados,
   jaAssinado, valorContratado, evento,
 }) {
-  const { escolhidoId, recomendadoId } = useEscolhaBuffet();
+  const { escolhidoId, recomendadoId, extrasCliente } = useEscolhaBuffet();
   const buffetAtual = buffets.find((b) => b.id === (escolhidoId || recomendadoId)) || null;
   const trocouBuffet = escolhidoId && escolhidoId !== recomendadoId;
 
+  // Junta extras do vendedor + extras que o cliente adicionou. Marca os do
+  // cliente pra mostrar rotulo "voce adicionou" e pro server distinguir no aceite.
+  const extrasMerged = [
+    ...(proposta.extras_selecionados || []),
+    ...extrasCliente.map((e) => ({ ...e, pelo_cliente: true })),
+  ];
+
+  // Se algum extra tem substitui_buffet=true (ex: taxa de cozinha pra buffet
+  // externo), o buffet interno sai do calculo -- o cliente vai trazer o proprio.
+  const substituiBuffet = extrasMerged.some((sel) => extras.find((e) => e.id === sel.extra_id)?.substitui_buffet);
+  const buffetEfetivo = substituiBuffet ? null : buffetAtual;
+
   const { precoPacote, precoBuffet, subtotal, total } = useMemo(() => calcularProposta({
-    pacote, buffet: buffetAtual, numConvidados,
-    extras, extrasSelecionados: proposta.extras_selecionados || [], desconto: proposta.desconto || 0,
-  }), [pacote, buffetAtual, numConvidados, extras, proposta]);
+    pacote, buffet: buffetEfetivo, numConvidados,
+    extras, extrasSelecionados: extrasMerged, desconto: proposta.desconto || 0,
+  }), [pacote, buffetEfetivo, numConvidados, extras, proposta, extrasCliente]);
 
   // Detalha cada extra com nome + calculo pra o cliente entender de onde vem
   // cada real. Reusa o mesmo shape do `calcularProposta` (nao inventa preco aqui).
-  const linhasExtras = (proposta.extras_selecionados || []).map((sel) => {
+  const linhasExtras = extrasMerged.map((sel) => {
     const ex = extras.find((e) => e.id === sel.extra_id);
     if (!ex) return null;
     const qtd = Number(sel.quantidade || 1);
@@ -31,7 +43,7 @@ export default function InvestimentoBloco({
     if (ex.tipo_preco === "pessoa") { valor = Number(ex.valor) * numConvidados; sufixo = `R$ ${Number(ex.valor).toLocaleString("pt-BR")}/pessoa × ${numConvidados}`; }
     else if (ex.tipo_preco === "unidade") { valor = Number(ex.valor) * qtd; sufixo = `${qtd} × R$ ${Number(ex.valor).toLocaleString("pt-BR")}`; }
     else { valor = Number(ex.valor); sufixo = "valor fixo"; }
-    return { id: ex.id, nome: ex.nome, valor, sufixo };
+    return { id: ex.id, nome: ex.nome, valor, sufixo, peloCliente: !!sel.pelo_cliente };
   }).filter(Boolean);
 
   return (
@@ -46,11 +58,11 @@ export default function InvestimentoBloco({
           </div>
           <span className="breakdown-val">R$ {precoPacote.toLocaleString("pt-BR")}</span>
         </div>
-        {buffetAtual && (
+        {buffetEfetivo && (
           <div className="breakdown-linha">
             <div>
-              <b>Buffet {buffetAtual.nome}</b>
-              <span className="breakdown-sub">R$ {Number(buffetAtual.preco_pessoa).toLocaleString("pt-BR")}/pessoa × {numConvidados} convidados{trocouBuffet ? " · você escolheu" : ""}</span>
+              <b>Buffet {buffetEfetivo.nome}</b>
+              <span className="breakdown-sub">R$ {Number(buffetEfetivo.preco_pessoa).toLocaleString("pt-BR")}/pessoa × {numConvidados} convidados{trocouBuffet ? " · você escolheu" : ""}</span>
             </div>
             <span className="breakdown-val">R$ {precoBuffet.toLocaleString("pt-BR")}</span>
           </div>
@@ -59,7 +71,7 @@ export default function InvestimentoBloco({
           <div key={l.id} className="breakdown-linha">
             <div>
               <b>{l.nome}</b>
-              <span className="breakdown-sub">{l.sufixo}</span>
+              <span className="breakdown-sub">{l.sufixo}{l.peloCliente ? " · você adicionou" : ""}</span>
             </div>
             <span className="breakdown-val">R$ {l.valor.toLocaleString("pt-BR")}</span>
           </div>

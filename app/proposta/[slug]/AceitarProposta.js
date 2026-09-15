@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { TERMOS_VERSAO, textoTermos } from "./termos";
+import { useEscolhaBuffet } from "./EscolhaBuffetContext";
 
 const CHIPS_FEEDBACK = {
   atendimento: "Atendimento",
@@ -87,6 +88,7 @@ export default function AceitarProposta({ propostaId, statusInicial, aceitaEmIni
 }
 
 function ModalAceite({ propostaId, contexto, onFechar, onAceito }) {
+  const { extrasCliente } = useEscolhaBuffet() || {};
   const [rolouAteFim, setRolouAteFim] = useState(false);
   const [concordou, setConcordou] = useState(false);
   const [nome, setNome] = useState("");
@@ -140,6 +142,7 @@ function ModalAceite({ propostaId, contexto, onFechar, onAceito }) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         nome_completo: nome.trim(), cpf: cpfDigitos, termos_versao: TERMOS_VERSAO,
+        extras_cliente: extrasCliente || [],
       }),
     });
     const data = await res.json();

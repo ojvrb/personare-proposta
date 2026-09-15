@@ -251,7 +251,7 @@ h1{font-size:26px;margin:0 0 4px}
   background:linear-gradient(100deg,var(--sage-dark) 10%,var(--gold-dark) 90%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
-.story-lead{font-size:clamp(15px,1.4vw,17px);line-height:1.55;color:var(--stone);max-width:60ch}
+.story-lead{font-size:clamp(15px,1.4vw,17px);line-height:1.55;color:var(--stone)}
 
 /* Media full-bleed: foto/slider ocupa a largura toda ate' 1400px, borda
    arredondada suave. `.story-media--tall` cresce em viewports altas. */

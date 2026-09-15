@@ -40,11 +40,15 @@ export default function NovaPropostaPage() {
     () => Object.entries(extrasSel).filter(([, qtd]) => qtd > 0).map(([extra_id, quantidade]) => ({ extra_id, quantidade })),
     [extrasSel]
   );
+  const buffetSubstituido = useMemo(
+    () => extrasSelecionados.some((sel) => dados?.extras.find((e) => e.id === sel.extra_id)?.substitui_buffet),
+    [extrasSelecionados, dados]
+  );
 
   const preview = useMemo(() => {
     if (!dados) return null;
     const pacote = dados.pacotes.find((p) => p.id === pacoteId);
-    const buffet = dados.buffets.find((b) => b.id === buffetId);
+    const buffet = buffetSubstituido ? null : dados.buffets.find((b) => b.id === buffetId);
     return calcularProposta({
       pacote,
       buffet,
@@ -53,7 +57,7 @@ export default function NovaPropostaPage() {
       extrasSelecionados,
       desconto: Number(desconto) || 0,
     });
-  }, [dados, pacoteId, buffetId, numConvidados, extrasSelecionados, desconto]);
+  }, [dados, pacoteId, buffetId, numConvidados, extrasSelecionados, desconto, buffetSubstituido]);
 
   function toggleBuffetCurado(id) {
     setBuffetsCurados((atual) => {
@@ -70,6 +74,9 @@ export default function NovaPropostaPage() {
 
   function toggleExtra(id, checked, tipoPreco) {
     setExtrasSel((s) => ({ ...s, [id]: checked ? (tipoPreco === "unidade" ? 1 : 1) : 0 }));
+    // Se o extra que substitui buffet foi marcado, esvazia a selecao de buffet.
+    const ex = dados?.extras.find((e) => e.id === id);
+    if (checked && ex?.substitui_buffet) { setBuffetId(""); setBuffetsCurados([]); }
   }
 
   function setExtraQtd(id, qtd) {
@@ -189,14 +196,20 @@ export default function NovaPropostaPage() {
           ))}
 
           <h3>Buffet — monte a vitrine desse cliente</h3>
-          <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8 }}>
-            Escolha até 3 opções que você acha que esse cliente vai gostar (não precisa mostrar todas). O cliente vê essas opções como um cardápio na proposta.
-          </p>
+          {buffetSubstituido ? (
+            <p style={{ fontSize: 12, color: "var(--amber)", marginTop: -8, marginBottom: 4 }}>
+              Buffet interno desativado: você marcou um extra que substitui o buffet (ex: taxa de cozinha).
+            </p>
+          ) : (
+            <p style={{ fontSize: 12, color: "var(--granite)", marginTop: -8 }}>
+              Escolha até 3 opções que você acha que esse cliente vai gostar (não precisa mostrar todas). O cliente vê essas opções como um cardápio na proposta.
+            </p>
+          )}
           {dados.buffets.map((b) => {
             const curado = buffetsCurados.includes(b.id);
             return (
-              <label key={b.id} className={`check-row ${curado ? "selected" : ""}`}>
-                <input type="checkbox" checked={curado} onChange={() => toggleBuffetCurado(b.id)} disabled={!curado && buffetsCurados.length >= 3} />
+              <label key={b.id} className={`check-row ${curado ? "selected" : ""}`} style={{ opacity: buffetSubstituido ? 0.4 : 1 }}>
+                <input type="checkbox" checked={curado} onChange={() => toggleBuffetCurado(b.id)} disabled={buffetSubstituido || (!curado && buffetsCurados.length >= 3)} />
                 {b.fotos?.[0] && <img src={b.fotos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
                 <div style={{ flex: 1 }}>{b.nome} — R$ {Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa</div>
                 {curado && (

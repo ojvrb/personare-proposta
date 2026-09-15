@@ -88,10 +88,15 @@ export default function PainelPage() {
           {STATUS.map((col) => {
             const itensCol = clientes.filter((c) => c.status === col.id);
             return (
-              <div
+              // <details> nativo -- vira accordion no mobile (onde o grid ja
+              // colapsa pra 1 coluna e empilhar 8 etapas abertas obriga rolar
+              // demais) sem precisar de JS/estado proprio. No desktop, com as
+              // colunas lado a lado, fica sempre aberto e identico a antes.
+              <details
                 key={col.id}
-                className="card"
+                className="card kanban-col"
                 style={{ padding: 0 }}
+                open={itensCol.length > 0}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -100,10 +105,10 @@ export default function PainelPage() {
                   setArrastando(null);
                 }}
               >
-                <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--stroke)", display: "flex", justifyContent: "space-between" }}>
+                <summary className="kanban-col-summary" style={{ padding: "10px 14px", borderBottom: "1px solid var(--stroke)", display: "flex", justifyContent: "space-between", cursor: "pointer" }}>
                   <span style={{ fontSize: 13 }}>{col.label}</span>
                   <span className="badge">{itensCol.length}</span>
-                </div>
+                </summary>
                 <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8, minHeight: 60 }}>
                   {itensCol.length === 0 ? (
                     <span style={{ fontSize: 12, color: "var(--granite)", textAlign: "center", padding: 10 }}>Vazio</span>
@@ -120,7 +125,7 @@ export default function PainelPage() {
                     ))
                   )}
                 </div>
-              </div>
+              </details>
             );
           })}
         </div>

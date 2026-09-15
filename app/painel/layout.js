@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import NotificationBell from "@/app/components/NotificationBell";
+import useLogoffInativo from "./useLogoffInativo";
 
 const ICONES = {
   home: <path d="M3 11.5 12 4l9 7.5M5 10v10h5v-6h4v6h5V10" />,
@@ -35,6 +36,8 @@ export default function PainelLayout({ children }) {
   const pathname = usePathname();
   const [eu, setEu] = useState(null);
   const [menuAberto, setMenuAberto] = useState(false);
+
+  useLogoffInativo();
 
   useEffect(() => {
     fetch("/api/perfis").then((r) => r.json()).then((d) => setEu(d.eu || null));
@@ -76,10 +79,10 @@ export default function PainelLayout({ children }) {
   return (
     <div className="painel-shell">
       <div className="mobile-topbar">
-        <div className="sidebar-brand">
+        <Link href="/painel" className="sidebar-brand">
           <div className="sidebar-brand-mark">P</div>
           <span className="sidebar-brand-name">Personare</span>
-        </div>
+        </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <NotificationBell />
           <button className="hamburger-btn" onClick={() => setMenuAberto(true)} aria-label="Abrir menu">
@@ -94,10 +97,10 @@ export default function PainelLayout({ children }) {
         <button className="sidebar-close" onClick={() => setMenuAberto(false)} aria-label="Fechar menu">
           <Icone nome="x" />
         </button>
-        <div className="sidebar-brand">
+        <Link href="/painel" className="sidebar-brand" onClick={() => setMenuAberto(false)}>
           <div className="sidebar-brand-mark">P</div>
           <span className="sidebar-brand-name">Personare</span>
-        </div>
+        </Link>
 
         {eu && (
           <div className="sidebar-user">

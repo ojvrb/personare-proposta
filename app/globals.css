@@ -110,6 +110,13 @@ h1{font-size:26px;margin:0 0 4px}
   .resumo-lateral{position:static}
 }
 
+/* Board CRM: cada coluna e' um <details> nativo -- accordion sem JS. Marcador
+   padrao do browser trocado por uma seta que gira ao abrir. */
+.kanban-col-summary{list-style:none}
+.kanban-col-summary::-webkit-details-marker{display:none}
+.kanban-col-summary::after{content:"▸";color:var(--granite);font-size:11px;transition:transform .15s ease}
+.kanban-col[open] > .kanban-col-summary::after{transform:rotate(90deg)}
+
 .resumo-linha{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--stroke)}
 .resumo-total{display:flex;justify-content:space-between;padding:12px 0 0;font-size:18px;font-weight:600;color:var(--gold-dark)}
 
@@ -581,7 +588,7 @@ h1{font-size:26px;margin:0 0 4px}
   width:264px;flex-shrink:0;background:var(--white);border-right:1px solid var(--line);
   padding:24px 18px;display:flex;flex-direction:column;gap:22px;position:sticky;top:0;height:100vh;overflow-y:auto;
 }
-.sidebar-brand{display:flex;align-items:center;gap:10px}
+.sidebar-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
 .sidebar-brand-mark{
   width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(135deg,var(--sage),var(--gold));color:var(--white);

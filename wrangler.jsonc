@@ -10,5 +10,13 @@
   },
   "services": [
     { "binding": "WORKER_SELF_REFERENCE", "service": "personare-proposta" }
-  ]
+  ],
+  // Workers Logs (gratis, sem destino externo): erro/latencia/console.log de
+  // cada request ficam disponiveis no dashboard Cloudflare > Workers >
+  // personare-proposta > Logs. head_sampling_rate:1 = loga 100% das requests
+  // (baixo trafego aqui, custo zero de sampling).
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
 }

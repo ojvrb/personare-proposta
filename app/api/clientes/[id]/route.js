@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
   const [{ data: cliente, error: clienteErr }, { data: interacoes }, { data: transferenciaPendente }] = await Promise.all([
     supabase
       .from("clientes")
-      .select("*, eventos(*, propostas(*, propostas_ajustes(*)), contratos(*, pagamentos(*)))")
+      .select("*, eventos(*, propostas(*, propostas_ajustes(*), proposta_analytics(*)), contratos(*, pagamentos(*)))")
       .eq("id", id)
       .single(),
     supabase.from("interacoes").select("*").eq("cliente_id", id).order("created_at", { ascending: false }),

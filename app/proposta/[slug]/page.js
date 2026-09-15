@@ -12,6 +12,7 @@ import { EscolhaBuffetProvider } from "./EscolhaBuffetContext";
 import InvestimentoBloco from "./InvestimentoBloco";
 import ExtrasCliente from "./ExtrasCliente";
 import DepoimentosCarrossel from "./DepoimentosCarrossel";
+import PropostaTracker from "./PropostaTracker";
 
 // Renderiza um titulo customizado. Aceita duas sintaxes de destaque:
 //   1) `{palavras}` -- forma amigavel do editor admin
@@ -137,13 +138,14 @@ export default async function PropostaPublicaPage({ params }) {
     fotosDecoracao.length > 0 && "decoracao",
     vitrineBuffets.length > 0 && "buffet",
     pacote && "pacote",
-    "investimento",
     depoimentosFiltrados.length > 0 && "depoimentos",
+    "investimento",
   ].filter(Boolean);
   const num = (nome) => String(capitulos.indexOf(nome) + 1).padStart(2, "0");
 
   return (
     <div>
+      <PropostaTracker slug={proposta.slug} />
       {/* ============================================================
           HERO -- o nome do casal, uma foto de fundo cheia. Se nao tem
           foto de espaco, cai pro fundo com glow ambiente pra ainda ter
@@ -179,7 +181,7 @@ export default async function PropostaPublicaPage({ params }) {
 
       {/* CAPITULO 01 -- O LUGAR */}
       {fotosEspaco.length > 0 && (
-        <section className="story">
+        <section data-capitulo="espaco" className="story">
           <div className="story-wrap">
             <Reveal>
               <div className="story-kicker"><b>{num("espaco")}</b><span>{t("espaco", "eyebrow")}</span></div>
@@ -200,7 +202,7 @@ export default async function PropostaPublicaPage({ params }) {
       {/* CAPITULO 02 -- DECORACAO. Storytelling only: galeria + textos editaveis.
           Reusa EspacoStory (mesmo componente, so muda a lista de fotos). */}
       {fotosDecoracao.length > 0 && (
-        <section className="story">
+        <section data-capitulo="decoracao" className="story">
           <div className="story-wrap">
             <Reveal>
               <div className="story-kicker"><b>{num("decoracao")}</b><span>{t("decoracao", "eyebrow")}</span></div>
@@ -226,7 +228,7 @@ export default async function PropostaPublicaPage({ params }) {
 
       {/* CAPITULO 02 -- A COMIDA */}
       {vitrineBuffets.length > 0 && (
-        <section className="story story--wash">
+        <section data-capitulo="buffet" className="story story--wash">
           <div className="story-wrap">
             <Reveal>
               <div className="story-kicker"><b>{num("buffet")}</b><span>{t("buffet", "eyebrow")}</span></div>
@@ -246,7 +248,7 @@ export default async function PropostaPublicaPage({ params }) {
 
       {/* CAPITULO 03 -- O QUE ESTA INCLUSO (pacote + extras) */}
       {pacote && (
-        <section className="story">
+        <section data-capitulo="pacote" className="story">
           <div className="story-wrap">
             <Reveal>
               <div className="story-kicker"><b>{num("pacote")}</b><span>{t("pacote", "eyebrow")}</span></div>
@@ -315,11 +317,26 @@ export default async function PropostaPublicaPage({ params }) {
 
       {momentosDe("pacote").map((m) => <Momento key={m.id} momento={m} />)}
 
-      {/* CAPITULO 04 -- INVESTIMENTO. Se ja tem contrato assinado, esse capitulo
+      {/* CAPITULO -- DEPOIMENTOS (antes do investimento: prova social embala a decisao) */}
+      {depoimentosFiltrados.length > 0 && (
+        <section data-capitulo="depoimentos" className="story">
+          <div className="story-wrap">
+            <Reveal>
+              <div className="story-kicker"><b>{num("depoimentos")}</b><span>{t("depoimentos", "eyebrow")}</span></div>
+              <h2 className="story-title">{tituloCustom(t("depoimentos", "titulo"))}</h2>
+            </Reveal>
+            <Reveal>
+              <DepoimentosCarrossel depoimentos={depoimentosFiltrados} tipoEvento={evento?.tipo} />
+            </Reveal>
+          </div>
+        </section>
+      )}
+
+      {/* CAPITULO -- INVESTIMENTO. Se ja tem contrato assinado, esse capitulo
           vira "Ja e' oficial" e mostra o cronograma de pagamentos no lugar do
           botao de aceitar -- antes os dois apareciam juntos (bug: aceitar +
           confirmado ao mesmo tempo). */}
-      <section className="story story--wash">
+      <section data-capitulo="investimento" className="story story--wash">
         <div className="story-narrow">
           <Reveal>
             <div className="story-kicker"><b>{num("investimento")}</b><span>{jaAssinado ? "Já é oficial" : t("investimento", "eyebrow")}</span></div>
@@ -392,21 +409,6 @@ export default async function PropostaPublicaPage({ params }) {
       </EscolhaBuffetProvider>
 
       {momentosDe("investimento").map((m) => <Momento key={m.id} momento={m} />)}
-
-      {/* CAPITULO 05 -- DEPOIMENTOS (fecha a narrativa: quem ja fez, o que achou) */}
-      {depoimentosFiltrados.length > 0 && (
-        <section className="story">
-          <div className="story-wrap">
-            <Reveal>
-              <div className="story-kicker"><b>{num("depoimentos")}</b><span>{t("depoimentos", "eyebrow")}</span></div>
-              <h2 className="story-title">{tituloCustom(t("depoimentos", "titulo"))}</h2>
-            </Reveal>
-            <Reveal>
-              <DepoimentosCarrossel depoimentos={depoimentosFiltrados} tipoEvento={evento?.tipo} />
-            </Reveal>
-          </div>
-        </section>
-      )}
 
       <RodapeAssinatura atendente={atendente} />
     </div>

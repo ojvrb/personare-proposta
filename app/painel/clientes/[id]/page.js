@@ -10,10 +10,41 @@ const STATUS_PROPOSTA = {
   pre_aprovada: "Pré-aprovada", aceita: "Aceita", perdida: "Perdida",
 };
 
+const CAPITULO_LABEL = {
+  espaco: "O lugar", decoracao: "Decoração", buffet: "A mesa",
+  pacote: "O que está incluso", depoimentos: "Depoimentos", investimento: "Investimento",
+};
+
+// Lead score simples a partir do tracking de leitura (proposta_analytics):
+// mede se abriu, quantas vezes e se foi recente -- o suficiente pra saber se
+// vale ligar agora ou esperar. Nao e' ciencia, e' um sinal pro vendedor.
+function calcularLeadScore(analytics) {
+  const aberturas = analytics.filter((a) => a.tipo === "abertura");
+  if (aberturas.length === 0) return { nivel: "sem_leitura", aberturas: 0, ultimaAbertura: null, capituloTop: null };
+
+  const ultimaAbertura = aberturas.reduce((max, a) => (a.criado_em > max ? a.criado_em : max), aberturas[0].criado_em);
+  const horasDesde = (Date.now() - new Date(ultimaAbertura).getTime()) / 3600000;
+
+  let score = 40;
+  if (aberturas.length >= 3) score += 30;
+  if (horasDesde <= 48) score += 30;
+  const nivel = score >= 70 ? "quente" : score >= 40 ? "morno" : "frio";
+
+  const tempoPorCapitulo = {};
+  for (const a of analytics) {
+    if (a.tipo === "capitulo" && a.capitulo) tempoPorCapitulo[a.capitulo] = (tempoPorCapitulo[a.capitulo] || 0) + Number(a.duracao_ms || 0);
+  }
+  const entradas = Object.entries(tempoPorCapitulo);
+  const capituloTop = entradas.length > 0 ? entradas.reduce((a, b) => (b[1] > a[1] ? b : a))[0] : null;
+
+  return { nivel, aberturas: aberturas.length, ultimaAbertura, capituloTop };
+}
+
 export default function ClienteDetalhePage({ params }) {
   const { id } = use(params);
   const [dados, setDados] = useState(null);
   const [colegas, setColegas] = useState([]);
+  const [buffets, setBuffets] = useState([]);
   const [meuRole, setMeuRole] = useState(null);
   const [erro, setErro] = useState("");
   const [nota, setNota] = useState("");
@@ -32,6 +63,7 @@ export default function ClienteDetalhePage({ params }) {
   useEffect(() => {
     carregar();
     fetch("/api/perfis").then((r) => r.json()).then((d) => setColegas(d.colegas || []));
+    fetch("/api/buffets").then((r) => r.json()).then((d) => setBuffets(d.items || []));
   }, [id]);
 
   async function enviarNota(e) {
@@ -92,6 +124,15 @@ export default function ClienteDetalhePage({ params }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ novo_desconto: novoDesconto, motivo }),
+    });
+    if (ok) carregar();
+  }
+
+  async function novaVersaoProposta(propostaId, campos) {
+    const ok = await apiFetch(`/api/propostas/${propostaId}/nova-versao`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(campos),
     });
     if (ok) carregar();
   }
@@ -222,7 +263,7 @@ export default function ClienteDetalhePage({ params }) {
           <h4>Propostas</h4>
           {(evento.propostas || []).length === 0 && <p style={{ color: "var(--granite)", fontSize: 13 }}>Nenhuma proposta ainda.</p>}
           {(evento.propostas || []).map((p) => (
-            <Proposta key={p.id} proposta={p} onStatus={atualizarPropostaStatus} onAjustar={ajustarProposta} />
+            <Proposta key={p.id} proposta={p} numConvidadosAtual={evento.num_convidados} buffets={buffets} onStatus={atualizarPropostaStatus} onAjustar={ajustarProposta} onNovaVersao={novaVersaoProposta} />
           ))}
 
           <h4>Contrato</h4>
@@ -301,8 +342,12 @@ function ModalFechamento({ cliente, onConfirmar, onCancelar }) {
   );
 }
 
-function Proposta({ proposta: p, onStatus, onAjustar }) {
+function Proposta({ proposta: p, numConvidadosAtual, buffets, onStatus, onAjustar, onNovaVersao }) {
   const [ajustando, setAjustando] = useState(false);
+  const [revisando, setRevisando] = useState(false);
+  const [novoBuffetId, setNovoBuffetId] = useState(p.buffet_id || "");
+  const [novosConvidados, setNovosConvidados] = useState(numConvidadosAtual || "");
+  const [motivoRevisao, setMotivoRevisao] = useState("");
   // Desconto agora em % pra ser mais legivel pra staff que negocia. O
   // subtotal e' fixo (o total muda quando desconto muda), entao pct inicial
   // deriva do desconto absoluto salvo: (desconto / subtotal) * 100.
@@ -349,12 +394,25 @@ function Proposta({ proposta: p, onStatus, onAjustar }) {
   }
 
   const ajustes = p.propostas_ajustes || [];
+  const leadScore = calcularLeadScore(p.proposta_analytics || []);
+  const COR_NIVEL = { quente: "var(--red)", morno: "var(--amber)", frio: "var(--stone)", sem_leitura: "var(--granite)" };
+  const LABEL_NIVEL = { quente: "🔥 Quente", morno: "Morno", frio: "Frio", sem_leitura: "Ainda não abriu" };
 
   return (
     <div style={{ border: "1px solid var(--stroke)", borderRadius: 8, padding: 12, marginBottom: 10 }}>
       <div className="resumo-linha" style={{ border: "none", padding: 0, marginBottom: 8 }}>
         <a href={`/proposta/${p.slug}`} target="_blank" rel="noopener noreferrer">v{p.versao}</a>
         <span>R$ {Number(p.total).toLocaleString("pt-BR")}</span>
+      </div>
+
+      <div style={{ fontSize: 12, marginBottom: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span className="badge" style={{ color: COR_NIVEL[leadScore.nivel], borderColor: COR_NIVEL[leadScore.nivel] }}>{LABEL_NIVEL[leadScore.nivel]}</span>
+        {leadScore.aberturas > 0 && (
+          <span style={{ color: "var(--granite)" }}>
+            aberta {leadScore.aberturas}x · última {new Date(leadScore.ultimaAbertura).toLocaleString("pt-BR")}
+            {leadScore.capituloTop ? ` · mais tempo em "${CAPITULO_LABEL[leadScore.capituloTop] || leadScore.capituloTop}"` : ""}
+          </span>
+        )}
       </div>
 
       {p.status === "perdida" && p.motivo_categoria && (
@@ -392,6 +450,9 @@ function Proposta({ proposta: p, onStatus, onAjustar }) {
         </select>
 
         <button className="btn" onClick={() => setAjustando((a) => !a)} style={{ fontSize: 12, padding: "4px 8px" }}>Ajustar desconto</button>
+        {(p.status === "rascunho" || p.status === "enviada" || p.status === "em_negociacao" || p.status === "pre_aprovada") && (
+          <button className="btn" onClick={() => setRevisando((r) => !r)} style={{ fontSize: 12, padding: "4px 8px" }}>Nova versão (buffet/convidados)</button>
+        )}
       </div>
 
       {statusPendente && (
@@ -443,10 +504,39 @@ function Proposta({ proposta: p, onStatus, onAjustar }) {
         </div>
       )}
 
+      {revisando && (
+        <div style={{ marginTop: 8, padding: 10, background: "var(--sage-wash)", border: "1px solid var(--stroke)", borderRadius: 8 }}>
+          <p style={{ fontSize: 12, color: "var(--granite)", margin: "0 0 8px" }}>
+            Cria uma nova versão (v{p.versao + 1}) com link próprio. A versão atual fica congelada como histórico.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <select value={novoBuffetId} onChange={(e) => setNovoBuffetId(e.target.value)} style={{ fontSize: 12 }}>
+              <option value="">Sem buffet</option>
+              {buffets.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+            </select>
+            <input type="number" min="1" value={novosConvidados} onChange={(e) => setNovosConvidados(e.target.value)} placeholder="Nº convidados" style={{ width: 110 }} />
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <input value={motivoRevisao} onChange={(e) => setMotivoRevisao(e.target.value)} placeholder="Motivo (ex: cliente aumentou a lista)" style={{ flex: 1, minWidth: 160 }} />
+            <button
+              className="btn primary"
+              onClick={() => {
+                onNovaVersao(p.id, { buffet_id: novoBuffetId || null, num_convidados: Number(novosConvidados), motivo: motivoRevisao });
+                setRevisando(false);
+              }}
+              disabled={!novosConvidados}
+            >
+              Criar versão
+            </button>
+          </div>
+        </div>
+      )}
+
       {ajustes.length > 0 && (
         <div style={{ marginTop: 8, fontSize: 11, color: "var(--granite)" }}>
           {ajustes.map((a) => (
             <div key={a.id}>
+              {a.campo && a.campo !== "desconto" ? `Nova versão (${a.campo.replace("_", " e ")}): ` : ""}
               R$ {Number(a.valor_anterior).toLocaleString("pt-BR")} → R$ {Number(a.valor_novo).toLocaleString("pt-BR")}
               {a.motivo ? ` — ${a.motivo}` : ""} ({new Date(a.criado_em).toLocaleDateString("pt-BR")})
             </div>

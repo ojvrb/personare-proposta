@@ -14,10 +14,14 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           ...(isDev
             ? []
             : [
+                // HSTS so em producao: em dev (http://localhost, sem TLS) esse
+                // header faz o browser "grudar" HTTPS-only pro localhost por ate
+                // 2 anos (preload) -- qualquer teste local depois disso quebra,
+                // mesmo corrigindo o codigo, ate limpar o estado HSTS do browser.
+                { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
                 {
                   key: "Content-Security-Policy",
                   value:

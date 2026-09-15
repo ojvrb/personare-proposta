@@ -10,6 +10,7 @@ Workers via @opennextjs/cloudflare**.
 ```bash
 npm install
 npm run dev           # localhost:3000
+npm test              # node --test nativo (tests/*.test.mjs) -- pricing, proposta, perfil, allowlist
 npm run build         # verifica build
 npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
 ```
@@ -34,8 +35,13 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   - `usuarios/` — só admin: convida e reseta senhas.
   - `conta/` — user troca própria senha.
 - `/proposta/[slug]` — proposta pública (sem login). Storytelling em capítulos.
+  `PropostaTracker.js` mede abertura + tempo por capítulo (lead score no CRM).
 - `/proposta/[slug]/convidados` — RSVP pós-fechamento.
-- `/api/*` — Route Handlers. Muitos são wrappers finos em `lib/crudApi.js`.
+- `/api/*` — Route Handlers. Muitos são wrappers finos em `lib/crudApi.js`
+  (allowlist de campos via `lib/allowlist.js` — ver regra abaixo).
+- `/api/proposta-analytics` — público, grava tracking de leitura via service role.
+- `/api/propostas/[id]/nova-versao` — cria v2/v3 de uma proposta (buffet ou
+  convidados mudou antes do aceite); histórico fica em `propostas_ajustes`.
 
 ## Regras não-óbvias que doem se ignorar
 
@@ -88,10 +94,20 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   rejeita a request inteira. Ao adicionar nova tabela ao catálogo, use o
   mesmo padrão.
 - **Capítulos da proposta pública** (`app/proposta/[slug]/page.js`): a ordem
-  é `espaco → decoracao → buffet → pacote → investimento → depoimentos`. Cada
+  é `espaco → decoracao → buffet → pacote → depoimentos → investimento`
+  (depoimentos antes do preço — prova social embala a decisão). Cada
   capítulo só entra em `capitulos` se tem conteúdo (foto ativa, buffet
   curado, pacote, etc.). A numeração `01/02/…` sai de `capitulos.indexOf`,
-  então mudar a ordem afeta os números que o casal vê.
+  então mudar a ordem afeta os números que o casal vê. Cada `<section>` tem
+  `data-capitulo="..."` pro `PropostaTracker.js` medir tempo de leitura.
+- **Mass assignment**: `crudApi.js` recebe um `campos` (allowlist) opcional —
+  toda rota que usa `crudHandlers()` deve declarar as colunas aceitas em
+  POST/PATCH (ver `lib/allowlist.js` + qualquer `app/api/*/route.js` como
+  exemplo). Sem isso, o body inteiro da request vira `insert`/`update` cru.
+- **`propostas.versao`**: existe desde o schema original mas só passou a ser
+  usado em `POST /api/propostas/[id]/nova-versao`. Ao criar uma nova versão,
+  o `num_convidados` fica em `eventos` (compartilhado entre versões — é o
+  dado "atual" do evento); só `subtotal`/`total` ficam congelados por versão.
 
 ## Segurança / operacional
 
@@ -105,6 +121,20 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   via @opennextjs/cloudflare. URL: personare-proposta.ojoaovitorfoto.workers.dev.
 - **Commit só quando autorizado.** Não fazer `git commit`/`git push`/`npm run
   deploy` sem ordem explícita nesta sessão.
+- **HTTPS forçado + HSTS só em produção** (`middleware.js` + `next.config.js`).
+  Nunca tire o gate de `NODE_ENV === "production"` desses dois: em dev
+  (`next dev`, sem TLS) o header HSTS faz o browser grudar HTTPS-only em
+  `localhost` por até 2 anos (`preload`), e quebra teste local mesmo depois
+  de corrigir o código — só limpando o estado HSTS do browser resolve.
+- **Cookie de sessão**: `lib/supabase/cookieOptions.js` seta `secure: true`
+  só em produção (mesma lógica do HSTS acima, mesmo motivo).
+- **Logoff por inatividade**: 10min, via `app/painel/useLogoffInativo.js`
+  no layout do painel. Redireciona pra `/login?reason=idle`.
+- **RLS é "staff autenticado = acesso total"**, não por dono — o projeto não
+  é multi-tenant. A regra "atendente só vê os próprios leads" existe só na
+  API (`.or(atendente_id.eq...)` em `/api/propostas`), não no banco. Ao
+  adicionar rota nova que lê `clientes`/`eventos`/`propostas`, replicar esse
+  filtro — RLS não vai fazer isso por você.
 
 ## Convenções de código
 
@@ -118,14 +148,22 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
 - **Português** em UI/labels/mensagens de erro e em comentários (sem acentos
   nos comentários).
 - **Arquivos**: prefira editar o existente. Não crie `.md` novos sem pedido.
-- **Testes**: o projeto não tem suíte. Verificação é `npm run build` + browser
-  no dev server (mobile e desktop).
+- **Testes**: `npm test` (`node --test`, zero dependência nova) cobre lógica
+  pura em `lib/` — `pricing`, `proposta`, `perfil`, `allowlist`. `lib/*.js`
+  roda como ESM sob Node puro por causa de `lib/package.json`
+  (`{"type":"module"}`) — não mexe nisso sem entender por quê (o resto do
+  projeto, incluindo `next.config.js`, é CommonJS). Código em `lib/` que
+  precisa de `next/server` (ex: `NextResponse`) deve importar dinamicamente
+  dentro da função que usa (ver `requireRole` em `perfil.js`), senão o
+  arquivo não importa fora do build do Next e fica intestável. UI/E2E
+  continua sendo `npm run build` + browser no dev server (mobile e desktop).
 
 ## Ler antes de mexer
 
 - `lib/proposta.js` — carga da proposta pública + expurgação de PII.
 - `lib/perfil.js` — auth + papéis.
-- `lib/crudApi.js` — CRUD genérico usado pela maioria das rotas.
+- `lib/crudApi.js` — CRUD genérico usado pela maioria das rotas (allowlist
+  via `lib/allowlist.js`).
 - `lib/pricing.js` — `calcularProposta` (fonte da verdade do total).
 - `app/globals.css` — design system + responsivo. Muitas regras
   mobile-only vivem aqui em `@media (max-width:860px)` ou `(pointer:coarse)`.

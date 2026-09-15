@@ -22,6 +22,7 @@ Deploy: [personare-proposta.ojoaovitorfoto.workers.dev](https://personare-propos
 
 ```bash
 npm run dev       # localhost:3000
+npm test          # node --test nativo (pricing, proposta, perfil, allowlist)
 npm run build     # verifica build
 npm run deploy    # npm run build + wrangler deploy pro Cloudflare Workers
 ```
@@ -29,8 +30,14 @@ npm run deploy    # npm run build + wrangler deploy pro Cloudflare Workers
 ## O que tem hoje
 
 **CRM (`/painel`)**
-- Board kanban por status do lead, com "Mover pra…" no card (touch-friendly)
+- Board kanban por status do lead — cada coluna é um accordion nativo
+  (`<details>`), colapsa sozinho no mobile; "Mover pra…" no card pra touch
 - Detalhe do cliente + timeline de interações + contrato + pagamentos
+- **Lead score**: cada proposta mostra se/quando o cliente abriu a proposta
+  pública, quantas vezes e em qual capítulo passou mais tempo (🔥 Quente /
+  Morno / Frio)
+- **Versionamento de proposta**: cria v2/v3 quando buffet ou número de
+  convidados muda antes do aceite — a versão anterior fica congelada
 - Configurador de nova proposta (cliente + evento + pacote + buffet + extras)
 - Catálogo editável: pacotes, buffets, extras (com flag `substitui_buffet`),
   galeria de fotos do espaço, galeria de fotos de decoração
@@ -50,8 +57,11 @@ npm run deploy    # npm run build + wrangler deploy pro Cloudflare Workers
 4. **A mesa** — vitrine de buffets (cliente pode trocar; total recalcula)
 5. **Antes do preço** — checklist do pacote + extras já selecionados +
    vitrine de extras opcionais que o cliente pode adicionar
-6. **Investimento** — breakdown detalhado + botão de aceite
-7. **Depoimentos** — filtrados pelo tipo de evento
+6. **Depoimentos** — filtrados pelo tipo de evento (antes do preço de propósito)
+7. **Investimento** — breakdown detalhado + botão de aceite
+
+A leitura é rastreada (abertura + tempo por capítulo) pra alimentar o lead
+score no CRM — nada disso é visível ao casal.
 
 **Aceite eletrônico** (Lei 14.063/2020): CPF + nome + rolagem obrigatória +
 checkbox + registro server-side de IP, User-Agent, timestamp e versão dos
@@ -71,6 +81,11 @@ termos.
 - **Extras do cliente na proposta pública**: state efêmero em
   `EscolhaBuffetContext`; só persiste no aceite (server valida, mescla,
   recalcula e marca com `pelo_cliente: true`).
+- **Mass assignment**: rotas genéricas (`lib/crudApi.js`) só aceitam colunas
+  numa allowlist explícita (`lib/allowlist.js`) — nunca o body inteiro cru.
+- **Segurança de sessão**: HTTPS forçado + HSTS + cookie `secure` (só em
+  produção — em dev quebraria `next dev`, que não tem TLS), logoff automático
+  por 10min de inatividade, rate limit de login no Supabase Auth.
 - Mais detalhes em [CLAUDE.md](./CLAUDE.md).
 
 ## Progresso

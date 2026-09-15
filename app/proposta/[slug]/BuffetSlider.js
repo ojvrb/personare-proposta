@@ -57,11 +57,9 @@ export default function BuffetSlider({ buffets, recomendadoId, numConvidados }) 
         <div className="buffet-preco" style={{ color: "var(--gold-dark)", fontWeight: 600, marginBottom: 20, fontFamily: "var(--display)" }}>
           R$ {Number(atual.preco_pessoa).toLocaleString("pt-BR")}/pessoa × {numConvidados} convidados
         </div>
-        {atual.itens?.length > 0 && (
-          <ul className="checklist" style={{ marginTop: 0, marginBottom: 24 }}>
-            {atual.itens.map((item, i) => <li key={i} className="stagger-item">{item}</li>)}
-          </ul>
-        )}
+        <CategoriaCardapio titulo="Entradas" itens={atual.itens_entrada} />
+        <CategoriaCardapio titulo="Prato principal" itens={atual.itens_prato} />
+        <CategoriaCardapio titulo="Sobremesa" itens={atual.itens_sobremesa} />
         {buffets.length > 1 && (
           <button
             type="button"
@@ -74,6 +72,21 @@ export default function BuffetSlider({ buffets, recomendadoId, numConvidados }) 
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// Um bloco por categoria do cardapio (entrada, prato principal, e futuras
+// como sobremesa) -- pula se a categoria nao tem itens. Padrao pra adicionar
+// categoria nova: coluna `itens_<categoria>` no buffet + um <CategoriaCardapio> aqui.
+function CategoriaCardapio({ titulo, itens }) {
+  if (!itens?.length) return null;
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div className="eyebrow" style={{ animation: "none", opacity: 1, marginBottom: 8, fontSize: 12 }}>{titulo}</div>
+      <ul className="checklist" style={{ marginTop: 0, marginBottom: 0 }}>
+        {itens.map((item, i) => <li key={i} className="stagger-item">{item}</li>)}
+      </ul>
     </div>
   );
 }

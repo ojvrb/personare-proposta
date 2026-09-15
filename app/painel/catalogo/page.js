@@ -21,7 +21,7 @@ export default function CatalogoPage() {
       <Secao
         titulo="Buffets"
         endpoint="/api/buffets"
-        campoInicial={{ nome: "", preco_pessoa: 0, descricao: "", itens: "", ativo: true }}
+        campoInicial={{ nome: "", preco_pessoa: 0, descricao: "", itens_entrada: "", itens_prato: "", itens_sobremesa: "", ativo: true }}
         renderCampos={BuffetCampos}
         resumo={(b) => `R$ ${Number(b.preco_pessoa).toLocaleString("pt-BR")}/pessoa`}
       />
@@ -190,7 +190,7 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
     // Setar chave que nao existe faz o PATCH mandar coluna inexistente e o
     // PostgREST rejeita a request inteira.
     const draft = { ...item };
-    for (const k of ["itens_inclusos", "itens_nao_inclusos", "fotos", "itens"]) {
+    for (const k of ["itens_inclusos", "itens_nao_inclusos", "fotos", "itens_entrada", "itens_prato", "itens_sobremesa"]) {
       if (k in item) draft[k] = arrayParaTexto(item[k]);
     }
     setRascunho(draft);
@@ -312,7 +312,9 @@ function normalizarPayload(campos) {
   if ("itens_inclusos" in out) out.itens_inclusos = textoParaArray(out.itens_inclusos);
   if ("itens_nao_inclusos" in out) out.itens_nao_inclusos = textoParaArray(out.itens_nao_inclusos);
   if ("fotos" in out) out.fotos = textoParaArray(out.fotos);
-  if ("itens" in out) out.itens = textoParaArray(out.itens);
+  if ("itens_entrada" in out) out.itens_entrada = textoParaArray(out.itens_entrada);
+  if ("itens_prato" in out) out.itens_prato = textoParaArray(out.itens_prato);
+  if ("itens_sobremesa" in out) out.itens_sobremesa = textoParaArray(out.itens_sobremesa);
   delete out.id;
   delete out.created_at;
   return out;
@@ -453,7 +455,9 @@ function BuffetCampos(campos, set) {
       <input placeholder="Nome" value={campos.nome} onChange={(e) => set({ ...campos, nome: e.target.value })} />
       <input type="number" placeholder="Preço por pessoa" value={campos.preco_pessoa} onChange={(e) => set({ ...campos, preco_pessoa: e.target.value })} />
       <input placeholder="Descrição" value={campos.descricao || ""} onChange={(e) => set({ ...campos, descricao: e.target.value })} />
-      <textarea placeholder="Itens do cardápio (separados por vírgula)" rows={2} value={campos.itens || ""} onChange={(e) => set({ ...campos, itens: e.target.value })} />
+      <textarea placeholder="Entradas (separadas por vírgula)" rows={2} value={campos.itens_entrada || ""} onChange={(e) => set({ ...campos, itens_entrada: e.target.value })} />
+      <textarea placeholder="Prato principal (separados por vírgula)" rows={2} value={campos.itens_prato || ""} onChange={(e) => set({ ...campos, itens_prato: e.target.value })} />
+      <textarea placeholder="Sobremesa (separados por vírgula)" rows={2} value={campos.itens_sobremesa || ""} onChange={(e) => set({ ...campos, itens_sobremesa: e.target.value })} />
     </div>
   );
 }

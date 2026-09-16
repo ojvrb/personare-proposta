@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { limitarPorIp } from "@/lib/rateLimit";
 
 const TIPOS_CAPITULO = ["espaco", "decoracao", "buffet", "pacote", "depoimentos", "investimento"];
 
@@ -7,6 +8,9 @@ const TIPOS_CAPITULO = ["espaco", "decoracao", "buffet", "pacote", "depoimentos"
 // no mount e, no pagehide, 1 evento "capitulo" por secao que o casal ficou
 // olhando (sendBeacon, corpo com varios capitulos de uma vez).
 export async function POST(req) {
+  const limitado = await limitarPorIp(req);
+  if (limitado) return limitado;
+
   const { slug, tipo, capitulos } = await req.json();
   if (!slug || !["abertura", "capitulo"].includes(tipo)) {
     return NextResponse.json({ error: "dados invalidos" }, { status: 400 });

@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
     supabase.from("interacoes").select("*").eq("cliente_id", id).order("created_at", { ascending: false }),
     supabase.from("transferencias_lead").select("*").eq("cliente_id", id).eq("status", "pendente").maybeSingle(),
   ]);
-  if (clienteErr) return NextResponse.json({ error: clienteErr.message }, { status: 404 });
+  if (clienteErr) { console.error(clienteErr); return NextResponse.json({ error: "nao encontrado" }, { status: 404 }); }
 
   const { data: authList } = await adminClient().auth.admin.listUsers();
   const emailPorId = Object.fromEntries(authList.users.map((u) => [u.id, u.email]));
@@ -55,7 +55,7 @@ export async function PATCH(req, { params }) {
   if (Object.keys(campos).length === 0) return NextResponse.json({ error: "nada pra atualizar" }, { status: 400 });
 
   const { error } = await supabase.from("clientes").update(campos).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ ok: true });
 }

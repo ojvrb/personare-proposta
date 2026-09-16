@@ -18,6 +18,6 @@ export async function PATCH(req, { params }) {
   }
 
   const { error } = await adminClient().auth.admin.updateUserById(user_id, { password: String(senha) });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   return NextResponse.json({ ok: true });
 }

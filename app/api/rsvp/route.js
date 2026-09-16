@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
+import { limitarPorIp } from "@/lib/rateLimit";
 
 // POST publico (sem login) -- o convidado confirma presenca pelo link da proposta.
 // Resolve o evento pelo slug da proposta e casa o nome (case-insensitive); se nao
 // achar na lista, cria como convidado avulso (nao previsto pela equipe).
 export async function POST(req) {
+  const limitado = await limitarPorIp(req);
+  if (limitado) return limitado;
+
   const { slug, nome, status } = await req.json();
   if (!slug || !nome?.trim() || !["confirmado", "nao_vai"].includes(status)) {
     return NextResponse.json({ error: "dados invalidos" }, { status: 400 });
@@ -30,7 +34,7 @@ export async function POST(req) {
       .eq("id", existente.id)
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
     return NextResponse.json({ convidado: data });
   }
 
@@ -39,6 +43,6 @@ export async function POST(req) {
     .insert({ evento_id: proposta.evento_id, nome: nomeLimpo, status })
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   return NextResponse.json({ convidado: data });
 }

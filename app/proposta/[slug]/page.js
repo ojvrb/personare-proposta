@@ -362,7 +362,7 @@ export default async function PropostaPublicaPage({ params }) {
               numConvidados={evento?.num_convidados || 0}
               jaAssinado={jaAssinado}
               valorContratado={contrato?.valor_contratado}
-              evento={evento}
+              evento={{ data_evento: evento?.data_evento }}
             />
           </Reveal>
 

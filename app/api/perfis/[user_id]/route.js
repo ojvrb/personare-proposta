@@ -27,7 +27,7 @@ export async function PATCH(req, { params }) {
     .upsert({ user_id, ...patch }, { onConflict: "user_id" })
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ perfil: data });
 }
@@ -56,7 +56,7 @@ export async function DELETE(req, { params }) {
   await admin.from("perfis").delete().eq("user_id", user_id);
 
   const { error } = await admin.auth.admin.deleteUser(user_id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ ok: true });
 }

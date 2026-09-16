@@ -14,7 +14,7 @@ export async function GET() {
     .from("contratos")
     .select("id, status, valor_contratado, created_at, eventos(id, data_evento, tipo, num_convidados, clientes(id, nome, nome_conjuge))")
     .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   return NextResponse.json({ contratos: data });
 }
 
@@ -32,7 +32,7 @@ export async function POST(req) {
     .insert({ evento_id, valor_contratado: valor_contratado || 0 })
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ contrato: data });
 }

@@ -58,7 +58,7 @@ export async function POST(req) {
     password: String(senha),
     email_confirm: true,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   await supabase.from("perfis").upsert({ user_id: data.user.id, role }, { onConflict: "user_id" });
 

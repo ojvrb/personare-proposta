@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { expurgar, mascararCPF } from "@/lib/proposta";
 import { calcularProposta } from "@/lib/pricing";
+import { limitarPorIp } from "@/lib/rateLimit";
 
 // POST publico -- aceite da proposta pelo cliente. Sob a lei brasileira, uma
 // "assinatura eletronica simples" (aceite por clique) so' vale como prova se
@@ -12,6 +13,9 @@ import { calcularProposta } from "@/lib/pricing";
 // (necessario pra atos que exigem publicidade formal), mas serve pra prestacao
 // de servico civil quando as partes admitem esse meio (Codigo Civil art. 107).
 export async function POST(req, { params }) {
+  const limitado = await limitarPorIp(req);
+  if (limitado) return limitado;
+
   const { id } = await params;
   const supabase = adminClient();
   const body = await req.json().catch(() => ({}));
@@ -29,7 +33,7 @@ export async function POST(req, { params }) {
     if (motivo_categoria && !proposta.motivo_categoria) {
       const { data: comFeedback, error: fbErr } = await supabase
         .from("propostas").update({ motivo_categoria }).eq("id", id).select().single();
-      if (fbErr) return NextResponse.json({ error: fbErr.message }, { status: 500 });
+      if (fbErr) { console.error(fbErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
       return NextResponse.json({ proposta: expurgar(comFeedback) });
     }
     return NextResponse.json({ proposta: expurgar(proposta) });
@@ -131,7 +135,7 @@ export async function POST(req, { params }) {
       buffet_id: buffetIdFinal,
     })
     .eq("id", id).neq("status", "aceita").select().maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   if (!atualizada) {
     const { data: jaAceita } = await supabase.from("propostas").select("*").eq("id", id).single();
     return NextResponse.json({ proposta: expurgar(jaAceita) });

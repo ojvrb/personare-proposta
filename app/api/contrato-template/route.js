@@ -9,7 +9,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao autorizado" }, { status: 401 });
   const { data, error } = await supabase.from("contrato_template").select("*").eq("id", 1).maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   return NextResponse.json({ item: data || { intro: null, clausulas: [] } });
 }
 
@@ -25,6 +25,6 @@ export async function PATCH(req) {
     .from("contrato_template")
     .update({ ...body, atualizado_em: new Date().toISOString() })
     .eq("id", 1).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   return NextResponse.json({ item: data });
 }

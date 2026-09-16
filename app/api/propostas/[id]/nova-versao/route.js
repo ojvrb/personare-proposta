@@ -28,7 +28,7 @@ export async function POST(req, { params }) {
     .select("*, eventos(*)")
     .eq("id", id)
     .single();
-  if (atualErr) return NextResponse.json({ error: atualErr.message }, { status: 404 });
+  if (atualErr) { console.error(atualErr); return NextResponse.json({ error: "nao encontrado" }, { status: 404 }); }
 
   const convidadosAnterior = atual.eventos.num_convidados;
   const buffetIdAnterior = atual.buffet_id;
@@ -37,7 +37,7 @@ export async function POST(req, { params }) {
 
   if (num_convidados !== undefined) {
     const { error } = await supabase.from("eventos").update({ num_convidados: numConvidadosNovo }).eq("id", atual.evento_id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   }
 
   const [{ data: maxVersaoRow }, { data: pacote }, { data: buffet }, { data: extras }] = await Promise.all([
@@ -77,7 +77,7 @@ export async function POST(req, { params }) {
     })
     .select()
     .single();
-  if (novaErr) return NextResponse.json({ error: novaErr.message }, { status: 500 });
+  if (novaErr) { console.error(novaErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   const campo = buffet_id !== undefined && num_convidados !== undefined ? "buffet_e_convidados" : buffet_id !== undefined ? "buffet" : "convidados";
   await supabase.from("propostas_ajustes").insert({

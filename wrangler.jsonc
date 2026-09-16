@@ -11,6 +11,17 @@
   "services": [
     { "binding": "WORKER_SELF_REFERENCE", "service": "personare-proposta" }
   ],
+  // Rate limit nativo da Cloudflare (sem dependencia externa, sem KV) --
+  // usado nas rotas publicas sem login (proposta-analytics, rsvp, aceitar)
+  // pra impedir flood. 20 req/60s por IP: folgado pro uso real (visitante
+  // manda 1 "abertura" + poucos "capitulo" na leitura normal), aperta um flood.
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
   // Workers Logs (gratis, sem destino externo): erro/latencia/console.log de
   // cada request ficam disponiveis no dashboard Cloudflare > Workers >
   // personare-proposta > Logs. head_sampling_rate:1 = loga 100% das requests

@@ -18,7 +18,7 @@ export async function POST(req, { params }) {
   }
 
   const { data: proposta, error: buscaErr } = await supabase.from("propostas").select("*").eq("id", id).single();
-  if (buscaErr) return NextResponse.json({ error: buscaErr.message }, { status: 404 });
+  if (buscaErr) { console.error(buscaErr); return NextResponse.json({ error: "nao encontrado" }, { status: 404 }); }
 
   const subtotal = Number(proposta.subtotal);
   if (descontoNum > subtotal) {
@@ -34,7 +34,7 @@ export async function POST(req, { params }) {
     motivo: motivo || null,
     ajustado_por: user.id,
   });
-  if (ajusteErr) return NextResponse.json({ error: ajusteErr.message }, { status: 500 });
+  if (ajusteErr) { console.error(ajusteErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   const { data, error } = await supabase
     .from("propostas")
@@ -42,7 +42,7 @@ export async function POST(req, { params }) {
     .eq("id", id)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ proposta: expurgar(data) });
 }

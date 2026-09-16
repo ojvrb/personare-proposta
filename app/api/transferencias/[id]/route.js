@@ -17,7 +17,7 @@ export async function PATCH(req, { params }) {
     .select("*")
     .eq("id", id)
     .single();
-  if (buscaErr) return NextResponse.json({ error: buscaErr.message }, { status: 404 });
+  if (buscaErr) { console.error(buscaErr); return NextResponse.json({ error: "nao encontrado" }, { status: 404 }); }
   if (transferencia.status !== "pendente") {
     return NextResponse.json({ error: "essa transferencia ja foi resolvida" }, { status: 400 });
   }
@@ -27,7 +27,7 @@ export async function PATCH(req, { params }) {
       .from("clientes")
       .update({ atendente_id: transferencia.para_atendente_id })
       .eq("id", transferencia.cliente_id);
-    if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+    if (updErr) { console.error(updErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   }
 
   const { data, error } = await supabase
@@ -36,7 +36,7 @@ export async function PATCH(req, { params }) {
     .eq("id", id)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ transferencia: data });
 }

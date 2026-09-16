@@ -27,7 +27,7 @@ export async function POST(req) {
     contentType: file.type,
     cacheControl: "31536000",
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   const { data } = adminClient().storage.from("catalogo-midia").getPublicUrl(caminho);
   return NextResponse.json({ url: data.publicUrl });

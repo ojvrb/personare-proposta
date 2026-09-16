@@ -24,7 +24,7 @@ export async function PATCH(req, { params }) {
   if (valida_ate) campos.valida_ate = valida_ate;
 
   const { data, error } = await supabase.from("propostas").update(campos).eq("id", id).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ proposta: expurgar(data) });
 }

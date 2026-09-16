@@ -13,7 +13,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao autorizado" }, { status: 401 });
   const { data, error } = await supabase.from("proposta_textos_tipo").select("*");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   return NextResponse.json({ items: data });
 }
 
@@ -33,6 +33,6 @@ export async function PATCH(req) {
     .from("proposta_textos_tipo")
     .upsert({ evento_tipo, ...patch, atualizado_em: new Date().toISOString() }, { onConflict: "evento_tipo" })
     .select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   return NextResponse.json({ item: data });
 }

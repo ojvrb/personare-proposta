@@ -14,6 +14,6 @@ export async function PATCH(req) {
   }
 
   const { error } = await supabase.auth.updateUser({ password: String(senha) });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   return NextResponse.json({ ok: true });
 }

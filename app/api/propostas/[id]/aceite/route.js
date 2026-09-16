@@ -18,7 +18,7 @@ export async function GET(_req, { params }) {
     .from("propostas")
     .select("id, aceita_em, aceite_ip, aceite_user_agent, aceite_cpf, aceite_nome_completo, aceite_termos_versao, eventos(cliente_id)")
     .eq("id", id).single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   if (!proposta.aceita_em) return NextResponse.json({ error: "proposta ainda nao foi aceita" }, { status: 400 });
 
   // Log de acesso ao dado sensivel -- LGPD art. 37 (registro de operacoes de

@@ -14,7 +14,7 @@ export async function GET() {
     .select("*, clientes(nome, nome_conjuge)")
     .eq("status", "pendente")
     .order("solicitado_em");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   const { data: authList } = await adminClient().auth.admin.listUsers();
   const emailPorId = Object.fromEntries(authList.users.map((u) => [u.id, u.email]));

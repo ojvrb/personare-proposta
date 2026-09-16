@@ -46,7 +46,7 @@ export async function GET(req) {
   }
   const [clientesRes, emailPorId, pacotesRes, buffetsRes, extrasRes] = await Promise.all(promessas);
 
-  if (clientesRes.error) return NextResponse.json({ error: clientesRes.error.message }, { status: 500 });
+  if (clientesRes.error) { console.error(clientesRes.error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   let clientes = clientesRes.data;
   if (emailPorId) {
@@ -88,7 +88,7 @@ export async function POST(req) {
     })
     .select()
     .single();
-  if (clienteErr) return NextResponse.json({ error: clienteErr.message }, { status: 500 });
+  if (clienteErr) { console.error(clienteErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   const { data: eventoRow, error: eventoErr } = await supabase
     .from("eventos")
@@ -100,7 +100,7 @@ export async function POST(req) {
     })
     .select()
     .single();
-  if (eventoErr) return NextResponse.json({ error: eventoErr.message }, { status: 500 });
+  if (eventoErr) { console.error(eventoErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   const [pacoteRes, buffetRes, extrasRes] = await Promise.all([
     pacote_id ? supabase.from("pacotes").select("*").eq("id", pacote_id).single() : Promise.resolve({ data: null }),
@@ -145,7 +145,7 @@ export async function POST(req) {
     })
     .select()
     .single();
-  if (propostaErr) return NextResponse.json({ error: propostaErr.message }, { status: 500 });
+  if (propostaErr) { console.error(propostaErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ proposta: propostaRow, link: `/proposta/${slug}` });
 }

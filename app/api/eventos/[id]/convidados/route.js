@@ -13,7 +13,7 @@ export async function GET(req, { params }) {
     .select("*")
     .eq("evento_id", id)
     .order("nome");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ convidados: data });
 }
@@ -32,7 +32,7 @@ export async function POST(req, { params }) {
     .insert({ evento_id: id, nome: nome.trim() })
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
 
   return NextResponse.json({ convidado: data });
 }

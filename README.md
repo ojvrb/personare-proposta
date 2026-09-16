@@ -50,6 +50,8 @@ npm run deploy    # npm run build + wrangler deploy pro Cloudflare Workers
 - Analytics: KPIs por período/origem/atendente/buffet/etapa
 - Papéis: `admin`, `financeiro`, `atendente`. Admin gere usuários e reseta senhas
 - Self-service de senha em `/painel/conta`
+- "Como funciona" (`/painel/como-funciona`): resumo de cada área + FAQ pra
+  equipe não depender de suporte pra dúvidas já documentadas
 
 **Proposta pública (`/proposta/[slug]`)** — sem login, storytelling em capítulos:
 1. Capa (nome do casal, foto de fundo)
@@ -88,6 +90,12 @@ termos.
 - **Segurança de sessão**: HTTPS forçado + HSTS + cookie `secure` (só em
   produção — em dev quebraria `next dev`, que não tem TLS), logoff automático
   por 10min de inatividade, rate limit de login no Supabase Auth.
+- **Rate limit nas rotas públicas**: `proposta-analytics`, `rsvp` e
+  `propostas/[id]/aceitar` (sem login) passam por `lib/rateLimit.js`, binding
+  nativo `RATE_LIMITER` da Cloudflare (20 req/60s por IP).
+- **Erros de API nunca voltam crus pro cliente**: mensagem do
+  Postgres/PostgREST fica só no log do servidor; o cliente recebe mensagem
+  genérica (`lib/crudApi.js` e demais rotas).
 - Mais detalhes em [CLAUDE.md](./CLAUDE.md).
 
 ## Progresso

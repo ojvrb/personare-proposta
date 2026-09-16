@@ -34,6 +34,7 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   - `analytics/` — KPIs e cortes por período/origem/atendente/buffet/etapa.
   - `usuarios/` — só admin: convida e reseta senhas.
   - `conta/` — user troca própria senha.
+  - `como-funciona/` — resumo de cada área + FAQ, visível a todos os papéis.
 - `/proposta/[slug]` — proposta pública (sem login). Storytelling em capítulos.
   `PropostaTracker.js` mede abertura + tempo por capítulo (lead score no CRM).
 - `/proposta/[slug]/convidados` — RSVP pós-fechamento.
@@ -116,6 +117,24 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   usado em `POST /api/propostas/[id]/nova-versao`. Ao criar uma nova versão,
   o `num_convidados` fica em `eventos` (compartilhado entre versões — é o
   dado "atual" do evento); só `subtotal`/`total` ficam congelados por versão.
+- **Nunca passe um objeto inteiro do banco pra Client Component na proposta
+  pública** (`app/proposta/[slug]/*`) sem checar o que tem dentro — o payload
+  RSC vai pro browser de qualquer visitante do link, mesmo campo que o
+  componente não usa. Já rolou de `evento` (com `clientes(*)` aninhado —
+  telefone/cidade/status) ser passado inteiro pro `InvestimentoBloco` sem
+  necessidade. Passe só os campos que o componente de fato lê, como
+  `AceitarProposta` já faz (recebe `contexto={{ valorTotal, dataEvento,
+  numConvidados }}`, nunca o objeto cru).
+- **Erros de rota de API nunca voltam com `error.message` do Postgres/PostgREST
+  pro client** — a mensagem pode citar tabela/coluna/constraint. Use
+  `console.error(error)` + mensagem genérica (ver `erroServidor()` em
+  `lib/crudApi.js`, reaplicar o mesmo padrão em rotas que não usam
+  `crudHandlers()`).
+- **Rotas públicas sem login** (`proposta-analytics`, `rsvp`,
+  `propostas/[id]/aceitar`) passam por `limitarPorIp()`
+  (`lib/rateLimit.js`) antes de tocar no banco — usa o binding
+  `RATE_LIMITER` do `wrangler.jsonc` (rate limit nativo da Cloudflare, 20
+  req/60s por IP). Ao criar uma rota nova sem login, aplicar o mesmo guard.
 
 ## Segurança / operacional
 

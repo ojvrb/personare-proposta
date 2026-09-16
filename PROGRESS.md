@@ -3,6 +3,42 @@
 Diário curto do que já está pronto e o que vem em seguida. Atualizar antes
 de fechar sessão ou trocar de feature.
 
+## 2026-09-16 — Auditoria checklistseguro + correções
+
+Commitado (`962659b`, `4dc9bce`), pushed pro `origin/main` e deployado
+(versão `b35a706e`).
+
+Feito:
+- **Aba "Como funciona"** no painel (`/painel/como-funciona`, visível a
+  todos os papéis): resumo de cada área do sistema + FAQ em acordeão
+  (`<details>/<summary>` nativo) pras dúvidas mais comuns, pra reduzir
+  dependência de suporte.
+- **Auditoria de segurança (17 itens, skill `checklistseguro`)**: 4 de 17
+  reprovados, 0 críticos. 3 já corrigidos, 1 pendente de configuração manual:
+  - **Corrigido — dado demais na proposta pública**: `InvestimentoBloco`
+    recebia o objeto `evento` inteiro (com `telefone`/`cidade`/`status` do
+    cliente aninhado) como prop de Client Component, vazando no payload RSC
+    pra qualquer um com o link público. Agora só recebe `data_evento`.
+  - **Corrigido — erro cru do Postgres pro cliente**: 42 lugares devolviam
+    `error.message` do PostgREST direto na resposta (podia vazar nome de
+    tabela/coluna/constraint). Agora loga no servidor e devolve mensagem
+    genérica — `lib/crudApi.js` (usado por 15+ rotas) ganhou o helper
+    `erroServidor()`, as outras 22 rotas foram ajustadas uma a uma.
+  - **Corrigido — sem rate limit nas rotas públicas**: `proposta-analytics`,
+    `rsvp` e `propostas/[id]/aceitar` (sem login) podiam ser floodadas.
+    Rate limit nativo da Cloudflare via `lib/rateLimit.js` + binding
+    `RATE_LIMITER` no `wrangler.jsonc` (20 req/60s por IP, sem dependência
+    nova).
+  - **Pendente (config manual, não é código)**: alerta de log — Workers
+    Logs já está ligado (`observability` no `wrangler.jsonc`), mas sem
+    notificação configurada. Precisa criar em Workers & Pages →
+    personare-proposta → Notifications → alerta por taxa de erro.
+  - 13 itens passaram limpo (RLS em todas as 20 tabelas, chaves só no
+    servidor, `.env` nunca versionado, auth checada no servidor em toda
+    rota, sem source maps em prod, logout invalida sessão no Supabase Auth,
+    sem enumeração de usuário, etc.) — detalhe completo no relatório da
+    sessão, não replicado aqui.
+
 ## 2026-09-15 — Cardápio do buffet separado por categoria
 
 Commitado (`c945505`, `59a84a6`), pushed pro `origin/main` e deployado
@@ -148,6 +184,9 @@ Feito:
 
 ## Próximos passos (candidatos)
 
+- **[AÇÃO MANUAL] Alerta de log na Cloudflare**: Workers Logs já está ligado,
+  falta configurar notificação (Workers & Pages → personare-proposta →
+  Notifications → alerta por taxa de erro 4xx/5xx). Item 10 do checklistseguro.
 - **Extras cliente — controle granular no catálogo**: hoje qualquer extra
   ativo aparece pro cliente adicionar. Se o Espaço quiser expor só um
   subset, adicionar coluna `extras.disponivel_cliente boolean default true`

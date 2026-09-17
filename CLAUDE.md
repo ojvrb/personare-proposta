@@ -97,11 +97,14 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   o que o código já diz. Português brasileiro sem acentos nos comentários
   (consistência do repo).
 - **Editor genérico do catálogo** (`Secao` em `app/painel/catalogo/page.js`)
-  é usado por pacotes/buffets/extras/depoimentos. Só converte pra texto
-  campos-array (`itens_inclusos`, `itens_nao_inclusos`, `fotos`, `itens`) SE
-  o item os tiver — senão o PATCH inclui coluna inexistente e o PostgREST
-  rejeita a request inteira. Ao adicionar nova tabela ao catálogo, use o
-  mesmo padrão.
+  é usado por pacotes/buffets/extras/depoimentos. Os campos array↔texto
+  (`itens_inclusos`, `itens_nao_inclusos`, `fotos`, `itens_entrada`,
+  `itens_prato`, `itens_sobremesa`) vivem numa única constante
+  `CAMPOS_ARRAY` no topo do arquivo, lida tanto por `iniciarEdicao` quanto
+  por `normalizarPayload` — nunca duplique essa lista de novo (já foi bug:
+  as duas funções desalinhavam, o PATCH mandava coluna que a tabela não
+  tinha e o PostgREST rejeitava a request inteira). Ao adicionar campo-array
+  novo, só entra em `CAMPOS_ARRAY`.
 - **Capítulos da proposta pública** (`app/proposta/[slug]/page.js`): a ordem
   é `espaco → decoracao → buffet → pacote → depoimentos → investimento`
   (depoimentos antes do preço — prova social embala a decisão). Cada
@@ -135,6 +138,26 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   (`lib/rateLimit.js`) antes de tocar no banco — usa o binding
   `RATE_LIMITER` do `wrangler.jsonc` (rate limit nativo da Cloudflare, 20
   req/60s por IP). Ao criar uma rota nova sem login, aplicar o mesmo guard.
+- **Trava de agenda**: `espacos`/`reservas` (migração
+  `2026_09_16_espacos_reservas.sql`) tem `unique index` parcial em
+  `(espaco_id, data) where tipo='confirmada'` — só uma reserva CONFIRMADA
+  por dia. `POST /api/propostas/[id]/aceitar` insere a reserva ANTES de
+  marcar a proposta como aceita; se der `unique_violation` (23505), devolve
+  409 e nunca aceita a segunda proposta pro mesmo dia. `tipo='hold'` existe
+  no schema mas nada cria essas linhas ainda (não wired).
+- **`extras.disponivel_cliente`**: controla se o extra aparece na vitrine
+  que o cliente monta sozinho (`ExtrasCliente.js`, proposta pública).
+  Validado nos DOIS lados — filtro no componente E checagem em
+  `POST /api/propostas/[id]/aceitar` (linha que monta
+  `adicionadosPeloCliente`). Ao mexer nessa checagem, mantenha os dois em
+  sincronia — o client-side sozinho não impede um POST direto na API.
+- **`propostas.aceite_termos_hash`**: SHA-256 do texto exato de
+  `textoTermos(...)` (`app/proposta/[slug]/termos.js`) renderizado no
+  momento do aceite, calculado em `POST /api/propostas/[id]/aceitar`. Prova
+  o que aquele cliente especificamente leu (o texto é parametrizado por
+  valor/data/convidados, não é estático) — mais forte que só o rótulo de
+  versão em `aceite_termos_versao`. Exposto no comprovante admin
+  (`ComprovanteAceite` em `clientes/[id]/page.js`).
 
 ## Segurança / operacional
 
@@ -143,9 +166,18 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   apagado logo depois; nunca com senha inline no comando (Claude Code auto-mode
   bloqueia esse padrão).
 - **Migrações**: `supabase/migrations/*.sql`. Rodar no SQL editor do Supabase
-  ANTES do deploy que depende do schema novo.
+  ANTES do deploy que depende do schema novo. Claude Code não tem conexão
+  direta com o Postgres nessas sessões (só as chaves REST em `.env.local`,
+  que não fazem DDL) — escreve o arquivo `.sql`, mas quem cola e roda no SQL
+  editor é o usuário. Pra rodar várias de uma vez com segurança, envolver em
+  `begin; ... commit;` (atômico — se uma falhar, nenhuma aplica).
 - **Deploy**: `npm run deploy` roda `npm run build` (Next) + `wrangler deploy`
   via @opennextjs/cloudflare. URL: personare-proposta.ojoaovitorfoto.workers.dev.
+  Deploy continua manual — não há CD automático.
+- **CI**: `.github/workflows/ci.yml` (`npm ci && npm test && npm run build`
+  em push/PR pra `main`, sem secrets) — só valida, não deploya. Escrito mas
+  push de arquivo em `.github/workflows/` precisa de PAT com escopo
+  `workflow`; se faltar, adicionar pela interface web do GitHub.
 - **Commit só quando autorizado.** Não fazer `git commit`/`git push`/`npm run
   deploy` sem ordem explícita nesta sessão.
 - **HTTPS forçado + HSTS só em produção** (`middleware.js` + `next.config.js`).
@@ -157,11 +189,26 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   só em produção (mesma lógica do HSTS acima, mesmo motivo).
 - **Logoff por inatividade**: 10min, via `app/painel/useLogoffInativo.js`
   no layout do painel. Redireciona pra `/login?reason=idle`.
-- **RLS é "staff autenticado = acesso total"**, não por dono — o projeto não
-  é multi-tenant. A regra "atendente só vê os próprios leads" existe só na
-  API (`.or(atendente_id.eq...)` em `/api/propostas`), não no banco. Ao
-  adicionar rota nova que lê `clientes`/`eventos`/`propostas`, replicar esse
-  filtro — RLS não vai fazer isso por você.
+- **RLS deixou de ser "staff autenticado = acesso total" pra tudo**
+  (migração `2026_09_16_rls_hardening.sql`). Projeto continua não
+  multi-tenant (RLS não isola por empresa, só por papel/dono), mas agora:
+  - `perfis`: leitura livre, **escrita (insert/update/delete) só admin**
+    (senão um atendente escala o próprio cargo via REST direto).
+  - `pacotes`/`buffets`/`extras`: leitura livre, **escrita só admin**.
+  - `contratos`/`pagamentos`: leitura livre, **escrita admin+financeiro**.
+  - `clientes`/`eventos`/`propostas`: **leitura** escopada por
+    `atendente_id = auth.uid() OR atendente_id is null OR role in
+    (admin, financeiro)`. **Escrita continua aberta** a qualquer staff
+    autenticado (decisão deliberada — não era o vazamento original, que era
+    "atendente lê a base inteira via anon key"; mexer em restringir escrita
+    também exige auditar transferência/reatribuição de lead antes).
+  - Todas usam a função `auth_tem_papel(papeis[])` (`security definer`,
+    evita recursão de RLS ao checar o próprio cargo em `perfis`).
+  - Ao adicionar rota nova de leitura ampla (tipo dashboard/analytics
+    "empresa inteira"), lembrar que o client autenticado normal agora só
+    enxerga o que a policy libera — `GET /api/dashboard` teve que trocar
+    pra `adminClient()` (service role) por causa disso, senão os KPIs
+    viravam "só dos meus leads" pra quem não é admin/financeiro.
 
 ## Convenções de código
 
@@ -176,7 +223,9 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   nos comentários).
 - **Arquivos**: prefira editar o existente. Não crie `.md` novos sem pedido.
 - **Testes**: `npm test` (`node --test`, zero dependência nova) cobre lógica
-  pura em `lib/` — `pricing`, `proposta`, `perfil`, `allowlist`. `lib/*.js`
+  pura em `lib/` — `pricing`, `proposta`, `perfil`, `allowlist`,
+  `capitulosProposta` (numeração dos capítulos da proposta pública, extraída
+  de `app/proposta/[slug]/page.js` pra ficar testável). `lib/*.js`
   roda como ESM sob Node puro por causa de `lib/package.json`
   (`{"type":"module"}`) — não mexe nisso sem entender por quê (o resto do
   projeto, incluindo `next.config.js`, é CommonJS). Código em `lib/` que

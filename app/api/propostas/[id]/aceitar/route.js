@@ -94,7 +94,7 @@ export async function POST(req, { params }) {
     ]);
     const idsSelVendedor = new Set((proposta.extras_selecionados || []).map((e) => e.extra_id));
     adicionadosPeloCliente = (extrasCat || [])
-      .filter((ex) => ex.ativo && idsPedidos.includes(ex.id) && !idsSelVendedor.has(ex.id))
+      .filter((ex) => ex.ativo && ex.disponivel_cliente !== false && idsPedidos.includes(ex.id) && !idsSelVendedor.has(ex.id))
       .map((ex) => {
         const pedido = extrasCliente.find((e) => e.extra_id === ex.id);
         return { extra_id: ex.id, quantidade: Math.max(1, Number(pedido?.quantidade) || 1), pelo_cliente: true };

@@ -3,6 +3,43 @@
 Diário curto do que já está pronto e o que vem em seguida. Atualizar antes
 de fechar sessão ou trocar de feature.
 
+## 2026-09-17 — CI, dedup do catálogo, extras granulares
+
+`npm test` (24/24) e `npm run build` passam limpo. 4 itens do backlog:
+
+- **CI**: [.github/workflows/ci.yml](.github/workflows/ci.yml) — `npm ci &&
+  npm test && npm run build` em todo push pra `main` e em PR. Só valida (não
+  deploya) — `npm run build` passa sem nenhuma env var (testado com `env -i`),
+  então não precisa de secret nenhum no GitHub Actions.
+- **Descritor único pro `Secao` do catálogo**: `iniciarEdicao` e
+  `normalizarPayload` em `app/painel/catalogo/page.js` mantinham duas listas
+  separadas de "quais campos são array↔texto" — atualizar uma e esquecer a
+  outra reintroduzia o bug documentado no [CLAUDE.md](./CLAUDE.md) (PATCH com
+  coluna que a tabela não tem, PostgREST rejeita a request inteira). Virou
+  uma constante `CAMPOS_ARRAY` única, as duas funções leem dela.
+- **`extras.disponivel_cliente`**: controle granular de quais extras o
+  cliente pode adicionar sozinho na proposta pública (antes era tudo-ou-nada:
+  qualquer extra `ativo` aparecia). Migração
+  [2026_09_17_extras_disponivel_cliente.sql](supabase/migrations/2026_09_17_extras_disponivel_cliente.sql)
+  (default `true`, não muda nada até alguém desmarcar) + checkbox no
+  catálogo + filtro em `ExtrasCliente.js` **e** em
+  `POST /api/propostas/[id]/aceitar` (a validação client-side sozinha não
+  bastava — sem o check no servidor, um POST direto na API conseguia
+  adicionar um extra marcado como "só vendedor oferece"). Código é
+  compatível com a coluna não existir ainda (`!== false` trata undefined
+  como disponível, igual o comportamento de hoje) — pode deployar antes ou
+  depois de rodar a migração, sem quebrar nada.
+- **Coluna legada `depoimentos.evento_tipo`**: migração
+  [2026_09_17_drop_depoimentos_evento_tipo.sql](supabase/migrations/2026_09_17_drop_depoimentos_evento_tipo.sql)
+  — confirmado por grep que só `evento_tipos` (plural, array) é lido em
+  código; a coluna antiga não aparece em nenhuma allowlist.
+
+**[AÇÃO MANUAL]** 2 migrações novas
+(`2026_09_17_extras_disponivel_cliente.sql`,
+`2026_09_17_drop_depoimentos_evento_tipo.sql`) esperando rodar no SQL editor
+do Supabase — sem pressa dessa vez, o deploy já é seguro nos dois sentidos
+(ver nota do `extras.disponivel_cliente` acima).
+
 ## 2026-09-17 — Migrações rodadas, commit + push + deploy
 
 As 7 migrações de 2026-09-16 (`clientes_email`, `contratos_proposta_id`,
@@ -400,10 +437,6 @@ Feito:
   verdade é espaçamento/raio/sombra, que hoje são valores inline por
   componente (ex: `style={{ padding: 10 }}` espalhado). Escopo maior que os
   outros itens dessa rodada (retrofit em várias telas) — não entrou.
-- **Descritor declarativo pro `Secao` do catálogo**: hoje infere quais
-  campos são array olhando o item (`item.itens_inclusos` existe?). Um
-  `{campo, tipo}` por tabela elimina a classe de bug já documentada no
-  [CLAUDE.md](./CLAUDE.md).
 - **Lead score materializado**: hoje recalcula varrendo analytics a cada
   abertura do board — mover pra coluna atualizada no
   `POST /proposta-analytics`.
@@ -416,22 +449,16 @@ Feito:
 - **[AÇÃO MANUAL] Alerta de log na Cloudflare**: Workers Logs já está ligado,
   falta configurar notificação (Workers & Pages → personare-proposta →
   Notifications → alerta por taxa de erro 4xx/5xx). Item 10 do checklistseguro.
-- **Extras cliente — controle granular no catálogo**: hoje qualquer extra
-  ativo aparece pro cliente adicionar. Se o Espaço quiser expor só um
-  subset, adicionar coluna `extras.disponivel_cliente boolean default true`
-  e filtrar em `ExtrasCliente.js`.
 - **Extras cliente antes do aceite**: hoje só grava se ele aceita. Se o
   vendedor quiser ver em tempo real o que o cliente escolheu (mesmo sem
   aceite), criar endpoint `PATCH /api/propostas/[id]/extras-cliente` público
   e persistir a cada toggle.
-- **Deixar cair a coluna `evento_tipo` antiga** de `depoimentos` quando
-  ninguém mais usar (comando: `alter table depoimentos drop column evento_tipo;`).
 - **RSVP dos convidados** (`/proposta/[slug]/convidados`) — funciona mas não
   foi revisado nessa passada mobile.
-- **CI**: não existe pipeline. Agora que `npm test` e `npm run build` rodam,
-  um GitHub Actions mínimo (test + build no PR) impede regressão silenciosa —
-  testes que ninguém roda automaticamente apodrecem. Decidir se o workflow
-  também faz deploy ou só valida.
+- **CI faz deploy também?**: o workflow de 2026-09-17 só valida (test+build).
+  Decidir se some deploy automático em push pra `main` — precisa de secret
+  `CLOUDFLARE_API_TOKEN` no GitHub e é uma mudança de processo (deploy deixa
+  de ser manual), então não fiz sem confirmar.
 - **Next 16**: estamos em 15.5.25, major 16.3.5 disponível. Upgrade de major
   precisa de janela própria, não de carona em outra feature.
 - **`httpOnly` no cookie de sessão**: o `@supabase/ssr` usa `httpOnly: false`

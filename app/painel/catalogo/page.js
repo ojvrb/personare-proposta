@@ -162,6 +162,14 @@ function GaleriaEspaco({ categoria = "espaco", titulo = "Nosso espaço", descric
 // Editor genérico de lista: os 4 catálogos (pacote/buffet/extra/depoimento) têm o
 // mesmo fluxo (listar, editar inline, ativar/desativar, criar) — só os campos mudam.
 // `campoNome` existe pra depoimentos, que usa autor_nome em vez de nome.
+// Unica fonte de verdade pra quais campos sao array<->texto (separado por
+// virgula na UI). iniciarEdicao e normalizarPayload leem daqui em vez de
+// manter duas listas separadas -- antes bastava atualizar uma e esquecer a
+// outra pra reintroduzir o bug documentado (PATCH mandando coluna que a
+// tabela nao tem, PostgREST rejeitando a request inteira). Cada funcao so'
+// mexe no campo se o item/payload realmente tiver essa chave.
+const CAMPOS_ARRAY = ["itens_inclusos", "itens_nao_inclusos", "fotos", "itens_entrada", "itens_prato", "itens_sobremesa"];
+
 function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome = "nome" }) {
   const [itens, setItens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -190,7 +198,7 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
     // Setar chave que nao existe faz o PATCH mandar coluna inexistente e o
     // PostgREST rejeita a request inteira.
     const draft = { ...item };
-    for (const k of ["itens_inclusos", "itens_nao_inclusos", "fotos", "itens_entrada", "itens_prato", "itens_sobremesa"]) {
+    for (const k of CAMPOS_ARRAY) {
       if (k in item) draft[k] = arrayParaTexto(item[k]);
     }
     setRascunho(draft);
@@ -309,12 +317,9 @@ function Secao({ titulo, endpoint, campoInicial, renderCampos, resumo, campoNome
 
 function normalizarPayload(campos) {
   const out = { ...campos };
-  if ("itens_inclusos" in out) out.itens_inclusos = textoParaArray(out.itens_inclusos);
-  if ("itens_nao_inclusos" in out) out.itens_nao_inclusos = textoParaArray(out.itens_nao_inclusos);
-  if ("fotos" in out) out.fotos = textoParaArray(out.fotos);
-  if ("itens_entrada" in out) out.itens_entrada = textoParaArray(out.itens_entrada);
-  if ("itens_prato" in out) out.itens_prato = textoParaArray(out.itens_prato);
-  if ("itens_sobremesa" in out) out.itens_sobremesa = textoParaArray(out.itens_sobremesa);
+  for (const k of CAMPOS_ARRAY) {
+    if (k in out) out[k] = textoParaArray(out[k]);
+  }
   delete out.id;
   delete out.created_at;
   return out;
@@ -475,6 +480,10 @@ function ExtraCampos(campos, set) {
       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--stone)" }}>
         <input type="checkbox" checked={!!campos.substitui_buffet} onChange={(e) => set({ ...campos, substitui_buffet: e.target.checked })} />
         Este extra substitui o buffet (ex: taxa de uso da cozinha para buffet externo). Quando marcado na proposta, o buffet interno sai do cálculo.
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--stone)" }}>
+        <input type="checkbox" checked={campos.disponivel_cliente !== false} onChange={(e) => set({ ...campos, disponivel_cliente: e.target.checked })} />
+        Cliente pode adicionar sozinho na proposta pública (desmarque pra deixar só o vendedor oferecer).
       </label>
     </div>
   );

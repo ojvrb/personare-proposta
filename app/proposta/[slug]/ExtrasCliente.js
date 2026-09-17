@@ -10,7 +10,7 @@ export default function ExtrasCliente({ extrasTodos, extrasSelecionadosVendedor,
   const { extrasCliente, adicionarExtra, removerExtra, setQuantidadeExtra } = useEscolhaBuffet();
   if (bloqueado) return null;
   const idsVendedor = new Set((extrasSelecionadosVendedor || []).map((e) => e.extra_id));
-  const disponiveis = (extrasTodos || []).filter((e) => e.ativo && !idsVendedor.has(e.id));
+  const disponiveis = (extrasTodos || []).filter((e) => e.ativo && e.disponivel_cliente !== false && !idsVendedor.has(e.id));
   if (disponiveis.length === 0) return null;
 
   return (

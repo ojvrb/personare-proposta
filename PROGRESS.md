@@ -3,6 +3,138 @@
 Diário curto do que já está pronto e o que vem em seguida. Atualizar antes
 de fechar sessão ou trocar de feature.
 
+## 2026-09-16 — Segurança (RLS) + schema/produto maiores, não commitado
+
+Continuação da rodada anterior, ainda não commitado. `npm test` (24/24) e
+`npm run build` passam limpo. Foco: os itens **urgentes de segurança** e os
+**dois maiores de schema/produto** do backlog.
+
+- **[URGENTE, RESOLVIDO] Policy de `perfis` restrita a admin**: migração
+  [2026_09_16_rls_hardening.sql](supabase/migrations/2026_09_16_rls_hardening.sql)
+  troca a policy `for all` (qualquer staff) por leitura aberta + escrita
+  (insert/update/delete) restrita a `role='admin'`. Antes um atendente podia
+  em tese `PATCH /rest/v1/perfis?user_id=eq.<próprio>` com `role=admin`
+  direto no PostgREST, contornando a UI. Usa uma função
+  `auth_tem_papel(papeis[])` `security definer` (padrão recomendado pela
+  Supabase pra evitar recursão de RLS ao checar o próprio cargo).
+- **[RESOLVIDO] Mesmo padrão em `pacotes`/`buffets`/`extras`** (escrita só
+  admin) **e `contratos`/`pagamentos`** (escrita admin+financeiro) — RLS
+  agora espelha exatamente os `mutateRoles` que a API já aplicava
+  (`lib/crudApi.js`), fechando o desvio de "sem botão na UI mas dá via REST".
+- **[RESOLVIDO, com ressalva] RLS escopada por `atendente_id`** em
+  `clientes`/`eventos`/`propostas`: **leitura** agora só mostra pro
+  atendente linhas próprias + sem dono; admin/financeiro veem tudo.
+  **Escrita ficou deliberadamente aberta** a qualquer staff autenticado
+  (igual era antes) — mexer nisso exigiria auditar todo fluxo de
+  transferência/reatribuição, que não são o vazamento descrito na revisão
+  (o achado original era "atendente lê a base inteira via anon key", não
+  "atendente edita lead alheio"). Documentado como tradeoff consciente, não
+  esquecimento.
+  - **Efeito colateral pego e corrigido**: `GET /api/dashboard` (resumo do
+    mês no topo do board) lia `clientes`/`propostas`/`contratos` sem filtro
+    de papel nenhum, pra mostrar KPI da EMPRESA inteira pra todo mundo. Com
+    a RLS nova isso ia silenciosamente virar "KPI só dos meus leads" pra
+    atendente. Troquei pra usar `adminClient()` (service role) nesse
+    endpoint só pra manter o comportamento de sempre — a checagem de login
+    continua normal. Sem esse ajuste seria uma regressão visível no board.
+  - Auditei as outras ~14 rotas que leem essas 3 tabelas
+    (`app/api/notificacoes`, `ajustes`, `nova-versao`, `transferencias`,
+    etc.) — todas ou já são admin/financeiro-only, ou usam `adminClient()`
+    (rotas públicas), ou operam sobre uma linha específica que só faz
+    sentido o dono/admin tocar (nesse caso a RLS nova bloqueando um
+    atendente de mexer na proposta de outro é reforço, não regressão).
+- **[Estoque de agenda, RESOLVIDO] `espacos` + `reservas`**: migração
+  [2026_09_16_espacos_reservas.sql](supabase/migrations/2026_09_16_espacos_reservas.sql)
+  — `unique index` parcial em `(espaco_id, data) where tipo='confirmada'`
+  trava no banco a possibilidade de duas propostas aceitas pro mesmo dia.
+  Semeia a linha única do espaço (projeto é single-space hoje).
+  `POST /api/propostas/[id]/aceitar` agora tenta a reserva **antes** de
+  marcar a proposta como aceita: se a data já tem reserva confirmada,
+  devolve 409 "data já reservada" e **nunca** marca a segunda proposta como
+  aceita — a garantia vem do índice único (atômico sob concorrência), não
+  de um `if` no código. `hold` (proposta enviada mas ainda não aceita) ficou
+  no schema pra uso futuro, não wired nessa rodada.
+- **[Tabela de versões de termos, RESOLVIDO — via hash, não tabela nova]**
+  `aceite_termos_versao` já existia mas era só um rótulo ("1.1.0"); migração
+  [2026_09_16_aceite_termos_hash.sql](supabase/migrations/2026_09_16_aceite_termos_hash.sql)
+  adiciona `aceite_termos_hash`. Em vez de duplicar o conteúdo dos termos
+  numa tabela nova (`termos.js` já versiona o texto no git, e o texto é
+  parametrizado por valor/data/convidados — não é estático), o aceite agora
+  grava o SHA-256 do texto exato renderizado (`textoTermos(...)`) no momento
+  do aceite. Prova o que foi exibido pra aquele cliente específico, não só
+  qual versão de código estava ativa. Exposto no comprovante admin
+  (`/painel/clientes/[id]`, componente `ComprovanteAceite`) e na rota
+  `GET /api/propostas/[id]/aceite`.
+
+**[AÇÃO MANUAL, antes do próximo deploy]** mais 3 migrações novas
+(`2026_09_16_rls_hardening.sql`, `2026_09_16_espacos_reservas.sql`,
+`2026_09_16_aceite_termos_hash.sql`) somam às 4 da rodada anterior — 7 no
+total esperando rodar no SQL editor do Supabase antes do próximo deploy.
+**Rode `2026_09_16_espacos_reservas.sql` antes de testar o aceite de
+proposta em produção** — sem a tabela `espacos` existir, o código verifica
+`if (espaco)` e segue sem reservar (não quebra), mas a trava de agenda só
+funciona depois da migração rodar.
+
+Não tocado nessa rodada (fica pro próximo): `httpOnly` no cookie de sessão
+(marcado como "refatoração grande, avaliar se compensa" — não entra numa
+tacada rápida, precisa decisão explícita antes) e o "hold" de reserva
+(proposta enviada mas não aceita ainda não trava nada, só a confirmação).
+
+## 2026-09-16 — Execução de 6 itens do backlog (schema + telas), não commitado
+
+Não commitado ainda (aguardando ordem explícita, ver regra de commit no
+[CLAUDE.md](./CLAUDE.md)). `npm test` (24/24) e `npm run build` passam limpo.
+6 dos ~14 itens da lista de Próximos passos anterior:
+
+- **Extração `CardLead`/`ColunaStatus` do board**: `app/painel/page.js` caiu
+  de 15KB pra ~7KB. `ClienteCard` → [ClienteCard.js](app/painel/ClienteCard.js),
+  `ModalLogMovimento` → arquivo próprio, `DashboardResumo`+KPIs → arquivo
+  próprio, `STATUS` compartilhado em [kanbanStatus.js](app/painel/kanbanStatus.js).
+  Zero mudança de comportamento, só split de arquivo.
+- **Teste pra numeração de capítulos**: lógica pura extraída de
+  `app/proposta/[slug]/page.js` pra [lib/capitulosProposta.js](lib/capitulosProposta.js)
+  (`montarCapitulos`/`numCapitulo`), com 5 testes novos cobrindo ordem fixa,
+  capítulo pulado sem conteúdo e renumeração quando decoração entra no meio.
+- **`contratos.proposta_id`**: migração
+  [2026_09_16_contratos_proposta_id.sql](supabase/migrations/2026_09_16_contratos_proposta_id.sql)
+  adiciona a FK + backfill best-effort (casa pela última proposta aceita do
+  mesmo evento). Código já manda o id: botão "Criar contrato" em
+  `clientes/[id]/page.js` agora busca `evento.propostas.find(status==='aceita')`
+  e `POST /api/contratos` grava.
+- **`check` de status em 6 tabelas** (não 5 — achei `transferencias_lead`
+  também livre): migração
+  [2026_09_16_status_check_constraints.sql](supabase/migrations/2026_09_16_status_check_constraints.sql).
+  Valores confirmados por grep no código, não só pelo comentário do
+  `schema.sql` (que estava desatualizado — `propostas.status` ganhou
+  `em_negociacao`/`pre_aprovada` depois do comentário original ter sido
+  escrito, e `evento_confirmado` nunca foi usado de verdade).
+- **`updated_at` genérico**: migração
+  [2026_09_16_updated_at_generico.sql](supabase/migrations/2026_09_16_updated_at_generico.sql)
+  — trigger `set_updated_at()` aplicado via loop em `clientes`, `eventos`,
+  `propostas`, `contratos`, `pagamentos`, `convidados`.
+- **`clientes.email`**: migração
+  [2026_09_16_clientes_email.sql](supabase/migrations/2026_09_16_clientes_email.sql)
+  + campo no formulário de `nova-proposta` + campo editável inline (onBlur)
+  na tela de detalhe do cliente + `POST /api/propostas` e
+  `PATCH /api/clientes/[id]` aceitando o campo.
+
+**[AÇÃO MANUAL, antes do próximo deploy]** as 4 migrações novas
+(`2026_09_16_contratos_proposta_id.sql`, `2026_09_16_status_check_constraints.sql`,
+`2026_09_16_updated_at_generico.sql`, `2026_09_16_clientes_email.sql`) ainda
+**não rodaram** no Supabase — essa sessão não tem acesso direto ao Postgres
+(só as chaves REST em `.env.local`), então só escreveu os arquivos. Rodar no
+SQL editor do Supabase antes do próximo deploy que toca `contratos`/`clientes`.
+
+Também: `.claude/launch.json` mudou a porta do dev server pra **3100**
+(`personare-proposta` tinha outro projeto rodando na 3000 na máquina —
+`proposta-eventos-saas`). Não deu pra verificar visualmente o board no
+browser (login exige credencial que essa sessão não tem); validação ficou em
+`npm test` + `npm run build`.
+
+Itens ainda não tocados dessa rodada (ver Próximos passos): policy de
+`perfis` restrita a admin, tabela `espacos`/`reservas`, descritor declarativo
+do `Secao`, lead score materializado, tabela de versões de termos com hash.
+
 ## 2026-09-16 — Auditoria checklistseguro + correções
 
 Commitado (`962659b`, `4dc9bce`), pushed pro `origin/main` e deployado
@@ -38,6 +170,78 @@ Feito:
     rota, sem source maps em prod, logout invalida sessão no Supabase Auth,
     sem enumeração de usuário, etc.) — detalhe completo no relatório da
     sessão, não replicado aqui.
+
+## 2026-09-16 — Revisão arquitetural: schema, telas, auth (backlog, nada implementado ainda)
+
+Revisão externa do projeto (sem código escrito nessa sessão) levantou gaps
+estruturais que o checklistseguro não cobre (esse olha vulnerabilidade, não
+modelagem/arquitetura). Resumo por área — detalhe e prioridade de cada item
+foram incorporados em **Próximos passos** abaixo.
+
+**Schema**
+- Não existe estoque de data/agenda: nada no banco impede duas propostas
+  aceitas pro mesmo sábado no mesmo espaço. `eventos.data_evento` é só um
+  `date` solto; `propostas.valida_ate` é validade de preço, não trava de
+  agenda. É o furo mais caro — onde a casa perde dinheiro de verdade.
+- `status` é texto livre em 5 tabelas (`clientes`, `eventos`, `propostas`,
+  `contratos`, `pagamentos`), valores válidos só documentados em comentário
+  SQL. Um typo cria coluna fantasma no kanban.
+- `contratos.valor_contratado` duplica `propostas.total` sem FK pra proposta
+  aceita — pode divergir do que o cliente realmente aceitou.
+- `pagamentos` não registra forma de pagamento, id de gateway nem tentativa —
+  só `pendente|pago`. Não sustenta régua de cobrança.
+- Perfil do cliente é raso: sem `email` (sem como lembrar validade de
+  proposta fora do WhatsApp) e sem espaço pra dado ampliado (demografia,
+  preferências). Dado sensível (restrição alimentar, religião — LGPD art. 5º
+  II) precisaria de tabela própria com policy restrita, nunca no payload RSC
+  público — mesmo princípio já aplicado a CPF/IP em `lib/proposta.js`.
+- Falta `updated_at` na maioria das tabelas (só singletons têm
+  `atualizado_em`) — sem auditoria de quando um registro mudou.
+- Lacuna funcional: nada de pós-evento (avaliação/NPS), fornecedores ou
+  comissão. `convidados` só tem nome+status, sem acompanhante/mesa/restrição
+  — RSVP não alimenta mapa de mesas.
+- Dívida com prazo: `depoimentos.evento_tipo` (já deprecated, ver
+  [CLAUDE.md](./CLAUDE.md)) e `buffets.itens` legado (já renomeado pra
+  `itens_prato`, ver entrada de 2026-09-15) — falta só derrubar as colunas
+  velhas depois que ninguém mais lê.
+
+**Telas**
+- `app/painel/page.js` (board CRM) concentra board+card+"mover pra"+lead
+  score+filtros numa page só — candidato a extrair `CardLead`/`ColunaStatus`
+  (não é abstração especulativa, é o mesmo componente repetido por coluna).
+- `app/globals.css` sem custom properties no topo (cor/espaçamento/raio/
+  sombra) — cada tela nova reinventa a decisão visual.
+- `Secao` genérico do catálogo infere schema do dado (a armadilha já
+  documentada no [CLAUDE.md](./CLAUDE.md): só converte campo-array se o item
+  tiver a coluna). Causa raiz é inferência; um descritor declarativo por
+  tabela (`{campo, tipo}`) elimina a classe de bug.
+- Numeração dos capítulos da proposta pública (`capitulos.indexOf`) não tem
+  teste — é lógica pura, cabe em `npm test`.
+- Lead score recalculado a cada abertura do board (varre analytics inteiro
+  na carga do kanban) — mover pra coluna materializada no
+  `POST /proposta-analytics` tira custo do caminho quente.
+
+**Auth / multi-tenant**
+- **[Risco maior identificado]** "atendente só vê os próprios leads" existe
+  só na API (`.or(atendente_id.eq...)`), não em RLS — já estava anotado em
+  Próximos passos, mas a revisão reforça: com `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  no browser, um atendente logado pode bater direto no PostgREST e ler a
+  base inteira, contornando o filtro da API.
+- **[Novo, mais grave]** Escalonamento de privilégio em `perfis`: a policy é
+  `for all` pra qualquer autenticado, checagem de quem pode trocar cargo é
+  só na API. Um atendente pode em tese `PATCH /rest/v1/perfis?user_id=eq.<próprio>`
+  com `role=admin` direto no REST, sem passar pela UI. Mesmo padrão de risco
+  em `pacotes`/`buffets`/`extras`/`pagamentos` (preço e "pago" alteráveis
+  direto na REST API mesmo sem botão na UI).
+- Se o projeto virar SaaS multi-espaço: `org_id` em todas as tabelas +
+  policy lendo do JWT precisa entrar **antes** do segundo cliente — retrofit
+  depois é ordem de magnitude mais caro.
+- Logoff por inatividade (`useLogoffInativo`) é client-side, não invalida
+  sessão no servidor — se a intenção é segurança (não só UX), precisa reduzir
+  TTL do refresh token no Supabase.
+- Aceite eletrônico: `aceite_termos_versao` é texto solto. Uma tabela de
+  versões de termos com hash do conteúdo prova o que foi exibido — diferença
+  entre evidência e alegação num litígio.
 
 ## 2026-09-15 — Cardápio do buffet separado por categoria
 
@@ -184,6 +388,68 @@ Feito:
 
 ## Próximos passos (candidatos)
 
+- **[FEITO 2026-09-16, falta rodar migração]** ~~Policy de escrita restrita
+  a admin em `perfis`~~ — `2026_09_16_rls_hardening.sql` restringe
+  insert/update/delete a `role='admin'` (leitura continua aberta). Mesma
+  migração também restringe escrita em `pacotes`/`buffets`/`extras` (admin)
+  e `contratos`/`pagamentos` (admin+financeiro), espelhando os `mutateRoles`
+  que a API já aplicava.
+- **[FEITO 2026-09-16, falta rodar migração]** ~~Estoque de agenda: tabela
+  `espacos` + `reservas`~~ — `2026_09_16_espacos_reservas.sql` cria as
+  tabelas com `unique index` parcial em `(espaco_id, data) where
+  tipo='confirmada'`, e `POST /api/propostas/[id]/aceitar` já reserva a data
+  antes de marcar a proposta como aceita (409 se a data já foi confirmada
+  por outra proposta). Só a reserva CONFIRMADA está wired; `hold` (proposta
+  enviada, ainda não aceita) ficou no schema sem uso por enquanto.
+- **[FEITO 2026-09-16, falta rodar migração]** ~~RLS escopada por
+  `atendente_id`~~ — `2026_09_16_rls_hardening.sql` restringe **leitura** de
+  `clientes`/`eventos`/`propostas` a dono-ou-staff-financeiro/admin.
+  Escrita ficou deliberadamente aberta a qualquer staff (não era o
+  vazamento descrito — ver nota na entrada de 2026-09-16 acima antes de
+  mexer de novo nisso). Efeito colateral corrigido: `GET /api/dashboard`
+  precisou trocar pra `adminClient()` pra manter os KPIs da empresa inteira
+  (senão viraria "KPI só dos meus leads" pra atendente).
+- **[FEITO 2026-09-16, falta rodar migração]** ~~`status` como texto livre em
+  5 tabelas~~ — código pronto (`ClienteCard`/`page.js` etc já assumem os
+  valores validados), migração `2026_09_16_status_check_constraints.sql`
+  escrita cobrindo 6 tabelas. Falta só rodar no SQL editor do Supabase.
+- **[FEITO 2026-09-16, falta rodar migração]** ~~`contratos.proposta_id`~~ —
+  FK + backfill escritos em `2026_09_16_contratos_proposta_id.sql`, código
+  já manda o id ao criar contrato. Falta rodar a migração.
+- **[FEITO 2026-09-16, falta rodar migração]** ~~`clientes.email`~~ — coluna
+  em `2026_09_16_clientes_email.sql`, campo no formulário de nova-proposta e
+  editável na tela do cliente já prontos. Falta rodar a migração. Ainda vale
+  avaliar depois o perfil ampliado (`clientes_perfil` 1:1) e dado sensível
+  separado (`clientes_restricoes` — alimentar/religião, LGPD art. 5º II,
+  nunca no payload RSC público) — isso não entrou nessa rodada.
+- **[FEITO 2026-09-16, falta rodar migração]** ~~`updated_at` genérico~~ —
+  trigger `set_updated_at()` escrito em `2026_09_16_updated_at_generico.sql`
+  pras 6 tabelas sem auditoria de mudança. Falta rodar a migração.
+- **[FEITO 2026-09-16]** ~~Extrair `CardLead`/`ColunaStatus`~~ de
+  `app/painel/page.js` — arquivo caiu de 15KB pra ~7KB, split em
+  `ClienteCard.js`/`ModalLogMovimento.js`/`DashboardResumo.js`/`kanbanStatus.js`.
+- **Custom properties no `globals.css`**: cor **já está tokenizada**
+  (`:root` em `app/globals.css` tem `--sage`/`--gold`/`--creme`/etc + aliases
+  — achado da revisão estava desatualizado nesse ponto). O que falta de
+  verdade é espaçamento/raio/sombra, que hoje são valores inline por
+  componente (ex: `style={{ padding: 10 }}` espalhado). Escopo maior que os
+  outros itens dessa rodada (retrofit em várias telas) — não entrou.
+- **Descritor declarativo pro `Secao` do catálogo**: hoje infere quais
+  campos são array olhando o item (`item.itens_inclusos` existe?). Um
+  `{campo, tipo}` por tabela elimina a classe de bug já documentada no
+  [CLAUDE.md](./CLAUDE.md).
+- **[FEITO 2026-09-16]** ~~Teste pra numeração de capítulos~~ — lógica
+  extraída pra `lib/capitulosProposta.js`, 5 testes novos em
+  `tests/capitulosProposta.test.mjs`.
+- **Lead score materializado**: hoje recalcula varrendo analytics a cada
+  abertura do board — mover pra coluna atualizada no
+  `POST /proposta-analytics`.
+- **[FEITO 2026-09-16, falta rodar migração]** ~~Tabela de versões de termos
+  com hash~~ — resolvido sem tabela nova: `2026_09_16_aceite_termos_hash.sql`
+  adiciona `propostas.aceite_termos_hash` (SHA-256 do texto exato exibido no
+  aceite, calculado em `POST /api/propostas/[id]/aceitar`), exposto no
+  comprovante admin. `termos.js` já versiona o texto no git; o hash prova o
+  que aquele cliente especificamente leu.
 - **[AÇÃO MANUAL] Alerta de log na Cloudflare**: Workers Logs já está ligado,
   falta configurar notificação (Workers & Pages → personare-proposta →
   Notifications → alerta por taxa de erro 4xx/5xx). Item 10 do checklistseguro.
@@ -199,13 +465,6 @@ Feito:
   ninguém mais usar (comando: `alter table depoimentos drop column evento_tipo;`).
 - **RSVP dos convidados** (`/proposta/[slug]/convidados`) — funciona mas não
   foi revisado nessa passada mobile.
-- **[DECISÃO PENDENTE] RLS escopada por `atendente_id`**: hoje a policy é
-  "staff autenticado = acesso total" e a regra "atendente só vê os próprios
-  leads" existe **só na camada de API** (`.or(atendente_id.eq...)` em
-  `/api/propostas`). Qualquer rota nova que esqueça o filtro mostra lead de
-  outro atendente. Não vaza pra fora da empresa, mas é gap de defesa em
-  profundidade. Corrigir = policy por `atendente_id = auth.uid() OR role in
-  (admin, financeiro)` em `clientes`/`eventos`/`propostas`.
 - **CI**: não existe pipeline. Agora que `npm test` e `npm run build` rodam,
   um GitHub Actions mínimo (test + build no PR) impede regressão silenciosa —
   testes que ninguém roda automaticamente apodrecem. Decidir se o workflow

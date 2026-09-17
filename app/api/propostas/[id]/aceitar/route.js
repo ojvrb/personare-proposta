@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { adminClient } from "@/lib/supabase/admin";
 import { expurgar, mascararCPF } from "@/lib/proposta";
 import { calcularProposta } from "@/lib/pricing";
 import { limitarPorIp } from "@/lib/rateLimit";
+import { textoTermos } from "@/app/proposta/[slug]/termos";
 
 // POST publico -- aceite da proposta pelo cliente. Sob a lei brasileira, uma
 // "assinatura eletronica simples" (aceite por clique) so' vale como prova se
@@ -23,7 +25,7 @@ export async function POST(req, { params }) {
 
   const { data: proposta, error: buscaErr } = await supabase
     .from("propostas")
-    .select("*, eventos(cliente_id, num_convidados)")
+    .select("*, eventos(cliente_id, num_convidados, data_evento)")
     .eq("id", id)
     .single();
   if (buscaErr || !proposta) return NextResponse.json({ error: "proposta nao encontrada" }, { status: 404 });
@@ -115,6 +117,33 @@ export async function POST(req, { params }) {
     }
   }
 
+  // Trava a data ANTES de marcar a proposta como aceita -- o unique index
+  // parcial em reservas (espaco_id, data) where tipo='confirmada' e' quem
+  // garante isso atomicamente: se duas propostas pro mesmo dia forem aceitas
+  // quase juntas, a segunda INSERT estoura unique_violation aqui e a gente
+  // nunca chega a marcar aquela proposta como aceita. Sem data marcada no
+  // evento, nao ha o que reservar -- segue direto pro aceite (sem trava).
+  const dataEvento = proposta.eventos?.data_evento;
+  if (dataEvento) {
+    const { data: espaco } = await supabase.from("espacos").select("id").eq("ativo", true).limit(1).maybeSingle();
+    if (espaco) {
+      const { error: reservaErr } = await supabase
+        .from("reservas")
+        .insert({ espaco_id: espaco.id, data: dataEvento, tipo: "confirmada", proposta_id: id });
+      if (reservaErr && reservaErr.code !== "23505") { console.error(reservaErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
+      if (reservaErr) {
+        return NextResponse.json({ error: "essa data ja foi reservada por outra proposta aceita -- fale com o Espaco Personare antes de continuar" }, { status: 409 });
+      }
+    }
+  }
+
+  // Hash do TEXTO exato exibido no momento do aceite (nao so' o rotulo de
+  // versao) -- reproduzivel a partir do codigo (termos.js) + dos campos
+  // salvos da propria proposta, prova o que o cliente realmente leu.
+  const aceiteTermosHash = createHash("sha256")
+    .update(JSON.stringify(textoTermos({ valorTotal: totalFinal, dataEvento, numConvidados: proposta.eventos?.num_convidados })))
+    .digest("hex");
+
   // Guarda contra dois requests simultaneos aceitando a mesma proposta --
   // o update so' pega se o status ainda NAO for "aceita". Se pegou zero linhas,
   // e' porque outro request ja aceitou; devolve o estado atual sem sobrescrever
@@ -129,6 +158,7 @@ export async function POST(req, { params }) {
       aceite_cpf: cpfLimpo,
       aceite_nome_completo: String(nome_completo).trim(),
       aceite_termos_versao: String(termos_versao),
+      aceite_termos_hash: aceiteTermosHash,
       extras_selecionados: extrasSelecionadosFinal,
       subtotal: subtotalFinal,
       total: totalFinal,

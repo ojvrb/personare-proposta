@@ -137,11 +137,11 @@ export default function ClienteDetalhePage({ params }) {
     if (ok) carregar();
   }
 
-  async function criarContrato(eventoId) {
+  async function criarContrato(eventoId, propostaId) {
     const ok = await apiFetch("/api/contratos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ evento_id: eventoId }),
+      body: JSON.stringify({ evento_id: eventoId, proposta_id: propostaId }),
     });
     if (ok) carregar();
   }
@@ -216,6 +216,16 @@ export default function ClienteDetalhePage({ params }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, fontSize: 13 }}>
           <div><span style={{ color: "var(--granite)" }}>Cidade</span><br />{cliente.cidade || "—"}</div>
           <div><span style={{ color: "var(--granite)" }}>Telefone</span><br />{cliente.telefone || "—"}</div>
+          <div>
+            <span style={{ color: "var(--granite)" }}>E-mail</span><br />
+            <input
+              type="email"
+              defaultValue={cliente.email || ""}
+              placeholder="—"
+              onBlur={(e) => { if (e.target.value !== (cliente.email || "")) atualizarCliente({ email: e.target.value }); }}
+              style={{ fontSize: 13, padding: "2px 4px" }}
+            />
+          </div>
           <div><span style={{ color: "var(--granite)" }}>Status</span><br />{cliente.status}</div>
           <div>
             <span style={{ color: "var(--granite)" }}>Origem</span><br />
@@ -268,7 +278,7 @@ export default function ClienteDetalhePage({ params }) {
 
           <h4>Contrato</h4>
           {(evento.contratos || []).length === 0 ? (
-            <button className="btn primary" onClick={() => criarContrato(evento.id)}>Criar contrato</button>
+            <button className="btn primary" onClick={() => criarContrato(evento.id, evento.propostas?.find((p) => p.status === "aceita")?.id)}>Criar contrato</button>
           ) : (
             evento.contratos.map((c) => (
               <Contrato key={c.id} contrato={c} onAtualizar={atualizarContrato} onParcela={adicionarParcela} onPago={marcarPago} />
@@ -643,6 +653,12 @@ function ComprovanteAceite({ proposta }) {
           <span style={{ color: "var(--granite)" }}>IP:</span><span>{detalhes.ip || "—"}</span>
           <span style={{ color: "var(--granite)" }}>Data/hora:</span><span>{new Date(detalhes.aceita_em).toLocaleString("pt-BR")}</span>
           <span style={{ color: "var(--granite)" }}>Termos:</span><span>v{detalhes.termos_versao}</span>
+          {detalhes.termos_hash && (
+            <>
+              <span style={{ color: "var(--granite)" }}>Hash do texto:</span>
+              <span style={{ wordBreak: "break-all" }} title="SHA-256 do texto exato exibido no aceite -- prova o conteudo lido, nao so a versao">{detalhes.termos_hash}</span>
+            </>
+          )}
           <span style={{ color: "var(--granite)" }}>Navegador:</span><span style={{ wordBreak: "break-all" }}>{detalhes.user_agent || "—"}</span>
         </div>
       )}

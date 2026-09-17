@@ -13,6 +13,7 @@ import InvestimentoBloco from "./InvestimentoBloco";
 import ExtrasCliente from "./ExtrasCliente";
 import DepoimentosCarrossel from "./DepoimentosCarrossel";
 import PropostaTracker from "./PropostaTracker";
+import { montarCapitulos, numCapitulo } from "@/lib/capitulosProposta";
 
 // Renderiza um titulo customizado. Aceita duas sintaxes de destaque:
 //   1) `{palavras}` -- forma amigavel do editor admin
@@ -130,18 +131,14 @@ export default async function PropostaPublicaPage({ params }) {
   const corValidade = expirada ? "var(--red)" : diasRestantes <= 3 ? "var(--amber)" : "var(--green)";
   const fotoCapa = fotosEspaco[0]?.url || pacote?.fotos?.[0] || null;
 
-  // capitulos numerados que EXISTEM neste caso -- pula secao se nao tem
-  // conteudo (ex: sem fotos_espaco, sem buffets curados). A numeracao 01/02/...
-  // refleite a narrativa real que o casal ve, nao slots vazios.
-  const capitulos = [
-    fotosEspaco.length > 0 && "espaco",
-    fotosDecoracao.length > 0 && "decoracao",
-    vitrineBuffets.length > 0 && "buffet",
-    pacote && "pacote",
-    depoimentosFiltrados.length > 0 && "depoimentos",
-    "investimento",
-  ].filter(Boolean);
-  const num = (nome) => String(capitulos.indexOf(nome) + 1).padStart(2, "0");
+  const capitulos = montarCapitulos({
+    temEspaco: fotosEspaco.length > 0,
+    temDecoracao: fotosDecoracao.length > 0,
+    temBuffet: vitrineBuffets.length > 0,
+    temPacote: !!pacote,
+    temDepoimentos: depoimentosFiltrados.length > 0,
+  });
+  const num = (nome) => numCapitulo(capitulos, nome);
 
   return (
     <div>

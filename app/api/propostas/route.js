@@ -82,6 +82,7 @@ export async function POST(req) {
       nome: cliente.nome,
       nome_conjuge: cliente.nome_conjuge || null,
       telefone: cliente.telefone || null,
+      email: cliente.email || null,
       cidade: cliente.cidade || null,
       origem: cliente.origem || null,
       status: "proposta_enviada",

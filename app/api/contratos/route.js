@@ -24,12 +24,12 @@ export async function POST(req) {
   const negado = await requireRole(supabase, ["admin", "financeiro"]);
   if (negado) return negado;
 
-  const { evento_id, valor_contratado } = await req.json();
+  const { evento_id, proposta_id, valor_contratado } = await req.json();
   if (!evento_id) return NextResponse.json({ error: "evento_id e obrigatorio" }, { status: 400 });
 
   const { data, error } = await supabase
     .from("contratos")
-    .insert({ evento_id, valor_contratado: valor_contratado || 0 })
+    .insert({ evento_id, proposta_id: proposta_id || null, valor_contratado: valor_contratado || 0 })
     .select()
     .single();
   if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }

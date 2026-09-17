@@ -13,6 +13,7 @@ export default function NovaPropostaPage() {
   const [nome, setNome] = useState("");
   const [nomeConjuge, setNomeConjuge] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [email, setEmail] = useState("");
   const [cidade, setCidade] = useState("");
   const [origem, setOrigem] = useState("");
   const [tipo, setTipo] = useState("casamento");
@@ -91,7 +92,7 @@ export default function NovaPropostaPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cliente: { nome, nome_conjuge: nomeConjuge, telefone, cidade, origem: origem || null },
+        cliente: { nome, nome_conjuge: nomeConjuge, telefone, email, cidade, origem: origem || null },
         evento: { tipo, data_evento: dataEvento || null, num_convidados: Number(numConvidados) },
         pacote_id: pacoteId,
         buffet_id: buffetId,
@@ -146,6 +147,10 @@ export default function NovaPropostaPage() {
             <div className="field">
               <label>Telefone</label>
               <input value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>E-mail (opcional)</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="field">
               <label>Cidade</label>

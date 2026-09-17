@@ -48,6 +48,7 @@ export async function PATCH(req, { params }) {
   const campos = {};
   if (body.status) campos.status = body.status;
   if ("origem" in body) campos.origem = body.origem || null;
+  if ("email" in body) campos.email = body.email || null;
   if ("atendente_id" in body) {
     if (perfil.role !== "admin") return NextResponse.json({ error: "so admin reatribui direto" }, { status: 403 });
     campos.atendente_id = body.atendente_id;

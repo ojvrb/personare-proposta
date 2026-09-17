@@ -16,7 +16,7 @@ export async function GET(_req, { params }) {
   const admin = adminClient();
   const { data: proposta, error } = await admin
     .from("propostas")
-    .select("id, aceita_em, aceite_ip, aceite_user_agent, aceite_cpf, aceite_nome_completo, aceite_termos_versao, eventos(cliente_id)")
+    .select("id, aceita_em, aceite_ip, aceite_user_agent, aceite_cpf, aceite_nome_completo, aceite_termos_versao, aceite_termos_hash, eventos(cliente_id)")
     .eq("id", id).single();
   if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   if (!proposta.aceita_em) return NextResponse.json({ error: "proposta ainda nao foi aceita" }, { status: 400 });
@@ -40,5 +40,6 @@ export async function GET(_req, { params }) {
     ip: proposta.aceite_ip,
     user_agent: proposta.aceite_user_agent,
     termos_versao: proposta.aceite_termos_versao,
+    termos_hash: proposta.aceite_termos_hash,
   });
 }

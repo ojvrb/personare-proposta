@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { adminClient } from "@/lib/supabase/admin";
 
 // GET: KPIs pro card resumo do Board CRM -- MES ATUAL vs mes anterior. Nao
 // duplica /api/analytics (que retorna registros crus e agrega no cliente):
 // aqui devolvemos so' os numeros ja calculados, pra o widget carregar rapido
 // sem baixar historico inteiro.
+//
+// Numeros sao da EMPRESA inteira (nao por atendente) de proposito -- todo
+// staff ve o mesmo resumo do mes no topo do board. Por isso usa adminClient
+// (service role, ignora RLS) em vez do client autenticado normal: depois do
+// hardening de RLS (2026_09_16_rls_hardening.sql), o client autenticado so
+// enxerga clientes/propostas do proprio atendente + admin/financeiro, o que
+// faria esse resumo mostrar numeros incompletos pra quem nao e admin. A
+// checagem de login continua com o client normal, so os dados agregados
+// vem da service role.
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -15,10 +25,11 @@ export async function GET() {
   const inicioMesPassado = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
   const fimMesPassado = new Date(inicioMes.getTime() - 1);
 
+  const admin = adminClient();
   const [{ data: clientes }, { data: propostas }, { data: contratos }] = await Promise.all([
-    supabase.from("clientes").select("id, created_at, status"),
-    supabase.from("propostas").select("id, created_at, total, status"),
-    supabase.from("contratos").select("id, created_at, valor_contratado, status"),
+    admin.from("clientes").select("id, created_at, status"),
+    admin.from("propostas").select("id, created_at, total, status"),
+    admin.from("contratos").select("id, created_at, valor_contratado, status"),
   ]);
 
   const kpi = (recorte) => {

@@ -3,11 +3,22 @@
 Diário curto do que já está pronto e o que vem em seguida. Atualizar antes
 de fechar sessão ou trocar de feature.
 
-## 2026-09-16 — Segurança (RLS) + schema/produto maiores, não commitado
+## 2026-09-17 — Migrações rodadas, commit + push + deploy
 
-Continuação da rodada anterior, ainda não commitado. `npm test` (24/24) e
-`npm run build` passam limpo. Foco: os itens **urgentes de segurança** e os
-**dois maiores de schema/produto** do backlog.
+As 7 migrações de 2026-09-16 (`clientes_email`, `contratos_proposta_id`,
+`status_check_constraints`, `updated_at_generico`, `espacos_reservas`,
+`aceite_termos_hash`, `rls_hardening`) rodaram no SQL editor do Supabase
+dentro de um `begin;`/`commit;` único (tudo ou nada). Commitado
+(`c2fcf08`), pushed pro `origin/main` e deployado (versão
+`8890f1b3-f9f8-4872-b143-33f7ff63bb17`, `https://personare-proposta.ojoaovitorfoto.workers.dev`
+respondendo 200 em `/login` pós-deploy). `.gitignore` ganhou
+`/supabase/.temp` (cache do `npx supabase`, não deve ir pro repo).
+
+## 2026-09-16 — Segurança (RLS) + schema/produto maiores
+
+`npm test` (24/24) e `npm run build` passaram limpo antes do commit acima.
+Foco: os itens **urgentes de segurança** e os **dois maiores de
+schema/produto** do backlog.
 
 - **[URGENTE, RESOLVIDO] Policy de `perfis` restrita a admin**: migração
   [2026_09_16_rls_hardening.sql](supabase/migrations/2026_09_16_rls_hardening.sql)
@@ -66,25 +77,19 @@ Continuação da rodada anterior, ainda não commitado. `npm test` (24/24) e
   (`/painel/clientes/[id]`, componente `ComprovanteAceite`) e na rota
   `GET /api/propostas/[id]/aceite`.
 
-**[AÇÃO MANUAL, antes do próximo deploy]** mais 3 migrações novas
-(`2026_09_16_rls_hardening.sql`, `2026_09_16_espacos_reservas.sql`,
-`2026_09_16_aceite_termos_hash.sql`) somam às 4 da rodada anterior — 7 no
-total esperando rodar no SQL editor do Supabase antes do próximo deploy.
-**Rode `2026_09_16_espacos_reservas.sql` antes de testar o aceite de
-proposta em produção** — sem a tabela `espacos` existir, o código verifica
-`if (espaco)` e segue sem reservar (não quebra), mas a trava de agenda só
-funciona depois da migração rodar.
+**[RODADO 2026-09-17]** as 7 migrações (essas 3 + as 4 da rodada anterior)
+já rodaram em prod — ver entrada de 2026-09-17 no topo.
 
 Não tocado nessa rodada (fica pro próximo): `httpOnly` no cookie de sessão
 (marcado como "refatoração grande, avaliar se compensa" — não entra numa
 tacada rápida, precisa decisão explícita antes) e o "hold" de reserva
 (proposta enviada mas não aceita ainda não trava nada, só a confirmação).
 
-## 2026-09-16 — Execução de 6 itens do backlog (schema + telas), não commitado
+## 2026-09-16 — Execução de 6 itens do backlog (schema + telas)
 
-Não commitado ainda (aguardando ordem explícita, ver regra de commit no
-[CLAUDE.md](./CLAUDE.md)). `npm test` (24/24) e `npm run build` passam limpo.
-6 dos ~14 itens da lista de Próximos passos anterior:
+`npm test` (24/24) e `npm run build` passaram limpo antes do commit (ver
+entrada de 2026-09-17 no topo). 6 dos ~14 itens da lista de Próximos passos
+anterior:
 
 - **Extração `CardLead`/`ColunaStatus` do board**: `app/painel/page.js` caiu
   de 15KB pra ~7KB. `ClienteCard` → [ClienteCard.js](app/painel/ClienteCard.js),
@@ -118,12 +123,8 @@ Não commitado ainda (aguardando ordem explícita, ver regra de commit no
   na tela de detalhe do cliente + `POST /api/propostas` e
   `PATCH /api/clientes/[id]` aceitando o campo.
 
-**[AÇÃO MANUAL, antes do próximo deploy]** as 4 migrações novas
-(`2026_09_16_contratos_proposta_id.sql`, `2026_09_16_status_check_constraints.sql`,
-`2026_09_16_updated_at_generico.sql`, `2026_09_16_clientes_email.sql`) ainda
-**não rodaram** no Supabase — essa sessão não tem acesso direto ao Postgres
-(só as chaves REST em `.env.local`), então só escreveu os arquivos. Rodar no
-SQL editor do Supabase antes do próximo deploy que toca `contratos`/`clientes`.
+**[RODADO 2026-09-17]** essas 4 migrações rodaram em prod junto com as
+outras 3 da rodada seguinte — ver entrada de 2026-09-17 no topo.
 
 Também: `.claude/launch.json` mudou a porta do dev server pra **3100**
 (`personare-proposta` tinha outro projeto rodando na 3000 na máquina —
@@ -388,46 +389,11 @@ Feito:
 
 ## Próximos passos (candidatos)
 
-- **[FEITO 2026-09-16, falta rodar migração]** ~~Policy de escrita restrita
-  a admin em `perfis`~~ — `2026_09_16_rls_hardening.sql` restringe
-  insert/update/delete a `role='admin'` (leitura continua aberta). Mesma
-  migração também restringe escrita em `pacotes`/`buffets`/`extras` (admin)
-  e `contratos`/`pagamentos` (admin+financeiro), espelhando os `mutateRoles`
-  que a API já aplicava.
-- **[FEITO 2026-09-16, falta rodar migração]** ~~Estoque de agenda: tabela
-  `espacos` + `reservas`~~ — `2026_09_16_espacos_reservas.sql` cria as
-  tabelas com `unique index` parcial em `(espaco_id, data) where
-  tipo='confirmada'`, e `POST /api/propostas/[id]/aceitar` já reserva a data
-  antes de marcar a proposta como aceita (409 se a data já foi confirmada
-  por outra proposta). Só a reserva CONFIRMADA está wired; `hold` (proposta
-  enviada, ainda não aceita) ficou no schema sem uso por enquanto.
-- **[FEITO 2026-09-16, falta rodar migração]** ~~RLS escopada por
-  `atendente_id`~~ — `2026_09_16_rls_hardening.sql` restringe **leitura** de
-  `clientes`/`eventos`/`propostas` a dono-ou-staff-financeiro/admin.
-  Escrita ficou deliberadamente aberta a qualquer staff (não era o
-  vazamento descrito — ver nota na entrada de 2026-09-16 acima antes de
-  mexer de novo nisso). Efeito colateral corrigido: `GET /api/dashboard`
-  precisou trocar pra `adminClient()` pra manter os KPIs da empresa inteira
-  (senão viraria "KPI só dos meus leads" pra atendente).
-- **[FEITO 2026-09-16, falta rodar migração]** ~~`status` como texto livre em
-  5 tabelas~~ — código pronto (`ClienteCard`/`page.js` etc já assumem os
-  valores validados), migração `2026_09_16_status_check_constraints.sql`
-  escrita cobrindo 6 tabelas. Falta só rodar no SQL editor do Supabase.
-- **[FEITO 2026-09-16, falta rodar migração]** ~~`contratos.proposta_id`~~ —
-  FK + backfill escritos em `2026_09_16_contratos_proposta_id.sql`, código
-  já manda o id ao criar contrato. Falta rodar a migração.
-- **[FEITO 2026-09-16, falta rodar migração]** ~~`clientes.email`~~ — coluna
-  em `2026_09_16_clientes_email.sql`, campo no formulário de nova-proposta e
-  editável na tela do cliente já prontos. Falta rodar a migração. Ainda vale
-  avaliar depois o perfil ampliado (`clientes_perfil` 1:1) e dado sensível
-  separado (`clientes_restricoes` — alimentar/religião, LGPD art. 5º II,
-  nunca no payload RSC público) — isso não entrou nessa rodada.
-- **[FEITO 2026-09-16, falta rodar migração]** ~~`updated_at` genérico~~ —
-  trigger `set_updated_at()` escrito em `2026_09_16_updated_at_generico.sql`
-  pras 6 tabelas sem auditoria de mudança. Falta rodar a migração.
-- **[FEITO 2026-09-16]** ~~Extrair `CardLead`/`ColunaStatus`~~ de
-  `app/painel/page.js` — arquivo caiu de 15KB pra ~7KB, split em
-  `ClienteCard.js`/`ModalLogMovimento.js`/`DashboardResumo.js`/`kanbanStatus.js`.
+- **Avaliar perfil ampliado do cliente**: `clientes.email` já existe (ver
+  2026-09-16), mas o perfil ainda é raso. Se fizer sentido, `clientes_perfil`
+  1:1 (demografia, preferências) e `clientes_restricoes` separada pra dado
+  sensível (alimentar/religião, LGPD art. 5º II, nunca no payload RSC
+  público).
 - **Custom properties no `globals.css`**: cor **já está tokenizada**
   (`:root` em `app/globals.css` tem `--sage`/`--gold`/`--creme`/etc + aliases
   — achado da revisão estava desatualizado nesse ponto). O que falta de
@@ -438,18 +404,15 @@ Feito:
   campos são array olhando o item (`item.itens_inclusos` existe?). Um
   `{campo, tipo}` por tabela elimina a classe de bug já documentada no
   [CLAUDE.md](./CLAUDE.md).
-- **[FEITO 2026-09-16]** ~~Teste pra numeração de capítulos~~ — lógica
-  extraída pra `lib/capitulosProposta.js`, 5 testes novos em
-  `tests/capitulosProposta.test.mjs`.
 - **Lead score materializado**: hoje recalcula varrendo analytics a cada
   abertura do board — mover pra coluna atualizada no
   `POST /proposta-analytics`.
-- **[FEITO 2026-09-16, falta rodar migração]** ~~Tabela de versões de termos
-  com hash~~ — resolvido sem tabela nova: `2026_09_16_aceite_termos_hash.sql`
-  adiciona `propostas.aceite_termos_hash` (SHA-256 do texto exato exibido no
-  aceite, calculado em `POST /api/propostas/[id]/aceitar`), exposto no
-  comprovante admin. `termos.js` já versiona o texto no git; o hash prova o
-  que aquele cliente especificamente leu.
+- **"Hold" de reserva**: `reservas.tipo='hold'` existe no schema
+  (`espacos_reservas`, 2026-09-16) mas nada cria essas linhas ainda — hoje só
+  a reserva CONFIRMADA (no aceite) trava a agenda. Um hold ao ENVIAR a
+  proposta (com `expira_em`) mostraria "data em disputa" pro vendedor antes
+  do aceite, mas precisa de rotina de expiração (cron/edge) — não é so' o
+  insert.
 - **[AÇÃO MANUAL] Alerta de log na Cloudflare**: Workers Logs já está ligado,
   falta configurar notificação (Workers & Pages → personare-proposta →
   Notifications → alerta por taxa de erro 4xx/5xx). Item 10 do checklistseguro.

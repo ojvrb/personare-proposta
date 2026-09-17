@@ -40,6 +40,17 @@ de fechar sessão ou trocar de feature.
 do Supabase — sem pressa dessa vez, o deploy já é seguro nos dois sentidos
 (ver nota do `extras.disponivel_cliente` acima).
 
+Commitado (`b8cf775`), pushed pro `origin/main` e deployado (versão
+`e22e43b3-33d7-4154-ace5-4a35f5087679`). **`ci.yml` NÃO foi pro repo** — o
+push foi rejeitado (`refusing to allow a Personal Access Token to create or
+update workflow ... without 'workflow' scope`), um commit separado
+(`116ee3f`) tirou o arquivo do git pra destravar o resto. O arquivo continua
+em `.github/workflows/ci.yml` no disco local (não versionado); pra ativar o
+CI, adicione o token com escopo `workflow` (GitHub → Settings → Developer
+settings → Personal access tokens) e faça `git add .github/workflows/ci.yml
+&& git commit && git push`, ou cole o conteúdo direto pela interface web do
+GitHub (Add file → Create new file).
+
 ## 2026-09-17 — Migrações rodadas, commit + push + deploy
 
 As 7 migrações de 2026-09-16 (`clientes_email`, `contratos_proposta_id`,

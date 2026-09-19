@@ -3,11 +3,24 @@
 Diário curto do que já está pronto e o que vem em seguida. Atualizar antes
 de fechar sessão ou trocar de feature.
 
-## ⚠️ LEMBRETE — testar o login antes de deployar
+## 2026-09-19 — NO AR (deploy em 2 etapas)
+
+Commits `070ef08` (auth httpOnly, hold, extras em tempo real, RSVP, correções
+de segurança) e `a5a182f` (Next 16.3.5), pushed pro `origin/main`. As 3
+migrações já estavam rodadas. Deploys separados, com smoke em produção
+(`/login` 200, `/painel` → 307, APIs 401, login falso 401 sem Set-Cookie,
+RSVP 403, proposta pública 200 + noindex, headers de segurança):
+1. `78b097fc-a022-451b-a0c2-769e1e000a85` — tudo, ainda no Next 15.5.25.
+2. `dcbdc6a4-a1f5-4e86-808c-0ef69178723e` — Next 16.3.5 (**versão atual**).
+Versão anterior a ambos: `e22e43b3-33d7-4154-ace5-4a35f5087679`. Rollback do
+Next 16: `npx wrangler rollback 78b097fc-a022-451b-a0c2-769e1e000a85`; de tudo:
+`… e22e43b3-…`.
+
+## ⚠️ LEMBRETE — testar o login (JÁ ESTÁ EM PRODUÇÃO, ainda não testado com senha real)
 
 A troca pra cookie `httpOnly` (login/logout no servidor) só foi validada nos
-caminhos de falha e com Supabase simulado — **nunca com senha real**. Antes
-de qualquer deploy: `npm run dev`, entrar, navegar pelo painel, clicar em
+caminhos de falha e com Supabase simulado — **nunca com senha real**. Faça
+agora em produção (ou no dev): entrar, navegar pelo painel, clicar em
 "Sair", e conferir em DevTools → Application → Cookies que `sb-…-auth-token`
 está `HttpOnly`. Se o painel deslogar sozinho ou o login não entrar, o
 suspeito é essa mudança (ou o Next 16 aplicado junto — ver abaixo). Apagar

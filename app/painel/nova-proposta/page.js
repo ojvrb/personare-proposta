@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { calcularProposta } from "@/lib/pricing";
+import { substituiBuffet } from "@/lib/extras";
 
 export default function NovaPropostaPage() {
   const [dados, setDados] = useState(null); // pacotes/buffets/extras
@@ -18,6 +19,7 @@ export default function NovaPropostaPage() {
   const [origem, setOrigem] = useState("");
   const [tipo, setTipo] = useState("casamento");
   const [dataEvento, setDataEvento] = useState("");
+  const [agenda, setAgenda] = useState(null); // { confirmada, holds } do dia escolhido
   const [numConvidados, setNumConvidados] = useState(100);
   const [pacoteId, setPacoteId] = useState("");
   const [buffetId, setBuffetId] = useState(""); // recomendado -- e' o que define o preco
@@ -37,12 +39,23 @@ export default function NovaPropostaPage() {
       .catch(() => setErro("erro ao carregar pacotes/buffets/extras"));
   }, []);
 
+  useEffect(() => {
+    setAgenda(null);
+    if (!dataEvento) return;
+    let cancelado = false;
+    fetch(`/api/reservas/disponibilidade?data=${dataEvento}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelado) setAgenda(d); })
+      .catch(() => {});
+    return () => { cancelado = true; };
+  }, [dataEvento]);
+
   const extrasSelecionados = useMemo(
     () => Object.entries(extrasSel).filter(([, qtd]) => qtd > 0).map(([extra_id, quantidade]) => ({ extra_id, quantidade })),
     [extrasSel]
   );
   const buffetSubstituido = useMemo(
-    () => extrasSelecionados.some((sel) => dados?.extras.find((e) => e.id === sel.extra_id)?.substitui_buffet),
+    () => substituiBuffet(extrasSelecionados, dados?.extras),
     [extrasSelecionados, dados]
   );
 
@@ -181,6 +194,14 @@ export default function NovaPropostaPage() {
             <div className="field">
               <label>Data do evento</label>
               <input type="date" value={dataEvento} onChange={(e) => setDataEvento(e.target.value)} />
+              {agenda?.confirmada && (
+                <div className="alert err" style={{ marginTop: 6, fontSize: 12 }}>Essa data já tem um evento confirmado. Uma nova proposta pra esse dia não vai conseguir ser aceita.</div>
+              )}
+              {agenda && !agenda.confirmada && agenda.holds > 0 && (
+                <div className="alert" style={{ marginTop: 6, fontSize: 12, background: "rgba(217,154,43,.14)", border: "1px solid var(--amber)" }}>
+                  Data em disputa: {agenda.holds} outra{agenda.holds > 1 ? "s" : ""} proposta{agenda.holds > 1 ? "s" : ""} em aberto pra esse dia. Quem aceitar primeiro leva.
+                </div>
+              )}
             </div>
             <div className="field">
               <label>Nº de convidados</label>

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 const LIMITE_MS = 10 * 60 * 1000; // 10 minutos
 const EVENTOS = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "wheel"];
@@ -18,7 +17,7 @@ export default function useLogoffInativo() {
     function reset() {
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(async () => {
-        await createClient().auth.signOut();
+        await fetch("/api/auth/logout", { method: "POST" });
         router.push("/login?reason=idle");
       }, LIMITE_MS);
     }

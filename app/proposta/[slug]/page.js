@@ -221,7 +221,7 @@ export default async function PropostaPublicaPage({ params }) {
           -- assim o slider (client) e o bloco de investimento (client) leem
           o mesmo estado. As secoes SERVER entre eles (checklist do pacote)
           continuam server-rendered normalmente, sao apenas children do provider. */}
-      <EscolhaBuffetProvider recomendadoId={proposta.buffet_id}>
+      <EscolhaBuffetProvider recomendadoId={proposta.buffet_id} propostaId={proposta.id} bloqueado={jaAceita || jaAssinado}>
 
       {/* CAPITULO 02 -- A COMIDA */}
       {vitrineBuffets.length > 0 && (

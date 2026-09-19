@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import NotificationBell from "@/app/components/NotificationBell";
 import useLogoffInativo from "./useLogoffInativo";
 
@@ -59,8 +58,7 @@ export default function PainelLayout({ children }) {
   }, [menuAberto]);
 
   async function sair() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
   }
 

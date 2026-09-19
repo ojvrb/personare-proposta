@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { calcularProposta, gerarSlug } from "@/lib/pricing";
+import { substituiBuffet } from "@/lib/extras";
 import { expurgar } from "@/lib/proposta";
 
 // POST: cria uma nova versao (v2, v3...) da proposta quando o buffet ou o
@@ -33,19 +34,22 @@ export async function POST(req, { params }) {
   const convidadosAnterior = atual.eventos.num_convidados;
   const buffetIdAnterior = atual.buffet_id;
   const numConvidadosNovo = num_convidados !== undefined ? Number(num_convidados) : convidadosAnterior;
-  const buffetIdNovo = buffet_id !== undefined ? (buffet_id || null) : buffetIdAnterior;
+  const buffetIdPedido = buffet_id !== undefined ? (buffet_id || null) : buffetIdAnterior;
 
   if (num_convidados !== undefined) {
     const { error } = await supabase.from("eventos").update({ num_convidados: numConvidadosNovo }).eq("id", atual.evento_id);
     if (error) { console.error(error); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
   }
 
-  const [{ data: maxVersaoRow }, { data: pacote }, { data: buffet }, { data: extras }] = await Promise.all([
+  // Extra com substitui_buffet na proposta: o buffet interno nao entra (mesma
+  // regra de POST /propostas e /aceitar) -- sem isso a v2 cobrava buffet + taxa.
+  const [{ data: extras }, { data: maxVersaoRow }, { data: pacote }] = await Promise.all([
+    supabase.from("extras").select("*"),
     supabase.from("propostas").select("versao").eq("evento_id", atual.evento_id).order("versao", { ascending: false }).limit(1).single(),
     atual.pacote_id ? supabase.from("pacotes").select("*").eq("id", atual.pacote_id).single() : Promise.resolve({ data: null }),
-    buffetIdNovo ? supabase.from("buffets").select("*").eq("id", buffetIdNovo).single() : Promise.resolve({ data: null }),
-    supabase.from("extras").select("*"),
   ]);
+  const buffetIdNovo = substituiBuffet(atual.extras_selecionados, extras) ? null : buffetIdPedido;
+  const { data: buffet } = buffetIdNovo ? await supabase.from("buffets").select("*").eq("id", buffetIdNovo).single() : { data: null };
 
   const { subtotal, total } = calcularProposta({
     pacote,
@@ -78,6 +82,9 @@ export async function POST(req, { params }) {
     .select()
     .single();
   if (novaErr) { console.error(novaErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
+
+  // O hold da data acompanha a versao mais nova (um hold por evento, nao um por versao).
+  await supabase.from("reservas").update({ proposta_id: nova.id }).eq("proposta_id", atual.id).eq("tipo", "hold");
 
   const campo = buffet_id !== undefined && num_convidados !== undefined ? "buffet_e_convidados" : buffet_id !== undefined ? "buffet" : "convidados";
   await supabase.from("propostas_ajustes").insert({

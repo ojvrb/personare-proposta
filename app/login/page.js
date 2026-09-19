@@ -2,7 +2,6 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   return (
@@ -25,11 +24,15 @@ function LoginPageInner() {
     e.preventDefault();
     setErr("");
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: pw }),
+    });
+    const data = await res.json().catch(() => ({}));
     setLoading(false);
-    if (error) {
-      setErr(traduz(error.message));
+    if (!res.ok) {
+      setErr(data.error || "Não foi possível entrar.");
       return;
     }
     router.push("/painel");
@@ -59,11 +62,4 @@ function LoginPageInner() {
       </form>
     </div>
   );
-}
-
-function traduz(msg = "") {
-  const m = msg.toLowerCase();
-  if (m.includes("invalid login")) return "Email ou senha incorretos.";
-  if (m.includes("email not confirmed")) return "Confirme seu email antes de entrar.";
-  return msg;
 }

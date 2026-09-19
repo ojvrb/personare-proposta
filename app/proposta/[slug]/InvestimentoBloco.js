@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { calcularProposta } from "@/lib/pricing";
+import { substituiBuffet } from "@/lib/extras";
 import AceitarProposta from "./AceitarProposta";
 import { useEscolhaBuffet } from "./EscolhaBuffetContext";
 
@@ -25,8 +26,8 @@ export default function InvestimentoBloco({
 
   // Se algum extra tem substitui_buffet=true (ex: taxa de cozinha pra buffet
   // externo), o buffet interno sai do calculo -- o cliente vai trazer o proprio.
-  const substituiBuffet = extrasMerged.some((sel) => extras.find((e) => e.id === sel.extra_id)?.substitui_buffet);
-  const buffetEfetivo = substituiBuffet ? null : buffetAtual;
+  const trocaBuffet = substituiBuffet(extrasMerged, extras);
+  const buffetEfetivo = trocaBuffet ? null : buffetAtual;
 
   const { precoPacote, precoBuffet, subtotal, total } = useMemo(() => calcularProposta({
     pacote, buffet: buffetEfetivo, numConvidados,

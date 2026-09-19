@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { getPerfil } from "@/lib/perfil";
+import { expurgar } from "@/lib/proposta";
 
 // GET: detalhe completo do cliente -- evento(s), propostas (+ ajustes de valor),
 // timeline de notas, contrato/pagamentos, atendente responsavel e transferencia pendente.
@@ -22,6 +23,10 @@ export async function GET(req, { params }) {
     supabase.from("transferencias_lead").select("*").eq("cliente_id", id).eq("status", "pendente").maybeSingle(),
   ]);
   if (clienteErr) { console.error(clienteErr); return NextResponse.json({ error: "nao encontrado" }, { status: 404 }); }
+
+  // propostas(*) traz aceite_cpf/ip/user_agent -- CPF integral so' sai pela rota
+  // admin que registra o acesso (propostas/[id]/aceite), nunca neste payload.
+  cliente.eventos = (cliente.eventos || []).map((e) => ({ ...e, propostas: expurgar(e.propostas) }));
 
   const { data: authList } = await adminClient().auth.admin.listUsers();
   const emailPorId = Object.fromEntries(authList.users.map((u) => [u.id, u.email]));

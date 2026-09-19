@@ -43,18 +43,20 @@ export default function RsvpPage({ params }) {
         <h2 style={{ marginTop: 0 }}>Confirmar presença</h2>
         <p style={{ color: "var(--granite)" }}>Digite seu nome como está no convite.</p>
         {erro && <div className="alert err">{erro}</div>}
-        <div className="field">
-          <label>Nome</label>
-          <input value={nome} onChange={(e) => setNome(e.target.value)} />
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn primary" disabled={enviando} onClick={() => confirmar("confirmado")} style={{ flex: 1 }}>
-            Vou! 🎉
-          </button>
-          <button className="btn" disabled={enviando} onClick={() => confirmar("nao_vai")} style={{ flex: 1 }}>
-            Não vou conseguir
-          </button>
-        </div>
+        <form onSubmit={(e) => { e.preventDefault(); confirmar("confirmado"); }}>
+          <div className="field">
+            <label>Nome</label>
+            <input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={120} />
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="submit" className="btn primary" disabled={enviando} style={{ flex: 1 }}>
+              Vou! 🎉
+            </button>
+            <button type="button" className="btn" disabled={enviando} onClick={() => confirmar("nao_vai")} style={{ flex: 1 }}>
+              Não vou conseguir
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

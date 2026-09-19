@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { getPerfil } from "@/lib/perfil";
 import { calcularProposta, gerarSlug } from "@/lib/pricing";
+import { substituiBuffet } from "@/lib/extras";
+import { criarHold } from "@/lib/reservas";
 import { COLUNAS_PROPOSTA_PUBLICA } from "@/lib/proposta";
 
 // GET: lista clientes + eventos + propostas pro painel (CRM + configurador).
@@ -113,9 +115,9 @@ export async function POST(req) {
   // pra buffet externo, etc), o buffet interno sai da proposta -- forca
   // buffet_id=null e ignora o buffet no calculo, mesmo que o vendedor tenha
   // enviado um id.
-  const substituiBuffet = (extras_selecionados || []).some((sel) => (extrasRes.data || []).find((e) => e.id === sel.extra_id)?.substitui_buffet);
-  const buffetFinal = substituiBuffet ? null : buffetRes.data;
-  const buffetIdFinal = substituiBuffet ? null : (buffet_id || null);
+  const trocaBuffet = substituiBuffet(extras_selecionados, extrasRes.data);
+  const buffetFinal = trocaBuffet ? null : buffetRes.data;
+  const buffetIdFinal = trocaBuffet ? null : (buffet_id || null);
 
   const { subtotal, total } = calcularProposta({
     pacote: pacoteRes.data,
@@ -135,7 +137,7 @@ export async function POST(req) {
       evento_id: eventoRow.id,
       pacote_id: pacote_id || null,
       buffet_id: buffetIdFinal,
-      buffets_sugeridos: substituiBuffet ? [] : buffets_sugeridos,
+      buffets_sugeridos: trocaBuffet ? [] : buffets_sugeridos,
       extras_selecionados,
       desconto,
       subtotal,
@@ -147,6 +149,8 @@ export async function POST(req) {
     .select()
     .single();
   if (propostaErr) { console.error(propostaErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
+
+  await criarHold(supabase, { propostaId: propostaRow.id, dataEvento: eventoRow.data_evento, validaAte });
 
   return NextResponse.json({ proposta: propostaRow, link: `/proposta/${slug}` });
 }

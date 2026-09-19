@@ -4,6 +4,9 @@ import { adminClient } from "@/lib/supabase/admin";
 import { expurgar, mascararCPF } from "@/lib/proposta";
 import { calcularProposta } from "@/lib/pricing";
 import { limitarPorIp } from "@/lib/rateLimit";
+import { validarCPF } from "@/lib/cpf";
+import { substituiBuffet, extrasAceitosDoCliente } from "@/lib/extras";
+import { confirmarReserva } from "@/lib/reservas";
 import { textoTermos } from "@/app/proposta/[slug]/termos";
 
 // POST publico -- aceite da proposta pelo cliente. Sob a lei brasileira, uma
@@ -92,22 +95,20 @@ export async function POST(req, { params }) {
       proposta.pacote_id ? supabase.from("pacotes").select("*").eq("id", proposta.pacote_id).single() : Promise.resolve({ data: null }),
       proposta.buffet_id ? supabase.from("buffets").select("*").eq("id", proposta.buffet_id).single() : Promise.resolve({ data: null }),
     ]);
-    const idsSelVendedor = new Set((proposta.extras_selecionados || []).map((e) => e.extra_id));
-    adicionadosPeloCliente = (extrasCat || [])
-      .filter((ex) => ex.ativo && ex.disponivel_cliente !== false && idsPedidos.includes(ex.id) && !idsSelVendedor.has(ex.id))
-      .map((ex) => {
-        const pedido = extrasCliente.find((e) => e.extra_id === ex.id);
-        return { extra_id: ex.id, quantidade: Math.max(1, Number(pedido?.quantidade) || 1), pelo_cliente: true };
-      });
+    adicionadosPeloCliente = extrasAceitosDoCliente({
+      extrasCatalogo: extrasCat,
+      pedidos: extrasCliente,
+      idsVendedor: new Set((proposta.extras_selecionados || []).map((e) => e.extra_id)),
+    });
     if (adicionadosPeloCliente.length > 0) {
       extrasSelecionadosFinal = [...(proposta.extras_selecionados || []), ...adicionadosPeloCliente];
     }
     // Se qualquer extra da proposta (vendedor OU cliente) tem substitui_buffet,
     // o buffet interno sai do calculo E o buffet_id fica null na proposta salva.
-    const substituiBuffet = extrasSelecionadosFinal.some((sel) => (extrasCat || []).find((e) => e.id === sel.extra_id)?.substitui_buffet);
-    const buffetPraCalc = substituiBuffet ? null : buffet;
-    if (substituiBuffet) buffetIdFinal = null;
-    if (adicionadosPeloCliente.length > 0 || substituiBuffet) {
+    const trocaBuffet = substituiBuffet(extrasSelecionadosFinal, extrasCat);
+    const buffetPraCalc = trocaBuffet ? null : buffet;
+    if (trocaBuffet) buffetIdFinal = null;
+    if (adicionadosPeloCliente.length > 0 || trocaBuffet) {
       const { subtotal, total } = calcularProposta({
         pacote, buffet: buffetPraCalc, numConvidados: proposta.eventos?.num_convidados || 0,
         extras: extrasCat || [], extrasSelecionados: extrasSelecionadosFinal,
@@ -118,23 +119,15 @@ export async function POST(req, { params }) {
   }
 
   // Trava a data ANTES de marcar a proposta como aceita -- o unique index
-  // parcial em reservas (espaco_id, data) where tipo='confirmada' e' quem
-  // garante isso atomicamente: se duas propostas pro mesmo dia forem aceitas
-  // quase juntas, a segunda INSERT estoura unique_violation aqui e a gente
-  // nunca chega a marcar aquela proposta como aceita. Sem data marcada no
-  // evento, nao ha o que reservar -- segue direto pro aceite (sem trava).
+  // parcial em reservas (espaco_id, data) where tipo='confirmada' garante
+  // atomicamente: se duas propostas pro mesmo dia forem aceitas quase juntas,
+  // a segunda nunca chega a ser marcada como aceita (ver lib/reservas.js).
+  // Sem data marcada no evento nao ha o que reservar.
   const dataEvento = proposta.eventos?.data_evento;
-  if (dataEvento) {
-    const { data: espaco } = await supabase.from("espacos").select("id").eq("ativo", true).limit(1).maybeSingle();
-    if (espaco) {
-      const { error: reservaErr } = await supabase
-        .from("reservas")
-        .insert({ espaco_id: espaco.id, data: dataEvento, tipo: "confirmada", proposta_id: id });
-      if (reservaErr && reservaErr.code !== "23505") { console.error(reservaErr); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
-      if (reservaErr) {
-        return NextResponse.json({ error: "essa data ja foi reservada por outra proposta aceita -- fale com o Espaco Personare antes de continuar" }, { status: 409 });
-      }
-    }
+  const reserva = await confirmarReserva(supabase, { propostaId: id, dataEvento });
+  if (reserva.erro) { console.error(reserva.erro); return NextResponse.json({ error: "erro ao processar" }, { status: 500 }); }
+  if (reserva.conflito) {
+    return NextResponse.json({ error: "essa data ja foi reservada por outra proposta aceita -- fale com o Espaco Personare antes de continuar" }, { status: 409 });
   }
 
   // Hash do TEXTO exato exibido no momento do aceite (nao so' o rotulo de
@@ -196,19 +189,3 @@ export async function POST(req, { params }) {
 
   return NextResponse.json({ proposta: expurgar(atualizada) });
 }
-
-// Validacao de CPF (algoritmo do modulo 11) -- rejeita sequencias repetidas
-// (11111111111) que passam formalmente mas nao sao CPFs reais. Sem lib externa.
-function validarCPF(cpf) {
-  if (!/^\d{11}$/.test(cpf)) return false;
-  if (/^(\d)\1{10}$/.test(cpf)) return false;
-  const nums = cpf.split("").map(Number);
-  for (let t = 9; t < 11; t++) {
-    let soma = 0;
-    for (let i = 0; i < t; i++) soma += nums[i] * (t + 1 - i);
-    const dv = ((soma * 10) % 11) % 10;
-    if (dv !== nums[t]) return false;
-  }
-  return true;
-}
-

@@ -1,7 +1,7 @@
 # Personare Proposta
 
 CRM + configurador de propostas + proposta pública + contratos pro Espaço
-Personare Eventos (Ponta Grossa/PR). Stack: **Next.js 15 App Router
+Personare Eventos (Ponta Grossa/PR). Stack: **Next.js 16 App Router
 (JavaScript, sem TypeScript) + Supabase (Postgres + Auth + RLS) + Cloudflare
 Workers via @opennextjs/cloudflare**.
 
@@ -10,8 +10,9 @@ Workers via @opennextjs/cloudflare**.
 ```bash
 npm install
 npm run dev           # localhost:3000
-npm test              # node --test nativo (tests/*.test.mjs) -- pricing, proposta, perfil, allowlist
-npm run build         # verifica build
+npm test              # node --test nativo (tests/*.test.mjs) -- lib/ (pricing, extras, reservas, cpf...)
+npm run build         # verifica build (NAO rode com o `next dev` ligado: os dois usam .next e o dev
+                      # passa a dar 500 ENOENT em vendor-chunks -- pare o dev, apague .next, suba de novo)
 npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
 ```
 
@@ -19,6 +20,10 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
 `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Estrutura das rotas
+
+> Next 16: `middleware.js` ainda funciona mas o Next avisa que a convenção virou `proxy`
+> (`npx @next/codemod@canary middleware-to-proxy .`). Mantido como está porque é o que foi
+> validado no runtime do Cloudflare; migrar num passo separado.
 
 - `/login` — Supabase Auth por email/senha (não tem magic link).
 - `/painel/*` — CRM protegido por middleware. Papéis: `admin`, `financeiro`,
@@ -38,6 +43,7 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
 - `/proposta/[slug]` — proposta pública (sem login). Storytelling em capítulos.
   `PropostaTracker.js` mede abertura + tempo por capítulo (lead score no CRM).
 - `/proposta/[slug]/convidados` — RSVP pós-fechamento.
+- `/api/auth/login` + `/api/auth/logout` — login/logout **no servidor** (ver cookie httpOnly abaixo).
 - `/api/*` — Route Handlers. Muitos são wrappers finos em `lib/crudApi.js`
   (allowlist de campos via `lib/allowlist.js` — ver regra abaixo).
 - `/api/proposta-analytics` — público, grava tracking de leitura via service role.
@@ -46,9 +52,11 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
 
 ## Regras não-óbvias que doem se ignorar
 
-- **RLS em tudo**. Toda tabela usa policy `staff acesso total` (autenticado) +
-  `leitura publica` só onde precisa (`proposta/[slug]` público). Ao adicionar
-  tabela, **sempre** habilite RLS antes de subir.
+- **RLS em tudo**. Toda tabela tem RLS ligado; tabelas "comuns" usam policy
+  `staff acesso total` (autenticado) + `leitura publica` só onde precisa
+  (`proposta/[slug]` público). As sensíveis (perfis, catálogo, financeiro,
+  clientes/eventos/propostas) têm policy por papel/dono — ver "RLS" em
+  Segurança/operacional. Ao adicionar tabela, **sempre** habilite RLS antes de subir.
 - **Preço é recalculado no servidor** (`app/api/propostas/route.js`). Nunca
   confie no `total` do client.
 - **CPF / IP nunca vazam pra client**. `lib/proposta.js` tem `expurgar()` e
@@ -57,17 +65,24 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   versão dos termos automaticamente no backend. Não mexe no fluxo sem
   entender `AceitarProposta.js` + `termos.js`.
 - **Extras podem ser adicionados pelo cliente na proposta pública**
-  (`ExtrasCliente.js`). São efêmeros no browser (state em
-  `EscolhaBuffetContext`) até o aceite; o `POST /aceitar` valida contra
-  catálogo, mescla em `extras_selecionados` com `pelo_cliente: true` e
-  recalcula `subtotal`/`total`. Nunca confiar no total do client. Ao filtrar
-  extras exibidos ao vendedor, lembrar que `pelo_cliente: true` marca origem.
+  (`ExtrasCliente.js`). O state fica no browser (`EscolhaBuffetContext`) até o
+  aceite; o `POST /aceitar` valida contra catálogo (`extrasAceitosDoCliente`
+  em `lib/extras.js`), mescla em `extras_selecionados` com `pelo_cliente:
+  true` e recalcula `subtotal`/`total`. Nunca confiar no total do client. Ao
+  filtrar extras exibidos ao vendedor, lembrar que `pelo_cliente: true` marca
+  origem. **Antes do aceite** o contexto também avisa o servidor (PUT debounced
+  em `/api/propostas/[id]/extras-cliente`, público + rate limit) que grava só
+  um SINAL em `propostas.extras_cliente_pendente` — o vendedor vê "o casal está
+  considerando…" em `clientes/[id]`. Esse campo NUNCA entra em total nem em
+  `extras_selecionados`; o valor definitivo continua sendo o do aceite.
 - **`extras.substitui_buffet`** (bool): quando um extra com essa flag entra na
   proposta (vendedor OU cliente adicionando na pública), o buffet interno sai
-  do cálculo E o `buffet_id` gravado vai pra null. Checagem em 4 lugares:
-  `InvestimentoBloco` (public), `nova-proposta` (configurador), `POST /propostas`
-  e `POST /aceitar`. Ao adicionar um novo caminho que grave `extras_selecionados`,
-  aplicar a mesma checagem — senão o total salvo diverge do exibido.
+  do cálculo E o `buffet_id` gravado vai pra null. A regra vive em UM lugar,
+  `substituiBuffet()` em `lib/extras.js`, usada por `InvestimentoBloco`
+  (public), `nova-proposta` (configurador), `POST /propostas`, `POST /aceitar`
+  e `POST /nova-versao` (esta última não checava — a v2 cobrava buffet + taxa).
+  Ao adicionar um novo caminho que grave `extras_selecionados`, chame o mesmo
+  helper — senão o total salvo diverge do exibido.
 - **Cardápio do buffet é separado por categoria**: `buffets.itens_entrada`,
   `itens_prato`, `itens_sobremesa` (arrays de texto), não uma coluna `itens`
   flat. Padrão pra adicionar categoria nova (ex: bebida): migration `alter
@@ -85,7 +100,9 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   `/api/propostas`.
 - **Depoimentos**: `evento_tipos text[]` (array vazio = curinga; ver
   `supabase/migrations/2026_09_14_depoimentos_multi_tipos.sql`). A coluna
-  antiga `evento_tipo` ainda existe mas o código **não lê**.
+  antiga `evento_tipo` é derrubada por `2026_09_17_drop_depoimentos_evento_tipo.sql`
+  (o código nunca mais leu). Não confundir com `proposta_textos_tipo.evento_tipo`,
+  que é outra tabela e está em uso.
 - **Textos da proposta pública** funcionam em cascata:
   `textos por tipo` → `textos padrão` → default do código
   (ver `placeholderCascata` em `app/painel/proposta/page.js`).
@@ -109,8 +126,10 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   é `espaco → decoracao → buffet → pacote → depoimentos → investimento`
   (depoimentos antes do preço — prova social embala a decisão). Cada
   capítulo só entra em `capitulos` se tem conteúdo (foto ativa, buffet
-  curado, pacote, etc.). A numeração `01/02/…` sai de `capitulos.indexOf`,
-  então mudar a ordem afeta os números que o casal vê. Cada `<section>` tem
+  curado, pacote, etc.). A lista e a numeração `01/02/…` saem de
+  `montarCapitulos`/`numCapitulo` em `lib/capitulosProposta.js` (testado em
+  `tests/capitulosProposta.test.mjs`), então mudar a ordem afeta os números
+  que o casal vê. Cada `<section>` tem
   `data-capitulo="..."` pro `PropostaTracker.js` medir tempo de leitura.
 - **Mass assignment**: `crudApi.js` recebe um `campos` (allowlist) opcional —
   toda rota que usa `crudHandlers()` deve declarar as colunas aceitas em
@@ -133,8 +152,16 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   `console.error(error)` + mensagem genérica (ver `erroServidor()` em
   `lib/crudApi.js`, reaplicar o mesmo padrão em rotas que não usam
   `crudHandlers()`).
-- **Rotas públicas sem login** (`proposta-analytics`, `rsvp`,
-  `propostas/[id]/aceitar`) passam por `limitarPorIp()`
+- **RSVP** (`/api/rsvp`, público): só funciona com a proposta **aceita**
+  (403 antes disso), o nome digitado é escapado com `escaparLike` antes do
+  `.ilike` (senão `%`/`_` viram curinga e sobrescrevem o status de outro
+  convidado) e tem limite de 120 caracteres. `app/proposta/layout.js` marca
+  proposta + RSVP como `noindex`.
+- **Inputs a 16px em touch**: `globals.css` força `font-size:16px` em
+  `.field input/select/textarea` sob `(pointer:coarse)` — abaixo disso o iOS
+  Safari dá zoom na página ao focar. Não reduza.
+- **Rotas públicas sem login** (`proposta-analytics`, `rsvp`, `auth/login`,
+  `propostas/[id]/aceitar`, `propostas/[id]/extras-cliente`) passam por `limitarPorIp()`
   (`lib/rateLimit.js`) antes de tocar no banco — usa o binding
   `RATE_LIMITER` do `wrangler.jsonc` (rate limit nativo da Cloudflare, 20
   req/60s por IP). Ao criar uma rota nova sem login, aplicar o mesmo guard.
@@ -143,14 +170,21 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   `(espaco_id, data) where tipo='confirmada'` — só uma reserva CONFIRMADA
   por dia. `POST /api/propostas/[id]/aceitar` insere a reserva ANTES de
   marcar a proposta como aceita; se der `unique_violation` (23505), devolve
-  409 e nunca aceita a segunda proposta pro mesmo dia. `tipo='hold'` existe
-  no schema mas nada cria essas linhas ainda (não wired).
+  409 e nunca aceita a segunda proposta pro mesmo dia. Toda a lógica está em
+  `lib/reservas.js` (`confirmarReserva`, `criarHold`, `soltarHold`) e vale
+  também pro `PATCH /api/propostas/[id]` com `status: "aceita"` (o staff
+  marcando pelo painel passa pela mesma trava). **Hold**: `POST /propostas`
+  cria um `tipo='hold'` com `expira_em` = fim do dia de `valida_ate`; hold
+  expirado não é apagado por cron, só deixa de contar na leitura
+  (`reservaAtiva`). O hold sai no aceite/perdida, acompanha a nova versão
+  (`nova-versao`) e `GET /api/reservas/disponibilidade?data=` alimenta o aviso
+  "data em disputa"/"já confirmada" do configurador.
 - **`extras.disponivel_cliente`**: controla se o extra aparece na vitrine
   que o cliente monta sozinho (`ExtrasCliente.js`, proposta pública).
-  Validado nos DOIS lados — filtro no componente E checagem em
-  `POST /api/propostas/[id]/aceitar` (linha que monta
-  `adicionadosPeloCliente`). Ao mexer nessa checagem, mantenha os dois em
-  sincronia — o client-side sozinho não impede um POST direto na API.
+  Validado nos DOIS lados — filtro no componente E `extrasAceitosDoCliente`
+  (`lib/extras.js`, usado no `POST /aceitar` e no PUT de extras pendentes,
+  coberto por `tests/extras.test.mjs`). Ao mexer nessa regra, mantenha os dois
+  em sincronia — o client-side sozinho não impede um POST direto na API.
 - **`propostas.aceite_termos_hash`**: SHA-256 do texto exato de
   `textoTermos(...)` (`app/proposta/[slug]/termos.js`) renderizado no
   momento do aceite, calculado em `POST /api/propostas/[id]/aceitar`. Prova
@@ -178,6 +212,11 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   em push/PR pra `main`, sem secrets) — só valida, não deploya. Escrito mas
   push de arquivo em `.github/workflows/` precisa de PAT com escopo
   `workflow`; se faltar, adicionar pela interface web do GitHub.
+- **Dev aponta pro banco de PRODUÇÃO** (`.env.local` usa o mesmo Supabase).
+  Abrir `/proposta/<slug>` real no `next dev` dispara o `PropostaTracker` e
+  grava "abertura" em `proposta_analytics` (suja o lead score do cliente de
+  verdade); testes de escrita (RSVP, aceite) também gravam de verdade. Não
+  navegue em proposta real pra testar UI e não teste POST em slug real.
 - **Commit só quando autorizado.** Não fazer `git commit`/`git push`/`npm run
   deploy` sem ordem explícita nesta sessão.
 - **HTTPS forçado + HSTS só em produção** (`middleware.js` + `next.config.js`).
@@ -186,7 +225,12 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
   `localhost` por até 2 anos (`preload`), e quebra teste local mesmo depois
   de corrigir o código — só limpando o estado HSTS do browser resolve.
 - **Cookie de sessão**: `lib/supabase/cookieOptions.js` seta `secure: true`
-  só em produção (mesma lógica do HSTS acima, mesmo motivo).
+  só em produção (mesma lógica do HSTS acima, mesmo motivo) e **`httpOnly:
+  true`**. Por isso login/logout acontecem no servidor (`app/api/auth/login` e
+  `logout`) e **não existe mais `createBrowserClient`** — um XSS não alcança
+  mais o token. Nunca reintroduza um client de browser do Supabase: ele não
+  enxerga a sessão httpOnly e o painel deslogaria. Logout invalida a sessão no
+  Supabase (`signOut`) e apaga o cookie.
 - **Logoff por inatividade**: 10min, via `app/painel/useLogoffInativo.js`
   no layout do painel. Redireciona pra `/login?reason=idle`.
 - **RLS deixou de ser "staff autenticado = acesso total" pra tudo**
@@ -224,8 +268,11 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
 - **Arquivos**: prefira editar o existente. Não crie `.md` novos sem pedido.
 - **Testes**: `npm test` (`node --test`, zero dependência nova) cobre lógica
   pura em `lib/` — `pricing`, `proposta`, `perfil`, `allowlist`,
-  `capitulosProposta` (numeração dos capítulos da proposta pública, extraída
-  de `app/proposta/[slug]/page.js` pra ficar testável). `lib/*.js`
+  `capitulosProposta`, `extras` (substituiBuffet/extras do cliente), `reservas`
+  (disponibilidade/hold), `cpf`, `like`. Padrão pra testar rota de API: extrair
+  a regra pra `lib/` como função pura (foi assim com `validarCPF` e
+  `extrasAceitosDoCliente`, que saíram do `POST /aceitar`) — não há harness de
+  HTTP e a rota em si importa `next/server`. `lib/*.js`
   roda como ESM sob Node puro por causa de `lib/package.json`
   (`{"type":"module"}`) — não mexe nisso sem entender por quê (o resto do
   projeto, incluindo `next.config.js`, é CommonJS). Código em `lib/` que
@@ -241,6 +288,8 @@ npm run deploy        # sobe pro Workers (npm run build + wrangler deploy)
 - `lib/crudApi.js` — CRUD genérico usado pela maioria das rotas (allowlist
   via `lib/allowlist.js`).
 - `lib/pricing.js` — `calcularProposta` (fonte da verdade do total).
+- `lib/extras.js` — regras de extras (`substituiBuffet`, `extrasAceitosDoCliente`).
+- `lib/reservas.js` — agenda: confirmada/hold, disponibilidade.
 - `app/globals.css` — design system + responsivo. Muitas regras
   mobile-only vivem aqui em `@media (max-width:860px)` ou `(pointer:coarse)`.
 

@@ -4,11 +4,11 @@
 // na hora) pra que a interatividade entre secoes server-rendered funcione.
 // O buffet inicial vem do recomendado pelo staff; os extras do cliente comecam
 // vazios -- so' entram no total quando ele clica "adicionar".
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const Ctx = createContext(null);
 
-export function EscolhaBuffetProvider({ recomendadoId, children }) {
+export function EscolhaBuffetProvider({ recomendadoId, propostaId, bloqueado, children }) {
   const [escolhidoId, setEscolhidoId] = useState(null);
   // Extras que o proprio cliente adiciona na proposta publica.
   // Shape: [{extra_id, quantidade}] -- mesmo do banco. Vao pro total ja no
@@ -26,6 +26,23 @@ export function EscolhaBuffetProvider({ recomendadoId, children }) {
   const setQuantidadeExtra = useCallback((extra_id, quantidade) => {
     setExtrasCliente((atual) => atual.map((e) => e.extra_id === extra_id ? { ...e, quantidade: Math.max(1, Number(quantidade) || 1) } : e));
   }, []);
+
+  // Avisa o servidor das escolhas (debounce) pra o vendedor ver em tempo real o
+  // que o casal esta considerando, mesmo sem aceite. Falha silenciosa: e' so'
+  // sinal, o valor definitivo vai no POST /aceitar. Pula o primeiro render.
+  const primeiro = useRef(true);
+  useEffect(() => {
+    if (primeiro.current) { primeiro.current = false; return; }
+    if (!propostaId || bloqueado) return;
+    const t = setTimeout(() => {
+      fetch(`/api/propostas/${propostaId}/extras-cliente`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ extras_cliente: extrasCliente }),
+      }).catch(() => {});
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [extrasCliente, propostaId, bloqueado]);
 
   return (
     <Ctx.Provider value={{ escolhidoId, setEscolhidoId, recomendadoId, extrasCliente, adicionarExtra, removerExtra, setQuantidadeExtra }}>

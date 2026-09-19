@@ -3,6 +3,100 @@
 Diário curto do que já está pronto e o que vem em seguida. Atualizar antes
 de fechar sessão ou trocar de feature.
 
+## ⚠️ LEMBRETE — testar o login antes de deployar
+
+A troca pra cookie `httpOnly` (login/logout no servidor) só foi validada nos
+caminhos de falha e com Supabase simulado — **nunca com senha real**. Antes
+de qualquer deploy: `npm run dev`, entrar, navegar pelo painel, clicar em
+"Sair", e conferir em DevTools → Application → Cookies que `sb-…-auth-token`
+está `HttpOnly`. Se o painel deslogar sozinho ou o login não entrar, o
+suspeito é essa mudança (ou o Next 16 aplicado junto — ver abaixo). Apagar
+este lembrete depois de testado.
+
+## 2026-09-19 — Limpeza do backlog (httpOnly, hold, extras em tempo real, RSVP, testes) — NÃO commitado
+
+Tudo local, **sem commit/push/deploy** (regra do projeto — esperando ordem).
+`npm test` 42/42 e `npm run build` passam. Ver "Antes de subir" no fim.
+
+- **Cookie de sessão `httpOnly`**: login/logout agora no servidor
+  (`app/api/auth/login` e `logout`, login com `limitarPorIp`), `cookieOptions`
+  com `httpOnly: true`, e o `createBrowserClient` (`lib/supabase/client.js`)
+  foi **removido** — só era usado no login, no "Sair" e no logoff por
+  inatividade. Um XSS não lê mais a sessão. Verificado: caminhos de falha da
+  rota (401 sem Set-Cookie, 400, logout sem sessão, `/painel` → 307 login) e,
+  com um Supabase falso, que o cookie emitido sai `httpOnly` + `secure` (prod)
+  + `sameSite=lax`. **NÃO verificado: login com senha real** (não tenho
+  credencial) — testar antes de subir, ver abaixo.
+- **Hold de reserva** (sem cron): `POST /propostas` cria hold com `expira_em`
+  = fim do dia de `valida_ate`; hold expirado só deixa de contar na leitura.
+  Sai no aceite/perdida, acompanha a `nova-versao`. Novo
+  `GET /api/reservas/disponibilidade?data=` + aviso no configurador ("data em
+  disputa" / "já confirmada"). Lógica em `lib/reservas.js` (testada). Sem
+  migração nova — `reservas.tipo='hold'`/`expira_em` já existiam.
+  - **Furo achado e fechado**: `PATCH /api/propostas/[id]` deixava o staff
+    marcar "aceita" **sem passar pela trava de agenda** (dava pra confirmar
+    dois eventos no mesmo dia pelo painel). Agora usa `confirmarReserva`.
+- **Extras do cliente em tempo real**: `PUT /api/propostas/[id]/extras-cliente`
+  (público, rate limit, sanitizado contra o catálogo) grava só um sinal em
+  `propostas.extras_cliente_pendente`; o vendedor vê "o casal está
+  considerando…" no card da proposta. **Migração nova**:
+  `2026_09_20_extras_cliente_pendente.sql`. Enquanto ela não rodar, o PUT
+  responde 500 (silencioso pro cliente — o front ignora falha) e nada quebra.
+- **RSVP (revisão mobile)**: bug real — `.ilike("nome", nome)` tratava `%`/`_`
+  como curinga (um convidado digitando `%` sobrescrevia o status de outro);
+  agora `escaparLike`. Também: só aceita RSVP com proposta **aceita** (antes
+  qualquer um enchia a lista de um lead em aberto), valida tipo/tamanho do
+  nome, `<form>` (Enter confirma), `autocomplete`, e input a 16px em touch
+  (iOS dava zoom ao focar — vale pro `.field` do app todo). Proposta e RSVP
+  ganharam `noindex` (`app/proposta/layout.js`).
+- **Bug latente em `nova-versao`**: copiava `extras_selecionados` mas não
+  aplicava `substitui_buffet` (v2 cobrava buffet + taxa de cozinha). Agora usa
+  o helper único `substituiBuffet` (`lib/extras.js`), também adotado pelas
+  outras 4 rotas/telas que tinham a regra copiada.
+- **Vazamento de CPF/IP pro painel (achado ao revisar)**: `GET
+  /api/clientes/[id]` fazia `propostas(*)` sem `expurgar()`, então
+  `aceite_cpf`/`aceite_ip`/`aceite_user_agent` chegavam **em claro** no
+  browser de qualquer staff (até atendente), contra a regra de "CPF integral
+  só pela rota admin que registra o acesso". Corrigido com `expurgar()`; o
+  painel não lia esses campos dali (o comprovante busca em
+  `/api/propostas/[id]/aceite`). Conferi as outras rotas que leem `propostas`:
+  só essa vazava.
+- **Testes** (24 → 42): `lib/extras.js`, `lib/cpf.js` (extraído do `/aceitar`),
+  `lib/reservas.js`, `lib/like.js`. As rotas em si seguem sem harness HTTP —
+  o padrão é extrair a regra pra `lib/` (documentado no CLAUDE.md).
+- **Raio de borda como token**: `--radius-sm/md/lg/pill` no `:root`, 30
+  literais trocados (computed style idêntico). Sombra já era token
+  (`--shadow-soft`). **Espaçamento ficou de fora de propósito** — valores
+  arbitrários e quase todos inline no JSX; uma escala não pagaria o retrofit.
+- **Next 16.3.5 — APLICADO** (no working tree, não commitado; `package.json`
+  + lock): `npm test` 42/42, `next build` (Turbopack) e
+  `opennextjs-cloudflare build` ok, e smoke em workerd local na árvore real
+  (`/login`, redirect do painel, 404, APIs, rota de login, RSVP, extras).
+  Único aviso: `middleware` → `proxy` (deprecação, mantido; ver CLAUDE.md).
+  **Risco**: vai junto com a mudança de auth httpOnly. Se preferir deploys
+  separados: `git stash`/commits separados (Next 16 = só `package.json` e
+  `package-lock.json`) e subir o auth primeiro.
+- **Fora, com motivo**: *lead score materializado* (premissa da revisão
+  estava errada — só a tela de detalhe do cliente calcula, por cliente, não
+  o board; custo desprezível) e *perfil ampliado do cliente* (precisa de
+  decisão de produto sobre campos + texto de consentimento LGPD; sem isso
+  seria tabela sem uso).
+- **Incidente meu, corrigido**: ao abrir uma proposta real no dev server o
+  tracker gravou 1 "abertura" em produção; apaguei só essa linha (id 19,
+  conferida pelo horário). Regra nova no CLAUDE.md: dev aponta pro banco de
+  produção.
+
+**Antes de subir (ordem):**
+1. Rodar no SQL editor (dentro de `begin; … commit;`) as **3 migrações
+   pendentes**: `2026_09_17_extras_disponivel_cliente.sql`,
+   `2026_09_17_drop_depoimentos_evento_tipo.sql`,
+   `2026_09_20_extras_cliente_pendente.sql`. (Conferido via REST em
+   2026-09-19: as duas de 09-17 ainda não tinham rodado.)
+2. **Testar o login de verdade**: `npm run dev` (ou o preview na 3100), entrar
+   com uma conta, navegar pelo painel, clicar em "Sair" e conferir no
+   DevTools → Application → Cookies que `sb-…-auth-token` está `HttpOnly`.
+3. Só então commit → push → deploy (Next 16 já está no working tree; se quiser separar, ver nota acima).
+
 ## 2026-09-17 — CI, dedup do catálogo, extras granulares
 
 `npm test` (24/24) e `npm run build` passam limpo. 4 itens do backlog:
@@ -437,50 +531,30 @@ Feito:
 
 ## Próximos passos (candidatos)
 
-- **Avaliar perfil ampliado do cliente**: `clientes.email` já existe (ver
-  2026-09-16), mas o perfil ainda é raso. Se fizer sentido, `clientes_perfil`
-  1:1 (demografia, preferências) e `clientes_restricoes` separada pra dado
-  sensível (alimentar/religião, LGPD art. 5º II, nunca no payload RSC
-  público).
-- **Custom properties no `globals.css`**: cor **já está tokenizada**
-  (`:root` em `app/globals.css` tem `--sage`/`--gold`/`--creme`/etc + aliases
-  — achado da revisão estava desatualizado nesse ponto). O que falta de
-  verdade é espaçamento/raio/sombra, que hoje são valores inline por
-  componente (ex: `style={{ padding: 10 }}` espalhado). Escopo maior que os
-  outros itens dessa rodada (retrofit em várias telas) — não entrou.
-- **Lead score materializado**: hoje recalcula varrendo analytics a cada
-  abertura do board — mover pra coluna atualizada no
-  `POST /proposta-analytics`.
-- **"Hold" de reserva**: `reservas.tipo='hold'` existe no schema
-  (`espacos_reservas`, 2026-09-16) mas nada cria essas linhas ainda — hoje só
-  a reserva CONFIRMADA (no aceite) trava a agenda. Um hold ao ENVIAR a
-  proposta (com `expira_em`) mostraria "data em disputa" pro vendedor antes
-  do aceite, mas precisa de rotina de expiração (cron/edge) — não é so' o
-  insert.
 - **[AÇÃO MANUAL] Alerta de log na Cloudflare**: Workers Logs já está ligado,
   falta configurar notificação (Workers & Pages → personare-proposta →
   Notifications → alerta por taxa de erro 4xx/5xx). Item 10 do checklistseguro.
-- **Extras cliente antes do aceite**: hoje só grava se ele aceita. Se o
-  vendedor quiser ver em tempo real o que o cliente escolheu (mesmo sem
-  aceite), criar endpoint `PATCH /api/propostas/[id]/extras-cliente` público
-  e persistir a cada toggle.
-- **RSVP dos convidados** (`/proposta/[slug]/convidados`) — funciona mas não
-  foi revisado nessa passada mobile.
-- **CI faz deploy também?**: o workflow de 2026-09-17 só valida (test+build).
-  Decidir se some deploy automático em push pra `main` — precisa de secret
-  `CLOUDFLARE_API_TOKEN` no GitHub e é uma mudança de processo (deploy deixa
-  de ser manual), então não fiz sem confirmar.
-- **Next 16**: estamos em 15.5.25, major 16.3.5 disponível. Upgrade de major
-  precisa de janela própria, não de carona em outra feature.
-- **`httpOnly` no cookie de sessão**: o `@supabase/ssr` usa `httpOnly: false`
-  por padrão (o SDK do browser precisa ler o token). É a arquitetura oficial
-  do Supabase pra Next, mas significa que um XSS conseguiria ler a sessão.
-  Fechar isso = mover login/logout pra Server Actions e largar o
-  `createBrowserClient`. Refatoração grande; avaliar se compensa.
-- **Cobertura de teste**: 19 testes cobrem `pricing`, `proposta`, `perfil`,
-  `allowlist`. As 42 rotas de API não têm teste — o caminho mais valioso
-  seria `POST /propostas` e `POST /aceitar` (onde o preço é a fonte da
-  verdade).
+- **[AÇÃO MANUAL] Ativar o CI**: `.github/workflows/ci.yml` está no disco,
+  não versionado — o PAT não tem escopo `workflow`. Adicionar o escopo e
+  `git add/commit/push`, ou colar o arquivo pela interface web do GitHub.
+- **CI faz deploy também?** O workflow só valida (test+build). Deploy
+  automático em push pra `main` exige secret `CLOUDFLARE_API_TOKEN` e muda o
+  processo (deploy deixa de ser manual) — decisão sua.
+- **middleware → proxy** (Next 16): só deprecação; migrar com o codemod num
+  passo separado, validando no preview do Cloudflare.
+- **Perfil ampliado do cliente**: `clientes_perfil` 1:1 + `clientes_restricoes`
+  (alimentar/religião = dado sensível, LGPD art. 5º II, consentimento
+  específico, nunca no payload RSC público). Precisa definir campos e texto
+  de consentimento antes de escrever schema.
+- **Espaçamento como token no CSS**: descartado por ora (ver 2026-09-19); só
+  vale se um redesign mexer nas telas de qualquer forma.
+- **Hold: notificar/mostrar no board**: o hold só aparece hoje no aviso do
+  configurador; falta mostrar "data em disputa" no card do lead e na agenda
+  (`/painel/eventos`) se fizer diferença pro time.
+- **Cobertura de rota de API**: a lógica crítica do `/aceitar` (CPF, extras,
+  substitui_buffet) e da agenda está em `lib/` com teste. Continua sem teste
+  o encaixe final (rota + Supabase) — só um harness de integração contra
+  banco de teste resolveria; avaliar se compensa.
 
 ## Coisas que valem lembrar
 

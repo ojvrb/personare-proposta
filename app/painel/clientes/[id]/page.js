@@ -45,6 +45,7 @@ export default function ClienteDetalhePage({ params }) {
   const [dados, setDados] = useState(null);
   const [colegas, setColegas] = useState([]);
   const [buffets, setBuffets] = useState([]);
+  const [extras, setExtras] = useState([]);
   const [meuRole, setMeuRole] = useState(null);
   const [erro, setErro] = useState("");
   const [nota, setNota] = useState("");
@@ -64,6 +65,7 @@ export default function ClienteDetalhePage({ params }) {
     carregar();
     fetch("/api/perfis").then((r) => r.json()).then((d) => setColegas(d.colegas || []));
     fetch("/api/buffets").then((r) => r.json()).then((d) => setBuffets(d.items || []));
+    fetch("/api/extras").then((r) => r.json()).then((d) => setExtras(d.items || []));
   }, [id]);
 
   async function enviarNota(e) {
@@ -273,7 +275,7 @@ export default function ClienteDetalhePage({ params }) {
           <h4>Propostas</h4>
           {(evento.propostas || []).length === 0 && <p style={{ color: "var(--granite)", fontSize: 13 }}>Nenhuma proposta ainda.</p>}
           {(evento.propostas || []).map((p) => (
-            <Proposta key={p.id} proposta={p} numConvidadosAtual={evento.num_convidados} buffets={buffets} onStatus={atualizarPropostaStatus} onAjustar={ajustarProposta} onNovaVersao={novaVersaoProposta} />
+            <Proposta key={p.id} proposta={p} numConvidadosAtual={evento.num_convidados} buffets={buffets} extras={extras} onStatus={atualizarPropostaStatus} onAjustar={ajustarProposta} onNovaVersao={novaVersaoProposta} />
           ))}
 
           <h4>Contrato</h4>
@@ -352,7 +354,7 @@ function ModalFechamento({ cliente, onConfirmar, onCancelar }) {
   );
 }
 
-function Proposta({ proposta: p, numConvidadosAtual, buffets, onStatus, onAjustar, onNovaVersao }) {
+function Proposta({ proposta: p, numConvidadosAtual, buffets, extras, onStatus, onAjustar, onNovaVersao }) {
   const [ajustando, setAjustando] = useState(false);
   const [revisando, setRevisando] = useState(false);
   const [novoBuffetId, setNovoBuffetId] = useState(p.buffet_id || "");
@@ -424,6 +426,12 @@ function Proposta({ proposta: p, numConvidadosAtual, buffets, onStatus, onAjusta
           </span>
         )}
       </div>
+
+      {!["aceita", "perdida"].includes(p.status) && (p.extras_cliente_pendente || []).length > 0 && (
+        <div style={{ fontSize: 12, color: "var(--gold-dark)", marginBottom: 8 }}>
+          O casal está considerando (ainda não aceitou): {p.extras_cliente_pendente.map((e) => `${extras.find((x) => x.id === e.extra_id)?.nome || "extra"}${e.quantidade > 1 ? ` x${e.quantidade}` : ""}`).join(", ")}
+        </div>
+      )}
 
       {p.status === "perdida" && p.motivo_categoria && (
         <div style={{ fontSize: 12, color: "var(--granite)", marginBottom: 8 }}>

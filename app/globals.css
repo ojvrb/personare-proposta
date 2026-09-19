@@ -20,6 +20,12 @@
   --bad:#B23B32;
   --shadow-soft:0 8px 40px rgba(43,43,38,.08); /* ambiente, nunca direcional */
 
+  /* escala de raio -- valores que ja se repetiam no CSS; use estes em regra nova */
+  --radius-sm:10px;   /* inputs, botoes pequenos */
+  --radius-md:16px;   /* cards menores */
+  --radius-lg:20px;   /* cards e paineis */
+  --radius-pill:100px;/* pilulas, badges, botoes redondos */
+
   /* aliases -- todo var(--x) ja usado no app aponta pro token novo
      equivalente, entao o resto do CRM herda a paleta sem precisar editar
      arquivo por arquivo (ver frontend-design pass, proposta publica). */
@@ -71,7 +77,7 @@ h1{font-size:26px;margin:0 0 4px}
 .selo::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--stroke),transparent);max-width:80px}
 
 .btn{
-  font-family:var(--font);font-size:14px;border-radius:100px;padding:10px 18px;
+  font-family:var(--font);font-size:14px;border-radius:var(--radius-pill);padding:10px 18px;
   border:1px solid var(--stroke);background:var(--white);color:var(--ink);cursor:pointer;
   transition:border-color .15s,color .15s,background .15s;
 }
@@ -83,21 +89,23 @@ h1{font-size:26px;margin:0 0 4px}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .field label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.02em;color:var(--granite)}
 .field input, .field select, .field textarea{
-  background:var(--pitch-2);border:1px solid var(--stroke);border-radius:10px;color:var(--bone);
+  background:var(--pitch-2);border:1px solid var(--stroke);border-radius:var(--radius-sm);color:var(--bone);
   padding:10px 12px;font-size:14px;font-family:var(--font);
 }
 .field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--sage);outline-offset:1px}
+/* iOS Safari da' zoom na pagina ao focar input com fonte < 16px */
+@media (pointer:coarse){.field input,.field select,.field textarea{font-size:16px}}
 
-.card{border:1px solid var(--stroke);border-radius:16px;background:var(--pitch);padding:20px}
+.card{border:1px solid var(--stroke);border-radius:var(--radius-md);background:var(--pitch);padding:20px}
 
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
-.badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:4px 10px;border-radius:100px;background:var(--sage-wash);border:1px solid var(--stroke);color:var(--sage-dark)}
+.badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:4px 10px;border-radius:var(--radius-pill);background:var(--sage-wash);border:1px solid var(--stroke);color:var(--sage-dark)}
 
-.alert{padding:10px 12px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.alert{padding:10px 12px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:14px}
 .alert.err{background:rgba(178,59,50,.08);border:1px solid var(--red);color:var(--ink)}
 .alert.ok{background:rgba(76,122,82,.08);border:1px solid var(--green);color:var(--ink)}
 
-.radio-row, .check-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--stroke);border-radius:10px;margin-bottom:8px;background:var(--pitch-2)}
+.radio-row, .check-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--stroke);border-radius:var(--radius-sm);margin-bottom:8px;background:var(--pitch-2)}
 .radio-row.selected, .check-row.selected{border-color:var(--gold)}
 
 /* Nova proposta -- form + resumo lado a lado no desktop, empilhados no mobile. */
@@ -122,7 +130,7 @@ h1{font-size:26px;margin:0 0 4px}
 
 /* Stat tile: regua fina dourada no topo -- assinatura visual reaproveitada
    em qualquer card de numero (analytics, resumos). */
-.stat{border:1px solid var(--stroke);border-radius:16px;background:var(--pitch);padding:16px 18px;position:relative;overflow:hidden}
+.stat{border:1px solid var(--stroke);border-radius:var(--radius-md);background:var(--pitch);padding:16px 18px;position:relative;overflow:hidden}
 .stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold)}
 .stat .k{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--granite)}
 .stat .v{font-family:var(--display);font-size:26px;font-weight:600;color:var(--sage-dark);margin-top:6px}
@@ -160,7 +168,7 @@ h1{font-size:26px;margin:0 0 4px}
 .ornament-dot{width:6px;height:6px;background:var(--gold);transform:rotate(45deg);flex-shrink:0}
 
 .eyebrow{
-  display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:100px;
+  display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:var(--radius-pill);
   background:var(--sage-wash);border:1px solid var(--stroke);color:var(--sage-dark);
   font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
   opacity:0;animation:rise .8s cubic-bezier(.16,1,.3,1) .1s both;
@@ -202,7 +210,7 @@ h1{font-size:26px;margin:0 0 4px}
 }
 
 .flat-card{
-  border:1px solid var(--stroke);border-radius:20px;background:var(--white);overflow:hidden;
+  border:1px solid var(--stroke);border-radius:var(--radius-lg);background:var(--white);overflow:hidden;
   transition:box-shadow .35s cubic-bezier(.16,1,.3,1),transform .35s cubic-bezier(.16,1,.3,1),border-color .35s;
 }
 .flat-card:hover{box-shadow:var(--shadow-soft);transform:translateY(-3px);border-color:transparent}
@@ -283,7 +291,7 @@ h1{font-size:26px;margin:0 0 4px}
   .checklist li::before{width:20px;height:20px;background-size:12px}
 }
 .checklist li::before{
-  content:"";flex-shrink:0;width:24px;height:24px;border-radius:100px;
+  content:"";flex-shrink:0;width:24px;height:24px;border-radius:var(--radius-pill);
   background:var(--sage-wash);border:1px solid var(--sage);
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%235C6E52' stroke-width='2.5'><path d='M4 10l4 4 8-8'/></svg>");
   background-repeat:no-repeat;background-position:center;background-size:14px;
@@ -325,7 +333,7 @@ h1{font-size:26px;margin:0 0 4px}
 .depoimento-autor b{display:block;font-family:var(--display);font-size:17px;font-weight:500;color:var(--ink);letter-spacing:-0.01em}
 .depoimento-cargo{font-size:12px;color:var(--stone);margin-top:2px;font-family:var(--mono);letter-spacing:.02em}
 .depoimento-foto{
-  width:52px;height:52px;border-radius:100px;object-fit:cover;flex-shrink:0;
+  width:52px;height:52px;border-radius:var(--radius-pill);object-fit:cover;flex-shrink:0;
   border:2px solid var(--white);box-shadow:0 4px 12px rgba(0,0,0,.08);
 }
 .depoimento-foto--placeholder{
@@ -333,7 +341,7 @@ h1{font-size:26px;margin:0 0 4px}
   font-family:var(--display);font-weight:500;font-size:20px;
 }
 .depoimento-nav{
-  width:40px;height:40px;border-radius:100px;border:1px solid var(--stroke);background:var(--white);
+  width:40px;height:40px;border-radius:var(--radius-pill);border:1px solid var(--stroke);background:var(--white);
   color:var(--ink);font-size:20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
   transition:background .15s,border-color .15s,transform .15s;
 }
@@ -377,7 +385,7 @@ h1{font-size:26px;margin:0 0 4px}
    Lendora (Behance), adaptada ao sage/gold da marca. */
 .dashboard-hero{
   display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
-  background:var(--stroke);border:1px solid var(--stroke);border-radius:20px;overflow:hidden;
+  background:var(--stroke);border:1px solid var(--stroke);border-radius:var(--radius-lg);overflow:hidden;
   margin-bottom:12px;
 }
 .kpi-hero{
@@ -414,7 +422,7 @@ h1{font-size:26px;margin:0 0 4px}
    coluna a direita pra barra + tags de contexto. */
 .barra-range{
   display:grid;grid-template-columns:auto 1fr;column-gap:32px;row-gap:8px;align-items:center;
-  padding:clamp(24px,3vw,36px);border-radius:20px;
+  padding:clamp(24px,3vw,36px);border-radius:var(--radius-lg);
   background:linear-gradient(120deg,var(--creme) 0%,#F5EBD8 55%,var(--sage-wash) 100%);
   border:1px solid var(--stroke);
 }
@@ -455,7 +463,7 @@ h1{font-size:26px;margin:0 0 4px}
    do Behance Lendora. Recebe uma serie de numeros (`serie`) e desenha
    uma linha suavizada em quadratic beziers. */
 .wave-card{
-  border-radius:20px;background:var(--pitch-2);border:1px solid var(--stroke);
+  border-radius:var(--radius-lg);background:var(--pitch-2);border:1px solid var(--stroke);
   padding:clamp(20px,2.5vw,28px);display:flex;flex-direction:column;gap:14px;
 }
 .wave-eyebrow{
@@ -483,7 +491,7 @@ h1{font-size:26px;margin:0 0 4px}
    do Behance Lendora. Cor varia por faixa (baixo/medio/alto) via prop cor. */
 .gauge{
   display:flex;flex-direction:column;align-items:center;gap:12px;
-  padding:clamp(24px,3vw,36px);border-radius:20px;background:var(--white);
+  padding:clamp(24px,3vw,36px);border-radius:var(--radius-lg);background:var(--white);
   border:1px solid var(--stroke);
 }
 .gauge-inner{position:relative;width:100%;max-width:320px;aspect-ratio:2/1.1}
@@ -505,7 +513,7 @@ h1{font-size:26px;margin:0 0 4px}
    cabecalho fixo, corpo com scroll (termos legiveis) e rodape com checkbox +
    inputs + botao confirmar. O aceite so' libera apos scroll ate o fim. */
 .modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(43,43,38,.65);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
-.modal-caixa{background:var(--white);border-radius:20px;max-width:640px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 80px rgba(0,0,0,.35);overflow:hidden}
+.modal-caixa{background:var(--white);border-radius:var(--radius-lg);max-width:640px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 80px rgba(0,0,0,.35);overflow:hidden}
 .modal-cabecalho{padding:20px 24px 16px;border-bottom:1px solid var(--stroke);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-shrink:0}
 .modal-conteudo{padding:24px;overflow-y:auto;flex:1;text-align:left}
 .modal-rodape{padding:20px 24px 24px;border-top:1px solid var(--stroke);flex-shrink:0;background:var(--pitch-2)}
@@ -559,7 +567,7 @@ h1{font-size:26px;margin:0 0 4px}
    contador N/M em vez de dots-quando-many. */
 .photo-slider-viewport{position:relative}
 .photo-slider-count{
-  position:absolute;top:14px;right:14px;padding:6px 12px;border-radius:100px;
+  position:absolute;top:14px;right:14px;padding:6px 12px;border-radius:var(--radius-pill);
   background:rgba(0,0,0,.45);color:#fff;font-size:12px;font-family:var(--mono);
   backdrop-filter:blur(6px);pointer-events:none;z-index:2;
 }
@@ -590,7 +598,7 @@ h1{font-size:26px;margin:0 0 4px}
 }
 .sidebar-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
 .sidebar-brand-mark{
-  width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:var(--radius-sm);flex-shrink:0;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(135deg,var(--sage),var(--gold));color:var(--white);
   font-family:var(--display);font-weight:600;font-size:17px;
 }
@@ -606,7 +614,7 @@ h1{font-size:26px;margin:0 0 4px}
 
 .sidebar-nav{display:flex;flex-direction:column;gap:2px}
 .sidebar-link{
-  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:100px;
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-pill);
   color:var(--ink);font-weight:600;font-size:14px;text-decoration:none;
   border:1px solid transparent;transition:background .15s,border-color .15s;background:none;cursor:pointer;text-align:left;width:100%;font-family:var(--font);
 }
@@ -616,7 +624,7 @@ h1{font-size:26px;margin:0 0 4px}
 
 .sidebar-cta{
   display:flex;align-items:center;justify-content:center;gap:8px;
-  background:var(--sage);color:var(--white);border-radius:100px;padding:12px;font-weight:700;font-size:14px;
+  background:var(--sage);color:var(--white);border-radius:var(--radius-pill);padding:12px;font-weight:700;font-size:14px;
   text-decoration:none;transition:background .15s;border:none;cursor:pointer;font-family:var(--font);
 }
 .sidebar-cta:hover{background:var(--sage-dark)}
@@ -636,7 +644,7 @@ h1{font-size:26px;margin:0 0 4px}
     border-bottom:1px solid var(--line);background:var(--white);position:sticky;top:0;z-index:60;
   }
   .hamburger-btn{
-    background:none;border:1px solid var(--line);border-radius:10px;width:38px;height:38px;
+    background:none;border:1px solid var(--line);border-radius:var(--radius-sm);width:38px;height:38px;
     display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);flex-shrink:0;
   }
   .sidebar{
@@ -646,7 +654,7 @@ h1{font-size:26px;margin:0 0 4px}
   }
   .sidebar.aberta{transform:translateX(0)}
   .sidebar-close{
-    display:flex;align-self:flex-end;background:none;border:1px solid var(--line);border-radius:10px;
+    display:flex;align-self:flex-end;background:none;border:1px solid var(--line);border-radius:var(--radius-sm);
     width:32px;height:32px;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);margin-bottom:-8px;
   }
   .sidebar-backdrop{position:fixed;inset:0;background:rgba(43,43,38,.4);z-index:99;border:none;padding:0;cursor:pointer}
@@ -654,15 +662,15 @@ h1{font-size:26px;margin:0 0 4px}
 }
 
 /* Notificacoes: sino com contagem + painel dropdown. */
-.notif-bell{position:relative;background:none;border:1px solid var(--line);border-radius:100px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.notif-bell{position:relative;background:none;border:1px solid var(--line);border-radius:var(--radius-pill);width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .notif-bell:hover{background:var(--creme-2)}
-.notif-count{position:absolute;top:-4px;right:-4px;background:var(--bad);color:var(--white);font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:100px;display:flex;align-items:center;justify-content:center;padding:0 3px}
+.notif-count{position:absolute;top:-4px;right:-4px;background:var(--bad);color:var(--white);font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:var(--radius-pill);display:flex;align-items:center;justify-content:center;padding:0 3px}
 .notif-panel{
   /* ancorada na borda esquerda do sino e abrindo pra cima: no desktop o
      sino fica perto do fundo da sidebar (coluna alta), entao abrir pra
      baixo cortaria o painel. */
   position:absolute;left:0;bottom:calc(100% + 8px);width:320px;max-height:400px;overflow-y:auto;
-  background:var(--white);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-soft);
+  background:var(--white);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-soft);
   padding:8px;z-index:50;
 }
 @media (max-width:860px){
@@ -675,7 +683,7 @@ h1{font-size:26px;margin:0 0 4px}
     width:auto;max-width:none;
   }
 }
-.notif-item{display:block;padding:10px 12px;border-radius:10px;text-decoration:none;color:var(--ink)}
+.notif-item{display:block;padding:10px 12px;border-radius:var(--radius-sm);text-decoration:none;color:var(--ink)}
 .notif-item:hover{background:var(--creme-2)}
 
 /* ============================================================
@@ -694,7 +702,7 @@ html{scroll-snap-type:y proximity}
 }
 
 .photo-slider-nav{
-  position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:100px;
+  position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:var(--radius-pill);
   border:none;background:rgba(0,0,0,.35);color:#fff;font-size:20px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);
   transition:background .15s;
@@ -720,7 +728,7 @@ html{scroll-snap-type:y proximity}
 
 /* Controle segmentado (pill group) -- toggle de range/modo de visualizacao,
    reaproveitado no Analytics e na Agenda de eventos. */
-.segmented{display:inline-flex;border:1px solid var(--stroke);border-radius:100px;overflow:hidden}
+.segmented{display:inline-flex;border:1px solid var(--stroke);border-radius:var(--radius-pill);overflow:hidden}
 .segmented button{border:none;border-radius:0;background:transparent;padding:8px 16px;font-size:13px;font-family:var(--font);cursor:pointer;color:var(--stone);transition:background .15s,color .15s}
 .segmented button:hover{background:var(--creme-2)}
 .segmented button.active{background:var(--sage);color:var(--white);font-weight:600}
@@ -730,6 +738,6 @@ html{scroll-snap-type:y proximity}
 .funil-barra:hover{transform:translateX(2px)}
 .funil-barra.selecionada{outline:2px solid var(--gold)}
 
-.delta-badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:100px}
+.delta-badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--radius-pill)}
 .delta-badge.up{background:var(--sage-wash);color:var(--sage-dark)}
 .delta-badge.down{background:rgba(178,59,50,.1);color:var(--bad)}
